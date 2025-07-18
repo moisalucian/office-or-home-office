@@ -1,0 +1,39 @@
+{
+  "name": "office-or-homeoffice",
+  "version": "1.0.0",
+  "description": "Aplicație pentru status birou vs remote",
+  "main": "electron/main.js",
+  "scripts": {
+    "start": "cross-env NODE_ENV=development concurrently -k \"npm run dev --prefix react-ui\" \"npm run electron-dev\"",
+    "electron-dev": "wait-on http://localhost:5173 && electron .",
+    "build-react": "npm run build --prefix react-ui",
+    "build": "npm run build-react && electron-builder"
+  },
+  "keywords": [],
+  "author": "Numele Tău",
+  "license": "ISC",
+  "devDependencies": {
+    "concurrently": "^9.2.0",
+    "cross-env": "^7.0.3",
+    "electron": "^37.2.2",
+    "electron-builder": "^26.0.12",
+    "wait-on": "^8.0.3"
+  },
+  "build": {
+    "appId": "com.office.homeoffice.app",
+    "productName": "Office or Home Office",
+    "directories": {
+      "buildResources": "assets"
+    },
+    "files": [
+      "electron/**",
+      "preload.js",
+      "react-ui/dist/**",
+      "package.json"
+    ],
+    "extraResources": [],
+    "win": {
+      "target": "nsis"
+    }
+  }
+}

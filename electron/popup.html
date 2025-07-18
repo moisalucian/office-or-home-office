@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+  <meta charset="UTF-8" />
+  <title>Vii mâine?</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      background: transparent !important;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    .popup-container {
+      background-color: #2b2b2b;
+      padding: 2rem;
+      border-radius: 16px;
+      box-shadow: 0 0 20px rgba(0, 0, 0, 0.6);
+      max-width: 320px;
+      width: 100%;
+      max-height: 90vh; /* sau 100vh dacă vrei full screen */
+      overflow-y: auto;
+      text-align: center;
+      position: relative;
+      animation: fadeIn 0.5s ease-out;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: scale(0.98);
+      }
+      to {
+        opacity: 1;
+        transform: scale(1);
+      }
+    }
+
+    h2 {
+      margin-bottom: 2rem;
+      font-size: 1.2rem;
+      color: white;
+    }
+
+    .buttons {
+      display: flex;
+      justify-content: center;
+      gap: 1rem;
+    }
+
+    button {
+      padding: 0.6rem 1rem;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      cursor: pointer;
+      font-weight: bold;
+      transition: background 0.3s ease;
+    }
+
+    .yes {
+      background-color: #4caf50;
+      color: white;
+    }
+
+    .yes:hover {
+      background-color: #3e8e41;
+    }
+
+    .no {
+      background-color: #f44336;
+      color: white;
+    }
+
+    .no:hover {
+      background-color: #d32f2f;
+    }
+
+    .close-btn {
+      position: absolute;
+      top: 0.5rem;
+      right: 0.8rem;
+      font-size: 1.2rem;
+      background: none;
+      border: none;
+      color: #aaa;
+      cursor: pointer;
+    }
+
+    .close-btn:hover {
+      color: white;
+    }
+  </style>
+</head>
+<body>
+  <div class="popup-container">
+    <button class="close-btn" onclick="window.close()">❌</button>
+    <h2>Vii mâine la birou?</h2>
+    <div class="buttons">
+      <button class="yes no-drag" onclick="submit(true)">Vin</button>
+      <button class="no no-drag" onclick="submit(false)">Nu vin</button>
+    </div>
+  </div>
+
+  <script>
+    function submit(status) {
+      window.popupAPI?.submitStatus(status);
+    }
+  </script>
+</body>
+</html>
