@@ -20,3 +20,5 @@ Thumbs.db
 .idea/
 
 
+# Firebase
+react-ui/src/firebase.js
