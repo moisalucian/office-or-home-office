@@ -8,8 +8,9 @@ build/
 # Logs
 *.log
 
-# Environment variables
+# Environment variables (keep .env.example for reference)
 .env
+!.env.example
 
 # OS files
 .DS_Store
@@ -18,7 +19,3 @@ Thumbs.db
 # Editor folders (optional)
 .vscode/
 .idea/
-
-
-# Firebase
-react-ui/src/firebase.js
