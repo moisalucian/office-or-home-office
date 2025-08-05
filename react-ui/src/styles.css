@@ -2,31 +2,73 @@ html, body {
   margin: 0;
   padding: 0;
   background-color: transparent;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 90vh;
+  height: 100vh;
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
 .container {
-  width: 100%;
-  max-width: 700px;
+  width: 100vw; /* Fill entire viewport width */
+  height: 100vh;
   background-color: #1f1f1f;
   border-radius: 16px;
   padding: 2rem;
   box-shadow: 0 0 20px rgba(0, 0, 0, 0.6);
   position: relative;
-  justify-content: center;
-  align-items: center;
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
+  box-sizing: border-box;
+  transition: border-radius 0.3s ease, padding 0.3s ease;
 }
 
-h1,
+.container.maximized {
+  border-radius: 0;
+  box-shadow: none;
+  padding: 3rem 5%; /* Reduced side padding to use more screen width */
+  max-width: 100vw; /* Use full viewport width */
+  width: 100vw; /* Ensure full width */
+  margin: 0; /* Remove auto centering */
+}
+
+/* Maximized layout adjustments */
+.container.maximized .header-area {
+  margin-bottom: 3rem; /* Increased gap after title */
+}
+
+.container.maximized .content-area {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between; /* Push status section to bottom */
+  height: 100%; /* Use full available height */
+}
+
+.container.maximized .status-section {
+  margin-top: auto; /* Push to bottom */
+  margin-bottom: 2rem; /* Some space from bottom */
+}
+
+.container.maximized .status-grid {
+  max-height: 200px; /* Increased height for 3 rows when maximized */
+  gap: 0.5rem; /* Larger gap between cards when maximized */
+}
+
+.container.maximized .status-card {
+  padding: 0.8rem 1.5rem; /* Larger padding when maximized */
+  margin: 0.4rem; /* Increased margin for better row separation */
+  font-size: 1rem; /* Slightly larger font */
+}
+
+h1 {
+  text-align: center;
+  color: #ffffff;
+  margin: 0 0 1rem 0;
+  -webkit-app-region: drag;
+}
+
 h2 {
   text-align: center;
   color: #ffffff;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1rem;
   -webkit-app-region: drag;
 }
 
@@ -38,7 +80,14 @@ input[type="time"] {
   background-color: #333;
   color: #fff;
   margin-right: 0.5rem;
-  width: 200px;
+}
+
+input[type="text"] {
+  width: 200px; /* Reduced back to fit notification layout */
+}
+
+input[type="time"] {
+  width: 100px; /* Reduced to fit better in notification cards */
 }
 
 button {
@@ -72,9 +121,11 @@ button.danger {
   background: none;
   border: none;
   color: #ff5c5c;
-  font-size: 1.5rem;
+  font-size: 1.2rem; /* Reduced from 1.5rem */
   cursor: pointer;
-  margin-left: 1rem;
+  margin-left: 0.5rem; /* Reduced from 1rem */
+  padding: 0.2rem; /* Added padding for better clickability */
+  min-width: 30px; /* Ensure consistent size */
 }
 
 button.danger:hover {
@@ -84,13 +135,17 @@ button.danger:hover {
 .status-card {
   background-color: #2a2a2a;
   padding: 0.7rem 1.2rem;
-  margin: 0.5rem 0;
+  margin: 0.3rem; /* Increased from 0.25rem for better visual spacing */
   border-radius: 10px;
-  display: flex;
-  justify-content: space-between;
+  display: inline-flex;
+  justify-content: center;
   align-items: center;
   border-left: 5px solid transparent;
   border-right: 5px solid transparent;
+  font-weight: bold;
+  font-size: 0.9rem;
+  white-space: nowrap;
+  transition: all 0.3s ease;
 }
 
 .status-true {
@@ -103,25 +158,134 @@ button.danger:hover {
   border-right-color: #f44336;
 }
 
+.status-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.25rem;
+  padding: 0.5rem 0;
+  max-height: 150px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.status-grid::-webkit-scrollbar {
+  width: 6px;
+}
+
+.status-grid::-webkit-scrollbar-track {
+  background: #333;
+  border-radius: 3px;
+}
+
+.status-grid::-webkit-scrollbar-thumb {
+  background: #555;
+  border-radius: 3px;
+}
+
+.status-grid::-webkit-scrollbar-thumb:hover {
+  background: #777;
+}
+
+.content-area {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  padding-right: 1rem;
+}
+
+.content-area::-webkit-scrollbar {
+  width: 8px;
+}
+
+.content-area::-webkit-scrollbar-track {
+  background: #333;
+  border-radius: 4px;
+}
+
+.content-area::-webkit-scrollbar-thumb {
+  background: #555;
+  border-radius: 4px;
+}
+
+.content-area::-webkit-scrollbar-thumb:hover {
+  background: #777;
+}
+
+.header-area {
+  flex-shrink: 0;
+  margin-bottom: 1rem;
+  margin-top: 1rem;
+}
+
 .notification-card {
   background-color: #2b2b2b;
-  padding: 1rem;
-  margin-bottom: 1rem;
+  padding: 0.6rem; /* Reduced from 0.8rem to decrease height */
+  margin-bottom: 0.8rem; /* Slightly reduced margin */
   border-radius: 12px;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow: hidden; /* Prevent content from expanding beyond bounds */
+  display: flex;
+  align-items: center; /* Center content vertically */
+  min-height: 60px; /* Reduced minimum height */
+}
+
+.notification-summary {
+  background-color: #2b2b2b;
+  padding: 1rem;
+  margin: 1.5rem 0;
+  border-radius: 12px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  position: relative;
+  z-index: 10; /* Higher z-index to stay visible */
+}
+
+.notifications-container {
+  /* Remove max-height to prevent secondary scrollbar */
+  overflow: visible; /* Let the main content area handle scrolling */
+  margin-top: 1rem;
+  position: relative; /* Ensure proper stacking context */
+  z-index: 1; /* Lower z-index than summary */
+}
+
+.status-section {
+  margin-top: 1rem;
+  margin-bottom: 0;
 }
 
 .notification-row {
   display: flex;
-  align-items: center;
+  align-items: center; /* Center content vertically */
+  justify-content: center; /* Center the notification form elements */
   gap: 1rem;
   flex-wrap: wrap;
-  margin-bottom: 1rem;
+  margin-bottom: 0; /* Remove margin since we're inside the card */
+  width: 100%; /* Take full width of the card */
 }
 
 .checkbox-group {
   display: flex;
-  gap: 0.5rem;
+  justify-content: center; /* Center the day checkboxes */
+  gap: 0.5rem; /* Reduced back to 0.5rem for tighter fit */
+  flex-wrap: nowrap; /* Prevent wrapping to maintain single line */
+  align-items: center;
+}
+
+.checkbox-group label {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem; /* Reduced for tighter fit */
+  font-size: 0.85rem; /* Slightly smaller */
+  white-space: nowrap;
+  min-width: 30px; /* Reduced for tighter fit */
 }
 
 .accordion-header {
@@ -133,7 +297,10 @@ button.danger:hover {
   font-weight: bold;
   transition: background-color 0.3s;
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5rem;
+  text-align: center;
 }
 
 .accordion-header:hover {
@@ -143,7 +310,24 @@ button.danger:hover {
 .name-edit-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center; /* Center the name section */
+  gap: 1rem; /* Add some space between elements */
+}
+
+.name-display-row {
+  display: flex;
+  align-items: center;
+  justify-content: center; /* Center the name display section */
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.name-input-section {
+  display: flex;
+  align-items: center;
+  justify-content: center; /* Center the name input section */
+  gap: 1rem;
+  margin-bottom: 1rem;
 }
 
 .window-controls {
@@ -177,9 +361,8 @@ button.danger:hover {
 .action-buttons {
   display: flex;
   justify-content: space-between;
-  margin: 1.2rem 0;
-  /* padding: 0 1.5rem; */
-  gap: 1.2rem;
+  margin: 1rem 2rem; /* Added horizontal margin to better use space */
+  gap: 2rem; /* Increased gap */
 }
 
 .action-buttons button {

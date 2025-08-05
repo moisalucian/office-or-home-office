@@ -11,14 +11,13 @@ function createWindow() {
   const maxHeight = Math.floor(screenHeight * 0.9);
 
   win = new BrowserWindow({
-    width: 800,
-    height: maxHeight,
+    width: 750, // Decreased from 800px for testing
+    height: 650,
     show: !isHiddenLaunch, //  NU arătăm fereastra dacă e lansare cu --hidden
     frame: false,
     transparent: true,
-    resizable: false,
+    resizable: true,
     autoHideMenuBar: true,
-    backgroundColor: '#00000000',
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
@@ -115,13 +114,24 @@ ipcMain.on('maximize-window', () => {
   if (win) {
     if (win.isMaximized()) {
       win.unmaximize();
+      // Send event to remove fullscreen styling
+      win.webContents.send('window-state-changed', { maximized: false });
     } else {
       win.maximize();
+      // Send event to apply fullscreen styling
+      win.webContents.send('window-state-changed', { maximized: true });
     }
   }
 });
 ipcMain.on('close-window', () => {
   if (win) win.close(); // va fi interceptat și doar ascuns
+});
+
+ipcMain.on('resize-window', (_, width, height) => {
+  if (win && !win.isMaximized()) {
+    win.setSize(width, height);
+    win.center();
+  }
 });
 
 // ✅ Setare startup
