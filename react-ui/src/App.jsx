@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { database } from "./firebase";
 import { ref, set, onValue, remove, get } from "firebase/database";
 import "./styles.css";
@@ -19,6 +19,12 @@ function App() {
   const [isMaximized, setIsMaximized] = useState(false);
   const [updateInfo, setUpdateInfo] = useState(null);
   const [showUpdateNotification, setShowUpdateNotification] = useState(false);
+  
+  // Use ref to always get current name value in popup handler
+  const nameRef = useRef(name);
+  useEffect(() => {
+    nameRef.current = name;
+  }, [name]);
 
   const tomorrowDate = new Date(Date.now() + 86400000).toISOString().split("T")[0];
 
@@ -124,15 +130,29 @@ function App() {
     if (!window.electronAPI?.onPopupStatus) return;
 
     const handlePopup = (status) => {
-      if (!name) return;
-      saveStatus(status);
+      const currentName = nameRef.current; // Get current name from ref
+      if (!currentName || !currentName.trim()) return; // Ensure name exists and is not empty
+      
+      // Use the current name for saving status
+      const userRef = ref(database, `statuses/${currentName}`);
+      set(userRef, {
+        date: tomorrowDate,
+        status,
+        updatedAt: Date.now()
+      })
+        .then(() => {
+          // No need to update statusMessage here as it's handled by the main saveStatus function
+        })
+        .catch((error) => {
+          console.error("Eroare la salvare din popup:", error);
+        });
     };
 
     window.electronAPI.onPopupStatus(handlePopup);
     return () => {
       window.electronAPI.removePopupStatus?.(handlePopup);
     };
-  }, [name]);
+  }, []); // Remove name dependency to prevent multiple handlers
 
   useEffect(() => {
     if (!window.electronAPI?.onWindowStateChanged) return;
@@ -392,7 +412,7 @@ function App() {
         </div>
 
         {statusMessage && (
-          <div style={{ color: statusColor, marginTop: '10px' }}>
+          <div style={{ color: statusColor, marginTop: '10px', textAlign: 'center' }}>
             {statusMessage}
           </div>
         )}

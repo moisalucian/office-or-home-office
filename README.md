@@ -16,7 +16,7 @@ Follow these steps to set up and build the app:
 
 1. **Configure environment variables:**
    ```bash
-   # Rename the example environment file
+   # Under react-ui folder ename the .env.example file to .env
    mv .env.example .env
    ```
 
