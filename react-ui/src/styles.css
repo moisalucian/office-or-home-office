@@ -19,6 +19,20 @@ html, body {
   overflow: hidden;
   box-sizing: border-box;
   transition: border-radius 0.3s ease, padding 0.3s ease;
+  color: #ffffff; /* Default white text color for all content */
+}
+
+/* Ensure all text elements inherit white color */
+.container * {
+  color: inherit;
+}
+
+/* Force white color for specific elements that might be overridden */
+.container p, 
+.container span, 
+.container strong, 
+.container label {
+  color: #ffffff !important;
 }
 
 .container.maximized {
@@ -146,6 +160,11 @@ button.danger:hover {
   font-size: 0.9rem;
   white-space: nowrap;
   transition: all 0.3s ease;
+  color: #ffffff !important; /* Force white color for status names */
+}
+
+.status-card strong {
+  color: #ffffff !important; /* Force white color for names in status cards */
 }
 
 .status-true {
@@ -320,6 +339,15 @@ button.danger:hover {
   justify-content: center; /* Center the name display section */
   gap: 1rem;
   margin-bottom: 1rem;
+}
+
+.name-display-row p {
+  color: #ffffff !important; /* Force white color for name text */
+  margin: 0;
+}
+
+.name-display-row strong {
+  color: #ffffff !important; /* Force white color for "Nume:" label */
 }
 
 .name-input-section {

@@ -12,16 +12,37 @@
 
 ## 🛠️ Setup
 
-Before building the app, make sure to configure Firebase:
+Follow these steps to set up and build the app:
 
-```js
-// File: react-ui/src/firebase.js
-// Replace with your own Firebase config object
-const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_DOMAIN",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_BUCKET",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId: "YOUR_APP_ID"
-};
+1. **Configure environment variables:**
+   ```bash
+   # Rename the example environment file
+   mv .env.example .env
+   ```
+
+2. **Set up Firebase configuration:**
+   ```js
+   // File: react-ui/src/firebase.js
+   // Replace with your own Firebase config object
+   const firebaseConfig = {
+     apiKey: "YOUR_API_KEY",
+     authDomain: "YOUR_DOMAIN",
+     projectId: "YOUR_PROJECT_ID",
+     storageBucket: "YOUR_BUCKET",
+     messagingSenderId: "YOUR_SENDER_ID",
+     appId: "YOUR_APP_ID"
+   };
+   ```
+
+3. **Install dependencies:**
+   ```bash
+   npm install
+   ```
+
+4. **Build the application:**
+   ```bash
+   npm run build
+   ```
+
+5. **Find your executable:**
+   After building, you'll find `Office or Home Office.exe` in the `dist/win-packed/` directory.
