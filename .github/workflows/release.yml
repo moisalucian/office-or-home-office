@@ -1,0 +1,73 @@
+name: Release and Build
+
+on:
+  push:
+    tags:
+      - 'v*'  # Triggers on version tags like v1.0.1, v1.2.0, etc.
+
+jobs:
+  release:
+    runs-on: windows-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm install
+      
+    - name: Build React app
+      run: npm run build-react
+      
+    - name: Build Electron app
+      run: npm run build
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: Get version from tag
+      id: get_version
+      run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+      shell: bash
+      
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.ref }}
+        release_name: Version ${{ steps.get_version.outputs.VERSION }}
+        body: |
+          ## What's New in Version ${{ steps.get_version.outputs.VERSION }}
+          
+          - Auto-generated release
+          - Download the zip file below and extract to use the app
+          - Existing users will be notified automatically
+          
+          ## Installation
+          1. Download `Office-or-Home-Office-v${{ steps.get_version.outputs.VERSION }}.zip`
+          2. Extract the zip file
+          3. Run `Office or Home Office.exe`
+        draft: false
+        prerelease: false
+        
+    - name: Create zip package
+      run: |
+        Compress-Archive -Path "dist/win-unpacked/*" -DestinationPath "Office-or-Home-Office-v${{ steps.get_version.outputs.VERSION }}.zip"
+      shell: powershell
+      
+    - name: Upload Release Asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./Office-or-Home-Office-v${{ steps.get_version.outputs.VERSION }}.zip
+        asset_name: Office-or-Home-Office-v${{ steps.get_version.outputs.VERSION }}.zip
+        asset_content_type: application/zip

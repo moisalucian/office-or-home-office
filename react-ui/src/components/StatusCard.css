@@ -1,0 +1,36 @@
+.status-card {
+  background-color: var(--status-bg);
+  padding: 0.7rem 1.2rem;
+  margin: 0.3rem;
+  border-radius: 10px;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  font-weight: bold;
+  font-size: 0.9rem;
+  white-space: nowrap;
+  transition: all 0.3s ease, background-color 0.3s, color 0.3s;
+  color: var(--text-color) !important;
+}
+
+.status-card strong {
+  color: var(--text-color) !important;
+  transition: color 0.3s;
+}
+
+.status-true {
+  border-left-color: #4caf50;
+  border-right-color: #4caf50;
+}
+
+.status-false {
+  border-left-color: #f44336;
+  border-right-color: #f44336;
+}
+
+.status-undecided {
+  border-left-color: #ff9800;
+  border-right-color: #ff9800;
+}

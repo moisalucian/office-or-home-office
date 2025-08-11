@@ -1,25 +1,105 @@
+:root {
+  /* Dark Theme (Default) */
+  --bg-color: #1f1f1f;
+  --text-color: #ffffff;
+  --text-secondary: #cccccc;
+  --border-color: #333;
+  --input-bg: #2a2a2a;
+  --button-bg: #333;
+  --button-hover-bg: #444;
+  --container-bg: #1f1f1f;
+  --header-bg: #2a2a2a;
+  --notification-bg: #333;
+  --notification-text: #ffffff;
+  --control-button-bg: #444;
+  --control-button-hover: #555;
+  --control-button-text: #ffffff;
+  --day-button-bg: #444;
+  --day-button-active: #666;
+  --day-button-text: #ffffff;
+  --status-bg: #2a2a2a;
+  --toggle-bg: #555;
+  --toggle-bg-active: #4caf50;
+  --toggle-handle: #ffffff;
+  --scrollbar-track: #333;
+  --scrollbar-thumb: #555;
+  --scrollbar-thumb-hover: #777;
+  --divider-color: #444;
+  --shadow-color: rgba(0, 0, 0, 0.4);
+}
+
+[data-theme="light"] {
+  /* Light Theme */
+  --bg-color: #ffffff;
+  --text-color: #000000;
+  --text-secondary: #555555;
+  --border-color: #ddd;
+  --input-bg: #f5f5f5;
+  --button-bg: #e0e0e0;
+  --button-hover-bg: #d0d0d0;
+  --container-bg: #f8f8f8;
+  --header-bg: #e8e8e8;
+  --notification-bg: #f0f0f0;
+  --notification-text: #000000;
+  --control-button-bg: #e0e0e0;
+  --control-button-hover: #d0d0d0;
+  --control-button-text: #000000;
+  --day-button-bg: #e0e0e0;
+  --day-button-active: #c0c0c0;
+  --day-button-text: #000000;
+  --status-bg: #e8e8e8;
+  --toggle-bg: #ccc;
+  --toggle-bg-active: #4caf50;
+  --toggle-handle: #ffffff;
+  --scrollbar-track: #f0f0f0;
+  --scrollbar-thumb: #c0c0c0;
+  --scrollbar-thumb-hover: #a0a0a0;
+  --divider-color: #ddd;
+  --shadow-color: rgba(0, 0, 0, 0.2);
+}
+
 html, body {
   margin: 0;
   padding: 0;
   background-color: transparent;
   height: 100vh;
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  overflow: hidden; /* Prevent scrollbars on window */
+  color: var(--text-color);
+  transition: color 0.3s;
 }
 
 .container {
   width: 100vw; /* Fill entire viewport width */
   height: 100vh;
-  background-color: #1f1f1f;
-  border-radius: 16px;
+  background-color: var(--container-bg);
+  border-radius: var(--container-border-radius, 16px) !important;
   padding: 2rem;
-  box-shadow: 0 0 20px rgba(0, 0, 0, 0.6);
+  filter: drop-shadow(0 4px 16px var(--shadow-color));
   position: relative;
   display: flex;
   flex-direction: column;
   overflow: hidden;
   box-sizing: border-box;
-  transition: border-radius 0.3s ease, padding 0.3s ease;
-  color: #ffffff; /* Default white text color for all content */
+  transition: border-radius 0.3s ease, padding 0.3s ease, background-color 0.3s, color 0.3s;
+  color: var(--text-color); /* Use CSS variable for text color */
+  -webkit-app-region: drag; /* Make entire container draggable */
+}
+
+/* Adjust padding based on window state to avoid arrow overlap */
+.container:not(.maximized) {
+  padding-left: 8rem; /* Double the gap - 128px for windowed mode */
+  padding-right: 6rem; /* Double the gap - 96px */
+}
+
+.container.maximized {
+  padding-left: 3.5rem; /* Reasonable space for sidebar arrow in maximized mode */
+  padding-right: 2rem; /* Standard padding */
+}
+
+/* Disable drag when maximized */
+.container.maximized {
+  -webkit-app-region: no-drag;
 }
 
 /* Ensure all text elements inherit white color */
@@ -27,17 +107,74 @@ html, body {
   color: inherit;
 }
 
+/* Make interactive elements non-draggable */
+button,
+input,
+textarea,
+select,
+.status-card,
+.window-controls,
+.notification-item,
+.update-notification,
+.accordion-header,
+.notification-card,
+.notifications-section,
+.notifications-container,
+.notification-row,
+.checkbox-group,
+.notification-card label,
+.notification-card span {
+  -webkit-app-region: no-drag;
+}
+
+/* Make text elements selectable */
+h3,
+p,
+span,
+strong,
+label,
+.notification-summary,
+.name-display-row,
+.name-display-row p,
+.status-message,
+.title-text,
+.status-title-text {
+  -webkit-app-region: no-drag;
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+  user-select: text;
+  cursor: text;
+}
+
+/* Ensure draggable areas have proper cursor */
+.content-area {
+  cursor: default;
+}
+
+/* Override cursor for text areas */
+.container h1,
+.container h2,
+.container p,
+.container span,
+.container strong,
+.container label,
+.status-message {
+  cursor: text;
+}
+
 /* Force white color for specific elements that might be overridden */
 .container p, 
 .container span, 
 .container strong, 
 .container label {
-  color: #ffffff !important;
+  color: var(--text-color) !important;
+  transition: color 0.3s;
 }
 
 .container.maximized {
-  border-radius: 0;
-  box-shadow: none;
+  border-radius: 0 !important;
+  filter: none;
   padding: 3rem 5%; /* Reduced side padding to use more screen width */
   max-width: 100vw; /* Use full viewport width */
   width: 100vw; /* Ensure full width */
@@ -57,8 +194,7 @@ html, body {
 }
 
 .container.maximized .status-section {
-  margin-top: auto; /* Push to bottom */
-  margin-bottom: 2rem; /* Some space from bottom */
+  margin-bottom: 2rem; /* More space from bottom when maximized */
 }
 
 .container.maximized .status-grid {
@@ -74,16 +210,50 @@ html, body {
 
 h1 {
   text-align: center;
-  color: #ffffff;
+  color: var(--text-color);
   margin: 0 0 1rem 0;
+  transition: color 0.3s;
+}
+
+/* Draggable title containers */
+.title-draggable,
+.status-title-draggable {
   -webkit-app-region: drag;
+  text-align: center;
+  cursor: default;
+  padding: 0 2rem;
+  margin: 0 0 1rem 0;
+  color: var(--text-color);
+  transition: color 0.3s;
+}
+
+/* Disable drag for titles when maximized */
+.container.maximized .title-draggable,
+.container.maximized .status-title-draggable {
+  -webkit-app-region: no-drag;
+}
+
+.status-title-draggable {
+  margin-bottom: 1rem;
+}
+
+/* Selectable text inside titles */
+.title-text,
+.status-title-text {
+  -webkit-app-region: no-drag;
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+  user-select: text;
+  cursor: text;
+  display: inline-block;
 }
 
 h2 {
   text-align: center;
-  color: #ffffff;
+  color: var(--text-color);
   margin-bottom: 1rem;
-  -webkit-app-region: drag;
+  transition: color 0.3s;
 }
 
 input[type="text"],
@@ -91,9 +261,10 @@ input[type="time"] {
   padding: 0.6rem;
   border-radius: 8px;
   border: none;
-  background-color: #333;
-  color: #fff;
+  background-color: var(--input-bg);
+  color: var(--text-color);
   margin-right: 0.5rem;
+  transition: background-color 0.3s, color 0.3s;
 }
 
 input[type="text"] {
@@ -147,7 +318,7 @@ button.danger:hover {
 }
 
 .status-card {
-  background-color: #2a2a2a;
+  background-color: var(--status-bg);
   padding: 0.7rem 1.2rem;
   margin: 0.3rem; /* Increased from 0.25rem for better visual spacing */
   border-radius: 10px;
@@ -159,12 +330,13 @@ button.danger:hover {
   font-weight: bold;
   font-size: 0.9rem;
   white-space: nowrap;
-  transition: all 0.3s ease;
-  color: #ffffff !important; /* Force white color for status names */
+  transition: all 0.3s ease, background-color 0.3s, color 0.3s;
+  color: var(--text-color) !important; /* Use CSS variable for status names */
 }
 
 .status-card strong {
-  color: #ffffff !important; /* Force white color for names in status cards */
+  color: var(--text-color) !important; /* Use theme variable for names in status cards */
+  transition: color 0.3s;
 }
 
 .status-true {
@@ -175,6 +347,11 @@ button.danger:hover {
 .status-false {
   border-left-color: #f44336;
   border-right-color: #f44336;
+}
+
+.status-undecided {
+  border-left-color: #ff9800;
+  border-right-color: #ff9800;
 }
 
 .status-grid {
@@ -193,17 +370,17 @@ button.danger:hover {
 }
 
 .status-grid::-webkit-scrollbar-track {
-  background: #333;
+  background: var(--scrollbar-track);
   border-radius: 3px;
 }
 
 .status-grid::-webkit-scrollbar-thumb {
-  background: #555;
+  background: var(--scrollbar-thumb);
   border-radius: 3px;
 }
 
 .status-grid::-webkit-scrollbar-thumb:hover {
-  background: #777;
+  background: var(--scrollbar-thumb-hover);
 }
 
 .content-area {
@@ -212,7 +389,10 @@ button.danger:hover {
   overflow-x: hidden;
   display: flex;
   flex-direction: column;
-  padding-right: 1rem;
+  padding: 0 1rem 0 1rem; /* Add left padding to match right padding */
+  transition: margin-left 0.3s ease-out, width 0.3s ease-out;
+  margin-left: var(--content-margin-left, 0px);
+  width: var(--content-width, 100%);
 }
 
 .content-area::-webkit-scrollbar {
@@ -220,31 +400,35 @@ button.danger:hover {
 }
 
 .content-area::-webkit-scrollbar-track {
-  background: #333;
+  background: var(--scrollbar-track);
   border-radius: 4px;
 }
 
 .content-area::-webkit-scrollbar-thumb {
-  background: #555;
+  background: var(--scrollbar-thumb);
   border-radius: 4px;
 }
 
 .content-area::-webkit-scrollbar-thumb:hover {
-  background: #777;
+  background: var(--scrollbar-thumb-hover);
 }
 
 .header-area {
   flex-shrink: 0;
   margin-bottom: 1rem;
   margin-top: 1rem;
+  transition: margin-left 0.3s ease-out, width 0.3s ease-out;
+  margin-left: var(--header-margin-left, 0px);
+  width: var(--header-width, 100%);
 }
 
 .notification-card {
-  background-color: #2b2b2b;
+  background-color: var(--notification-bg);
+  color: var(--notification-text);
   padding: 0.6rem; /* Reduced from 0.8rem to decrease height */
   margin-bottom: 0.8rem; /* Slightly reduced margin */
   border-radius: 12px;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 2px 8px var(--shadow-color);
   width: 100%;
   max-width: 100%;
   box-sizing: border-box;
@@ -252,19 +436,24 @@ button.danger:hover {
   display: flex;
   align-items: center; /* Center content vertically */
   min-height: 60px; /* Reduced minimum height */
+  transition: background-color 0.3s, color 0.3s, box-shadow 0.3s;
 }
 
 .notification-summary {
-  background-color: #2b2b2b;
+  background-color: var(--notification-bg);
+  color: var(--notification-text);
   padding: 1rem;
   margin: 1.5rem 0;
   border-radius: 12px;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 4px 12px var(--shadow-color);
   width: 100%;
   max-width: 100%;
   box-sizing: border-box;
   position: relative;
   z-index: 10; /* Higher z-index to stay visible */
+  transition: background-color 0.3s, color 0.3s, box-shadow 0.3s;
+  /* Ensure the shadow and border-radius are fully visible */
+  overflow: visible;
 }
 
 .notifications-container {
@@ -276,8 +465,8 @@ button.danger:hover {
 }
 
 .status-section {
-  margin-top: 1rem;
-  margin-bottom: 0;
+  margin-top: auto; /* Push to bottom in all modes */
+  margin-bottom: 1rem; /* Space from bottom */
 }
 
 .notification-row {
@@ -308,13 +497,13 @@ button.danger:hover {
 }
 
 .accordion-header {
-  background-color: #333;
-  color: #fff;
+  background-color: var(--notification-bg);
+  color: var(--notification-text);
   padding: 0.7rem 1rem;
   border-radius: 10px;
   cursor: pointer;
   font-weight: bold;
-  transition: background-color 0.3s;
+  transition: background-color 0.3s, color 0.3s;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -323,7 +512,7 @@ button.danger:hover {
 }
 
 .accordion-header:hover {
-  background-color: #444;
+  background-color: var(--button-hover-bg);
 }
 
 .name-edit-row {
@@ -342,12 +531,14 @@ button.danger:hover {
 }
 
 .name-display-row p {
-  color: #ffffff !important; /* Force white color for name text */
+  color: var(--text-color) !important; /* Use CSS variable for name text */
   margin: 0;
+  transition: color 0.3s;
 }
 
 .name-display-row strong {
-  color: #ffffff !important; /* Force white color for "Nume:" label */
+  color: var(--text-color) !important; /* Use CSS variable for "Nume:" label */
+  transition: color 0.3s;
 }
 
 .name-input-section {
@@ -368,22 +559,663 @@ button.danger:hover {
 }
 
 .window-controls button {
-  background: #3a3a3a;
+  background: var(--control-button-bg);
   border: none;
   border-radius: 6px;
-  color: white;
+  color: var(--control-button-text);
   font-size: 1rem;
   padding: 0.3rem 0.6rem;
   cursor: pointer;
-  transition: background 0.3s;
+  transition: background 0.3s, color 0.3s;
 }
 
 .window-controls button:hover {
-  background: #555;
+  background: var(--control-button-hover);
 }
 
 .window-controls .close:hover {
   background: #c0392b;
+}
+
+/* Settings icon */
+.settings-icon {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  background: var(--control-button-bg);
+  border: none;
+  border-radius: 6px;
+  color: var(--control-button-text);
+  font-size: 1.2rem;
+  padding: 0.4rem;
+  cursor: pointer;
+  transition: all 0.3s;
+  z-index: 1001;
+  -webkit-app-region: no-drag;
+  border: 1px solid var(--border-color);
+}
+
+.settings-icon:hover {
+  background: var(--control-button-hover);
+  border-color: var(--control-button-hover);
+}
+
+/* Settings popup */
+.settings-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2000;
+  -webkit-app-region: no-drag;
+}
+
+.settings-popup {
+  background: var(--header-bg);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px var(--shadow-color);
+  width: 400px;
+  max-width: 90vw;
+  max-height: 80vh;
+  overflow-y: auto;
+  border: 1px solid var(--border-color);
+  transition: background 0.3s, border-color 0.3s;
+}
+
+.settings-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem 1.5rem 1rem 1.5rem;
+  border-bottom: 1px solid #444;
+}
+
+.settings-header h3 {
+  margin: 0;
+  color: var(--text-color);
+  font-size: 1.2rem;
+  font-weight: 600;
+  transition: color 0.3s;
+}
+
+.settings-close {
+  background: none;
+  border: none;
+  color: #999;
+  cursor: pointer;
+  font-size: 1rem;
+  padding: 0.5rem;
+  border-radius: 4px;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  min-height: 32px;
+}
+
+.settings-close:hover {
+  color: #ff5c5c;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.settings-content {
+  padding: 1.5rem;
+}
+
+.setting-item {
+  margin-bottom: 1.5rem;
+}
+
+.setting-item:last-child {
+  margin-bottom: 0;
+}
+
+.setting-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: var(--text-color);
+  font-size: 0.95rem;
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  transition: color 0.3s;
+}
+
+.setting-title {
+  color: var(--text-color);
+  font-weight: 500;
+  user-select: text;
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+  cursor: text;
+  transition: color 0.3s;
+}
+
+/* Setting select dropdown */
+.setting-select {
+  background: var(--input-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--text-color);
+  padding: 0.4rem 0.8rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  min-width: 120px;
+}
+
+.setting-select:hover {
+  border-color: var(--border-color);
+  background: var(--button-hover-bg);
+}
+
+.setting-select:focus {
+  outline: none;
+  border-color: #4caf50;
+  box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.2);
+}
+
+.setting-select option {
+  background: var(--input-bg);
+  color: var(--text-color);
+}
+
+/* Sound setting controls */
+.sound-setting-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.sound-setting-controls .setting-select {
+  flex: 1;
+}
+
+.play-sound-button {
+  background: var(--control-button-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--control-button-text);
+  font-size: 1rem;
+  padding: 0.4rem 0.6rem;
+  cursor: pointer;
+  transition: all 0.3s;
+  -webkit-app-region: no-drag;
+  min-width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.play-sound-button:hover {
+  background: var(--control-button-hover);
+  border-color: var(--control-button-hover);
+  transform: scale(1.05);
+}
+
+/* Update setting controls */
+.update-setting-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: flex-start;
+}
+
+.update-check-button {
+  background: var(--settings-button-bg);
+  color: var(--text-primary);
+  border: 1px solid var(--control-border);
+  border-radius: 6px;
+  padding: 0.6rem 1rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 140px;
+  justify-content: center;
+}
+
+.update-check-button:hover:not(:disabled) {
+  background: var(--control-button-hover);
+  border-color: var(--control-button-hover);
+  transform: translateY(-1px);
+}
+
+.update-check-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.update-check-result {
+  font-size: 0.8rem;
+  margin-top: 0.5rem;
+  padding: 0.7rem 1rem;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.update-available {
+  color: #4caf50;
+  font-weight: 500;
+  background: rgba(76, 175, 80, 0.1);
+  border-color: #4caf50;
+}
+
+.update-latest {
+  color: var(--text-secondary);
+  background: rgba(255, 255, 255, 0.05);
+  border-color: var(--border-color);
+}
+
+.update-error {
+  color: #ff5c5c;
+  background: rgba(255, 92, 92, 0.1);
+  border-color: #ff5c5c;
+}
+
+.loading-spinner {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* App version display */
+.app-version {
+  position: fixed;
+  bottom: 10px;
+  left: 10px;
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+  background: rgba(0, 0, 0, 0.1);
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  border: 1px solid var(--control-border);
+  z-index: 1000;
+  font-family: 'Courier New', monospace;
+}
+
+/* Settings version display */
+.settings-version {
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  font-family: 'Courier New', monospace;
+  opacity: 0.7;
+}
+
+/* Settings version display inside content */
+.settings-version-content {
+  margin-top: 2rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-color);
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  font-family: 'Courier New', monospace;
+  text-align: center;
+  opacity: 0.8;
+}
+
+/* Toggle switch */
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 50px;
+  height: 24px;
+  cursor: pointer !important;
+}
+
+.toggle-switch *,
+.toggle-switch *:hover {
+  cursor: pointer !important;
+}
+
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-slider {
+  position: absolute;
+  cursor: pointer !important;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--toggle-bg);
+  transition: 0.3s;
+  border-radius: 24px;
+}
+
+.toggle-slider:before {
+  position: absolute;
+  content: "";
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
+  background-color: var(--toggle-handle);
+  transition: 0.3s;
+  border-radius: 50%;
+}
+
+.toggle-switch input:checked + .toggle-slider {
+  background-color: var(--toggle-bg-active);
+}
+
+.toggle-switch input:checked + .toggle-slider:before {
+  transform: translateX(26px);
+}
+
+/* Sidebar toggle arrow */
+.sidebar-toggle {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background: var(--control-button-bg);
+  border: none;
+  border-radius: 6px;
+  color: var(--control-button-text);
+  font-size: 1.4rem;
+  padding: 0.5rem;
+  cursor: pointer;
+  transition: all 0.3s;
+  z-index: 1001;
+  -webkit-app-region: no-drag;
+}
+
+.sidebar-toggle:hover {
+  background: var(--control-button-hover);
+}
+
+/* Arrow positioning based on window state */
+.sidebar-toggle.normal {
+  left: 15px; /* Moved slightly right for better balance */
+}
+
+.sidebar-toggle.maximized {
+  left: 0px;
+  border-radius: 0 6px 6px 0;
+  font-size: 1.5rem;
+  padding: 0.6rem;
+}
+
+/* More transparent when open in maximized mode */
+.sidebar-toggle.maximized.open {
+  background: rgba(58, 58, 58, 0.2);
+  color: rgba(255, 255, 255, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+}
+
+.sidebar-toggle.maximized.open:hover {
+  background: #3a3a3a;
+  color: white;
+  border: none;
+}
+
+/* Sidebar for maximized mode */
+.sidebar-maximized {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  min-width: 0;
+  max-width: 600px;
+  height: 100%;
+  background-color: var(--container-bg);
+  border-right: 1px solid var(--border-color);
+  z-index: 1000;
+  -webkit-app-region: no-drag;
+  display: flex;
+  overflow: hidden;
+  transition: width 0.3s ease-out, background-color 0.3s;
+}
+
+.sidebar-maximized .sidebar-content {
+  padding: 2rem;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.sidebar-maximized .sidebar-content h3 {
+  margin-top: 0;
+  margin-bottom: 1.5rem;
+  color: var(--text-color);
+  text-align: center;
+  font-size: 1.2rem;
+  flex-shrink: 0;
+  transition: color 0.3s;
+}
+
+.sidebar-maximized .activity-log-container {
+  background-color: var(--notification-bg);
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 1rem;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+  transition: background-color 0.3s;
+}
+
+.sidebar-maximized .activity-log-container p {
+  margin: 0.5rem 0;
+  color: var(--notification-text);
+  transition: color 0.3s;
+  line-height: 1.5;
+}
+
+/* Sidebar overlay for normal mode */
+.sidebar-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 2000;
+  display: flex;
+  -webkit-app-region: no-drag;
+}
+
+.sidebar-normal {
+  position: relative;
+  min-width: 200px;
+  max-width: 600px;
+  height: 100%;
+  background-color: #1f1f1f;
+  border-right: 1px solid #444;
+  display: flex;
+  box-shadow: 2px 0 10px rgba(0, 0, 0, 0.3);
+  animation: slideInLeft 0.3s ease-out;
+}
+
+.sidebar-backdrop {
+  flex: 1;
+  background-color: rgba(0, 0, 0, 0.3);
+  cursor: pointer;
+}
+
+@keyframes slideInLeft {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+/* Satellite sidebar window styles */
+.sidebar-window {
+  width: 100vw;
+  height: 100vh;
+  background-color: var(--container-bg);
+  border-radius: 16px; /* Rounded corners on all sides */
+  padding: 2rem;
+  box-shadow: 0 8px 32px var(--shadow-color);
+  color: var(--text-color);
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  overflow: hidden;
+  margin: 0;
+  transition: background-color 0.3s, color 0.3s;
+}
+
+.sidebar-window .sidebar-content {
+  padding: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0; /* Allow flexbox shrinking */
+}
+
+.sidebar-window .sidebar-content h3 {
+  margin-top: 0;
+  margin-bottom: 1.5rem;
+  color: var(--text-color);
+  text-align: center;
+  font-size: 1.2rem;
+  flex-shrink: 0;
+  transition: color 0.3s;
+}
+
+.sidebar-window .activity-log-container {
+  background-color: var(--status-bg);
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 1rem;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0; /* Allow content to shrink and enable scrolling */
+  transition: background-color 0.3s;
+}
+
+.sidebar-window .activity-log-container p {
+  margin: 0.5rem 0;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  transition: color 0.3s;
+}
+
+.sidebar-maximized.visible {
+  min-width: 200px;
+}
+
+/* Activity log specific styles */
+.activity-day {
+  margin-bottom: 1.5rem;
+}
+
+.activity-day-header {
+  color: var(--text-color);
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0 0 0.8rem 0;
+  padding-bottom: 0.3rem;
+  border-bottom: 1px solid var(--divider-color);
+  transition: color 0.3s, border-bottom-color 0.3s;
+}
+
+.activity-entry {
+  display: flex;
+  align-items: flex-start;
+  margin-bottom: 0.6rem;
+  padding: 0.4rem 0;
+}
+
+.activity-time {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  min-width: 45px;
+  margin-right: 0.8rem;
+  font-family: monospace;
+  transition: color 0.3s;
+}
+
+.activity-message {
+  flex: 1;
+  font-size: 0.9rem;
+  line-height: 1.4;
+  color: var(--text-color);
+  transition: color 0.3s;
+}
+
+/* Status-specific colors that work in all contexts */
+.activity-message.status-yes {
+  color: #4caf50 !important; /* Green */
+}
+
+.activity-message.status-no {
+  color: #f44336 !important; /* Red */
+}
+
+.activity-message.status-undecided {
+  color: #ff9800 !important; /* Orange */
+}
+
+.activity-message.status-default {
+  color: #999 !important; /* Grey */
+}
+
+.sidebar-content {
+  padding: 2rem 1.5rem;
+  height: 100%;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.sidebar-content h3 {
+  color: var(--text-color);
+  margin: 0 0 1rem 0;
+  font-size: 1.2rem;
+  text-align: center;
+  transition: color 0.3s;
+  text-align: center;
+}
+
+.activity-log-container {
+  background-color: var(--notification-bg);
+  border-radius: 12px;
+  padding: 1rem;
+  min-height: 200px;
+  color: var(--notification-text);
+  transition: background-color 0.3s, color 0.3s;
+}
+
+.sidebar-resize-handle {
+  width: 2px;
+  background: rgba(68, 68, 68, 0.8);
+  cursor: col-resize;
+  transition: background-color 0.2s ease;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.sidebar-resize-handle:hover {
+  background: rgba(100, 149, 237, 0.8);
 }
 
 .action-buttons {
@@ -398,4 +1230,51 @@ button.danger:hover {
   padding: 1rem 0;
   font-size: 1.05rem;
   font-weight: bold;
+}
+
+/* Button container areas should be draggable */
+.button-row-container {
+  -webkit-app-region: drag;
+  cursor: default;
+}
+
+/* Ensure buttons inside containers are still non-draggable */
+.button-row-container button {
+  -webkit-app-region: no-drag;
+  cursor: pointer;
+}
+
+/* Status message styling */
+.status-message {
+  -webkit-app-region: no-drag;
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+  user-select: text;
+  cursor: text;
+}
+
+/* Name section container should be draggable */
+.name-section-container {
+  -webkit-app-region: drag;
+  cursor: default;
+}
+
+/* Ensure interactive elements in name section are non-draggable */
+.name-section-container button,
+.name-section-container input,
+.name-section-container label {
+  -webkit-app-region: no-drag;
+}
+
+/* Name input container should also be draggable */
+.name-input-container {
+  -webkit-app-region: drag;
+  cursor: default;
+}
+
+/* Ensure interactive elements in name input section are non-draggable */
+.name-input-container button,
+.name-input-container input {
+  -webkit-app-region: no-drag;
 }

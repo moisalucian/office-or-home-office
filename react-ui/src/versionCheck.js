@@ -1,10 +1,26 @@
-// Version checking utility
-const GITHUB_API_URL = 'https://api.github.com/repos/moisalucian/office-or-home-office/commits/main';
-const VERSION_CHECK_INTERVAL = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+// Enhanced Version checking and auto-update utility
+const GITHUB_API_URL = 'https://api.github.com/repos/moisalucian/office-or-home-office';
+const GITHUB_RELEASES_URL = `${GITHUB_API_URL}/releases/latest`;
+const VERSION_CHECK_INTERVAL = 2 * 60 * 60 * 1000; // 2 hours in milliseconds
 
+// Get current app version from package.json or fallback
 export const getCurrentVersion = () => {
-  // Get current version from localStorage or default
-  return localStorage.getItem('currentAppVersion') || 'unknown';
+  // Try to get from app metadata first (will be injected by Electron)
+  if (window.electronAPI?.getAppVersion) {
+    try {
+      const version = window.electronAPI.getAppVersion();
+      // Handle if it returns a promise
+      if (version && typeof version.then === 'function') {
+        return '1.0.0'; // Fallback for now
+      }
+      return version || '1.0.0';
+    } catch (error) {
+      console.error('Error getting app version:', error);
+      return '1.0.0';
+    }
+  }
+  // Fallback to localStorage or default
+  return localStorage.getItem('currentAppVersion') || '1.0.0';
 };
 
 export const setCurrentVersion = (version) => {
@@ -28,32 +44,51 @@ export const shouldCheckForUpdates = () => {
   return timeSinceLastCheck >= VERSION_CHECK_INTERVAL;
 };
 
+// Enhanced update checking with proper semantic versioning
 export const checkForUpdates = async () => {
   try {
-    const response = await fetch(GITHUB_API_URL);
-    if (!response.ok) throw new Error('Failed to fetch version info');
-    
-    const data = await response.json();
-    const latestCommitSha = data.sha.substring(0, 7); // Short SHA
     const currentVersion = getCurrentVersion();
+    console.log('Current version:', currentVersion);
+    
+    const response = await fetch(GITHUB_RELEASES_URL);
+    if (!response.ok) {
+      // Fallback to commits API if no releases
+      return await checkForUpdatesFromCommits();
+    }
+    
+    const releaseData = await response.json();
+    const latestVersion = releaseData.tag_name.replace(/^v/, ''); // Remove 'v' prefix if present
+    console.log('Latest version:', latestVersion);
     
     setLastVersionCheck();
     
-    // If we don't have a current version, set it and don't show update
-    if (currentVersion === 'unknown') {
-      setCurrentVersion(latestCommitSha);
-      return { hasUpdate: false };
+    // Compare semantic versions - only show if latest is actually newer
+    const hasUpdate = isNewerVersion(latestVersion, currentVersion);
+    console.log('Has update:', hasUpdate);
+    
+    if (!hasUpdate) {
+      return { hasUpdate: false, currentVersion, latestVersion };
     }
     
-    // Check if there's a new version
-    const hasUpdate = currentVersion !== latestCommitSha;
+    // Check if this specific version was dismissed
+    const dismissedVersion = getDismissedVersion();
+    const wasDismissed = dismissedVersion === latestVersion;
+    
+    // Check if update was postponed
+    const postponedVersion = getPostponedVersion();
+    const wasPostponed = postponedVersion === latestVersion;
     
     return {
       hasUpdate,
       currentVersion,
-      latestVersion: latestCommitSha,
-      commitMessage: data.commit.message,
-      commitDate: new Date(data.commit.committer.date).toLocaleDateString()
+      latestVersion,
+      releaseNotes: releaseData.body || 'No release notes available',
+      releaseDate: new Date(releaseData.published_at).toLocaleDateString(),
+      downloadUrl: releaseData.assets.find(asset => 
+        asset.name.includes('win') || asset.name.includes('.exe') || asset.name.includes('.zip')
+      )?.browser_download_url,
+      wasDismissed,
+      wasPostponed
     };
   } catch (error) {
     console.error('Version check failed:', error);
@@ -61,14 +96,141 @@ export const checkForUpdates = async () => {
   }
 };
 
-export const dismissUpdate = () => {
-  localStorage.setItem('updateDismissed', 'true');
+// Fallback to commits if no releases are available
+const checkForUpdatesFromCommits = async () => {
+  try {
+    const response = await fetch(`${GITHUB_API_URL}/commits/main`);
+    if (!response.ok) throw new Error('Failed to fetch commit info');
+    
+    const data = await response.json();
+    const latestCommitSha = data.sha.substring(0, 7);
+    const currentVersion = getCurrentVersion();
+    
+    // For commit-based versioning, use commit SHA comparison
+    const storedCommitSha = localStorage.getItem('currentCommitSha') || '';
+    const hasUpdate = storedCommitSha !== latestCommitSha;
+    
+    if (hasUpdate) {
+      localStorage.setItem('latestCommitSha', latestCommitSha);
+    }
+    
+    return {
+      hasUpdate,
+      currentVersion,
+      latestVersion: `${currentVersion}-${latestCommitSha}`,
+      commitMessage: data.commit.message,
+      commitDate: new Date(data.commit.committer.date).toLocaleDateString(),
+      isCommitBased: true
+    };
+  } catch (error) {
+    console.error('Commit-based version check failed:', error);
+    return { hasUpdate: false, error: error.message };
+  }
 };
 
-export const isUpdateDismissed = () => {
-  return localStorage.getItem('updateDismissed') === 'true';
+// Compare semantic versions (e.g., 1.2.3 vs 1.2.4)
+const isNewerVersion = (latest, current) => {
+  console.log(`Comparing versions: ${latest} vs ${current}`);
+  
+  const parseVersion = (version) => {
+    // Handle version strings that might contain extra text
+    const cleanVersion = version.replace(/[^\d.]/g, '').split('.').slice(0, 3);
+    return cleanVersion.map(num => parseInt(num, 10) || 0);
+  };
+  
+  const latestParts = parseVersion(latest);
+  const currentParts = parseVersion(current);
+  
+  console.log('Latest parts:', latestParts);
+  console.log('Current parts:', currentParts);
+  
+  for (let i = 0; i < Math.max(latestParts.length, currentParts.length); i++) {
+    const latestPart = latestParts[i] || 0;
+    const currentPart = currentParts[i] || 0;
+    
+    if (latestPart > currentPart) {
+      console.log(`Latest is newer: ${latestPart} > ${currentPart}`);
+      return true;
+    }
+    if (latestPart < currentPart) {
+      console.log(`Current is newer: ${currentPart} > ${latestPart}`);
+      return false;
+    }
+  }
+  
+  console.log('Versions are equal');
+  return false;
 };
 
-export const clearUpdateDismissal = () => {
-  localStorage.removeItem('updateDismissed');
+// Update action handlers
+export const dismissUpdate = (version) => {
+  localStorage.setItem('dismissedUpdateVersion', version);
+  localStorage.removeItem('postponedUpdateVersion');
+};
+
+export const postponeUpdate = (version) => {
+  localStorage.setItem('postponedUpdateVersion', version);
+  localStorage.removeItem('dismissedUpdateVersion');
+};
+
+export const clearUpdateActions = () => {
+  localStorage.removeItem('dismissedUpdateVersion');
+  localStorage.removeItem('postponedUpdateVersion');
+};
+
+export const getDismissedVersion = () => {
+  return localStorage.getItem('dismissedUpdateVersion');
+};
+
+export const getPostponedVersion = () => {
+  return localStorage.getItem('postponedUpdateVersion');
+};
+
+// Check if we should show update notification
+export const shouldShowUpdateNotification = (updateInfo) => {
+  if (!updateInfo.hasUpdate) return false;
+  
+  // Always show if postponed (they want to see it again)
+  if (updateInfo.wasPostponed) return true;
+  
+  // Don't show if dismissed
+  if (updateInfo.wasDismissed) return false;
+  
+  return true;
+};
+
+// Auto-update functionality
+export const downloadAndInstallUpdate = async (downloadUrl) => {
+  if (!downloadUrl) {
+    throw new Error('No download URL available');
+  }
+  
+  if (window.electronAPI?.downloadAndInstallUpdate) {
+    return await window.electronAPI.downloadAndInstallUpdate(downloadUrl);
+  } else {
+    // Fallback: open download URL
+    window.open(downloadUrl, '_blank');
+    throw new Error('Auto-update not supported in this environment');
+  }
+};
+
+// Manual update check (for settings button)
+export const manualUpdateCheck = async () => {
+  const result = await checkForUpdates();
+  setLastVersionCheck();
+  return result;
+};
+
+// TEMPORARY: Simulate a test update for demonstration
+export const simulateTestUpdate = () => {
+  return {
+    hasUpdate: true,
+    currentVersion: '1.0.0',
+    latestVersion: '1.0.1',
+    releaseNotes: '🎉 Test Release!\n\n• Fixed notification positioning\n• Added version display\n• Improved auto-update system\n• Better user experience',
+    releaseDate: new Date().toLocaleDateString(),
+    downloadUrl: 'https://github.com/moisalucian/office-or-home-office/releases/download/v1.0.1/Office-or-Home-Office-v1.0.1.zip',
+    wasDismissed: false,
+    wasPostponed: false
+  };
 };

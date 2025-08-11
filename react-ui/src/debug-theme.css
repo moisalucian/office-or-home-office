@@ -1,0 +1,15 @@
+/* Debug CSS to force border radius and verify theme application */
+.container {
+  border-radius: 20px !important;
+  border: 3px solid red !important;
+}
+
+[data-theme="light"] .container {
+  border-radius: 20px !important;
+  border: 3px solid blue !important;
+}
+
+[data-theme="dark"] .container {
+  border-radius: 20px !important;
+  border: 3px solid green !important;
+}

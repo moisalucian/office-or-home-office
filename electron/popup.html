@@ -2,7 +2,7 @@
 <html lang="ro">
 <head>
   <meta charset="UTF-8" />
-  <title>Vii mâine?</title>
+  <title>Coming tomorrow?</title>
   <style>
     html, body {
       margin: 0;
@@ -19,7 +19,7 @@
 
     .popup-container {
       background-color: #2b2b2b;
-      padding: 1.5rem;
+      padding: 1.5rem 2rem;
       border-radius: 16px;
       box-shadow: 0 0 20px rgba(0, 0, 0, 0.6);
       width: 100vw; /* Fill entire window width */
@@ -49,17 +49,34 @@
     }
 
     h2 {
-      margin: 0 0 2rem 0;
-      font-size: 1.2rem;
+      margin: 2rem 0 2rem 0;
+      font-size: 1.3rem;
       color: white;
       flex-shrink: 0;
+      text-align: center;
+      line-height: 1.2;
+      max-width: 100%;
     }
 
     .buttons {
       display: flex;
-      justify-content: center;
-      gap: 1rem;
+      flex-direction: column;
+      align-items: center;
+      gap: 1.5rem;
       flex-shrink: 0;
+    }
+
+    .main-buttons {
+      display: flex;
+      justify-content: center;
+      gap: 1.5rem;
+      width: 100%;
+    }
+
+    .undecided-button {
+      display: flex;
+      justify-content: center;
+      width: 100%;
     }
 
     button {
@@ -70,6 +87,17 @@
       cursor: pointer;
       font-weight: bold;
       transition: background 0.3s ease;
+      min-width: 140px;
+      height: 40px;
+      white-space: nowrap;
+    }
+
+    .main-buttons button {
+      flex: 0 0 auto;
+    }
+
+    .undecided-button button {
+      flex: 0 0 auto;
     }
 
     .yes {
@@ -90,29 +118,49 @@
       background-color: #d32f2f;
     }
 
+    .undecided {
+      background-color: #ff9800;
+      color: white;
+    }
+
+    .undecided:hover {
+      background-color: #e67c00;
+    }
+
     .close-btn {
       position: absolute;
-      top: 0.5rem;
-      right: 0.8rem;
-      font-size: 1.2rem;
-      background: none;
+      top: 10px;
+      right: 10px;
+      background: #3a3a3a;
       border: none;
-      color: #aaa;
+      border-radius: 6px;
+      color: white;
+      font-size: 1rem;
+      padding: 0.3rem 0.6rem;
       cursor: pointer;
+      transition: background 0.3s;
+      z-index: 1000;
+      min-width: auto;
+      width: auto;
     }
 
     .close-btn:hover {
-      color: white;
+      background: #c0392b;
     }
   </style>
 </head>
 <body>
   <div class="popup-container">
     <button class="close-btn" onclick="window.close()">❌</button>
-    <h2>Vii mâine la birou?</h2>
+    <h2>Are you coming to the office tomorrow?</h2>
     <div class="buttons">
-      <button class="yes" onclick="submit(true)">Vin</button>
-      <button class="no" onclick="submit(false)">Nu vin</button>
+      <div class="main-buttons">
+        <button class="yes" onclick="submit('yes')">Office</button>
+        <button class="no" onclick="submit('no')">Home Office</button>
+      </div>
+      <div class="undecided-button">
+        <button class="undecided" onclick="submit('undecided')">Not Sure Yet</button>
+      </div>
     </div>
   </div>
 

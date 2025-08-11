@@ -1,0 +1,61 @@
+:root {
+  /* Dark Theme (Default) */
+  --bg-color: #1f1f1f;
+  --text-color: #ffffff;
+  --text-secondary: #cccccc;
+  --border-color: #333;
+  --input-bg: #2a2a2a;
+  --button-bg: #333;
+  --button-hover-bg: #444;
+  --container-bg: #1f1f1f;
+  --header-bg: #2a2a2a;
+  --notification-bg: #333;
+  --notification-text: #ffffff;
+  --control-button-bg: #444;
+  --control-button-hover: #555;
+  --control-button-text: #ffffff;
+  --day-button-bg: #444;
+  --day-button-active: #666;
+  --day-button-text: #ffffff;
+  --status-bg: #2a2a2a;
+  --toggle-bg: #555;
+  --toggle-bg-active: #4caf50;
+  --toggle-handle: #ffffff;
+  --scrollbar-track: #333;
+  --scrollbar-thumb: #555;
+  --scrollbar-thumb-hover: #777;
+  --divider-color: #444;
+  --shadow-color: rgba(0, 0, 0, 0.15);
+  --container-border-radius: 16px;
+}
+
+[data-theme="light"] {
+  /* Light Theme */
+  --bg-color: #ffffff;
+  --text-color: #000000;
+  --text-secondary: #555555;
+  --border-color: #ddd;
+  --input-bg: #f5f5f5;
+  --button-bg: #e0e0e0;
+  --button-hover-bg: #d0d0d0;
+  --container-bg: #f8f8f8;
+  --header-bg: #e8e8e8;
+  --notification-bg: #f0f0f0;
+  --notification-text: #000000;
+  --control-button-bg: #e0e0e0;
+  --control-button-hover: #d0d0d0;
+  --control-button-text: #000000;
+  --day-button-bg: #e0e0e0;
+  --day-button-active: #c0c0c0;
+  --day-button-text: #000000;
+  --status-bg: #e8e8e8;
+  --toggle-bg: #ccc;
+  --toggle-bg-active: #4caf50;
+  --toggle-handle: #ffffff;
+  --scrollbar-track: #f0f0f0;
+  --scrollbar-thumb: #c0c0c0;
+  --scrollbar-thumb-hover: #a0a0a0;
+  --divider-color: #ddd;
+  --shadow-color: rgba(0, 0, 0, 0.1);
+  --container-border-radius: 16px;
+}

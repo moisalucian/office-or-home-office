@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
-  base: './', // 🟢 Asta e esențial pentru Electron!
+  base: './', // 🟢 This is essential for Electron!
   build: {
     outDir: 'dist',
   },

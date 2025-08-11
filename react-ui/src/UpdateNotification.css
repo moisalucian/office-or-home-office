@@ -1,6 +1,6 @@
 .update-notification {
   position: fixed;
-  top: 20px;
+  bottom: 20px;
   right: 20px;
   z-index: 9999;
   background: linear-gradient(135deg, #2d2d2d 0%, #1a1a1a 100%);
@@ -8,17 +8,17 @@
   border-radius: 12px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.8);
   backdrop-filter: blur(10px);
-  width: 350px;
-  animation: slideInRight 0.3s ease-out;
+  width: 380px;
+  animation: slideInUp 0.3s ease-out;
 }
 
-@keyframes slideInRight {
+@keyframes slideInUp {
   from {
-    transform: translateX(100%);
+    transform: translateY(100%);
     opacity: 0;
   }
   to {
-    transform: translateX(0);
+    transform: translateY(0);
     opacity: 1;
   }
 }
@@ -48,9 +48,14 @@
   background-color: rgba(255, 255, 255, 0.1);
 }
 
+.update-close-btn:disabled {
+  color: #666;
+  cursor: not-allowed;
+}
+
 .update-header {
   margin-bottom: 1rem;
-  margin-right: 2rem; /* Space for close button */
+  margin-right: 2rem;
 }
 
 .update-header h3 {
@@ -75,6 +80,7 @@
   display: flex;
   gap: 0.5rem;
   margin: 0.8rem 0;
+  flex-wrap: wrap;
 }
 
 .version-badge {
@@ -95,6 +101,35 @@
   color: #ffffff;
 }
 
+.release-date {
+  color: #888 !important;
+  font-size: 0.8rem !important;
+  margin: 0.5rem 0 !important;
+}
+
+.release-notes {
+  margin: 1rem 0;
+}
+
+.release-notes h4 {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.9rem;
+  color: #4caf50;
+}
+
+.release-notes-content {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid #444;
+  border-radius: 6px;
+  padding: 0.8rem;
+  font-size: 0.85rem;
+  line-height: 1.4;
+  color: #ddd;
+  max-height: 120px;
+  overflow-y: auto;
+  white-space: pre-line;
+}
+
 .commit-message {
   font-style: italic;
   color: #aaaaaa !important;
@@ -104,18 +139,107 @@
   padding-left: 0.8rem;
 }
 
-.commit-date {
-  color: #888 !important;
-  font-size: 0.8rem !important;
+/* Progress section styles */
+.update-progress {
+  margin: 1.5rem 0;
+  padding: 1rem;
+  background: rgba(76, 175, 80, 0.1);
+  border: 1px solid #4caf50;
+  border-radius: 8px;
+}
+
+.progress-header h4 {
+  margin: 0 0 1rem 0;
+  color: #4caf50;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.progress-bar-container {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  margin: 1rem 0;
+}
+
+.progress-bar {
+  flex: 1;
+  height: 20px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid #555;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #4caf50 0%, #45a049 100%);
+  border-radius: 10px;
+  transition: width 0.3s ease;
+  position: relative;
+}
+
+.progress-bar-fill::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.2) 50%,
+    transparent 100%
+  );
+  animation: progressShine 1.5s infinite;
+}
+
+@keyframes progressShine {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.progress-text {
+  font-weight: 600;
+  color: #4caf50;
+  font-size: 0.9rem;
+  min-width: 40px;
+  text-align: right;
+  font-family: 'Courier New', monospace;
+}
+
+.progress-message {
+  margin: 0.5rem 0 0 0 !important;
+  color: #cccccc !important;
+  font-size: 0.85rem !important;
+  text-align: center;
+  font-style: italic;
+}
+
+.update-error {
+  background: rgba(255, 92, 92, 0.1);
+  border: 1px solid #ff5c5c;
+  border-radius: 6px;
+  padding: 0.8rem;
+  margin: 1rem 0;
+}
+
+.update-error p {
+  margin: 0.3rem 0 !important;
+  color: #ff9999 !important;
+  font-size: 0.85rem !important;
 }
 
 .update-actions {
   display: flex;
-  gap: 0.8rem;
+  flex-direction: column;
+  gap: 0.6rem;
+  position: relative;
+  z-index: 5;
 }
 
 .update-btn {
-  flex: 1;
   padding: 0.7rem 1rem;
   border: none;
   border-radius: 8px;
@@ -123,6 +247,26 @@
   cursor: pointer;
   transition: all 0.2s ease;
   font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+  min-height: 44px;
+  box-sizing: border-box;
+  user-select: none;
+  position: relative;
+  z-index: 10;
+}
+
+.update-btn * {
+  pointer-events: none;
+}
+
+.update-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none !important;
 }
 
 .update-btn.primary {
@@ -130,7 +274,7 @@
   color: white;
 }
 
-.update-btn.primary:hover {
+.update-btn.primary:hover:not(:disabled) {
   background: linear-gradient(135deg, #45a049 0%, #3d8b40 100%);
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
@@ -142,9 +286,43 @@
   border: 1px solid #666;
 }
 
-.update-btn.secondary:hover {
+.update-btn.secondary:hover:not(:disabled) {
   background: #666;
   transform: translateY(-1px);
+}
+
+.update-btn.tertiary {
+  background: transparent;
+  color: #ccc;
+  border: 1px solid #666;
+}
+
+.update-btn.tertiary:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: #888;
+}
+
+.loading-spinner {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.manual-update-note {
+  background: rgba(255, 193, 7, 0.1);
+  border: 1px solid #ffc107;
+  border-radius: 6px;
+  padding: 0.8rem;
+  margin-top: 1rem;
+}
+
+.manual-update-note p {
+  margin: 0 !important;
+  color: #ffeb3b !important;
+  font-size: 0.85rem !important;
 }
 
 /* Responsive design */
@@ -152,5 +330,14 @@
   .update-notification {
     width: calc(100vw - 40px);
     right: 20px;
+  }
+  
+  .update-actions {
+    gap: 0.4rem;
+  }
+  
+  .update-btn {
+    padding: 0.6rem 0.8rem;
+    font-size: 0.8rem;
   }
 }

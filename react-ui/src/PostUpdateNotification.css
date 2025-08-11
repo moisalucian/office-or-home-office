@@ -1,0 +1,184 @@
+.post-update-notification {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  width: 400px;
+  background: rgba(30, 30, 30, 0.98);
+  backdrop-filter: blur(20px);
+  border: 1px solid #555;
+  border-radius: 12px;
+  color: white;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  z-index: 10000;
+  animation: slideInFromRight 0.3s ease-out;
+}
+
+.post-update-notification.success {
+  border-left: 4px solid #4caf50;
+}
+
+.post-update-notification.error {
+  border-left: 4px solid #f44336;
+}
+
+@keyframes slideInFromRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.post-update-notification-content {
+  padding: 1.5rem;
+  position: relative;
+}
+
+.close-btn {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: none;
+  border: none;
+  color: #ccc;
+  font-size: 24px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  line-height: 1;
+}
+
+.close-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+}
+
+.post-update-header {
+  margin-bottom: 1rem;
+  padding-right: 2rem;
+}
+
+.post-update-header h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.post-update-notification.success .post-update-header h3 {
+  color: #4caf50;
+}
+
+.post-update-notification.error .post-update-header h3 {
+  color: #f44336;
+}
+
+.post-update-info {
+  margin-bottom: 1.5rem;
+  line-height: 1.5;
+}
+
+.post-update-info p {
+  margin: 0 0 0.5rem 0;
+  color: #e0e0e0;
+  font-size: 0.9rem;
+}
+
+.version-info {
+  background: rgba(76, 175, 80, 0.1);
+  padding: 0.8rem;
+  border-radius: 8px;
+  margin-top: 1rem;
+  border: 1px solid rgba(76, 175, 80, 0.3);
+}
+
+.version-info strong {
+  color: #4caf50;
+  font-size: 0.95rem;
+}
+
+.error-details {
+  color: #ffab91 !important;
+  font-size: 0.85rem !important;
+  font-style: italic;
+}
+
+.post-update-actions {
+  display: flex;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+}
+
+.post-update-btn {
+  padding: 0.6rem 1rem;
+  border: none;
+  border-radius: 6px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 0.85rem;
+  flex: 1;
+  min-width: 90px;
+  user-select: none;
+}
+
+.post-update-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.post-update-btn.primary {
+  background: linear-gradient(135deg, #4caf50 0%, #45a049 100%);
+  color: white;
+}
+
+.post-update-btn.primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, #45a049 0%, #3d8b40 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+}
+
+.post-update-btn.secondary {
+  background: linear-gradient(135deg, #2196f3 0%, #1976d2 100%);
+  color: white;
+}
+
+.post-update-btn.secondary:hover:not(:disabled) {
+  background: linear-gradient(135deg, #1976d2 0%, #1565c0 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(33, 150, 243, 0.3);
+}
+
+.post-update-btn.tertiary {
+  background: transparent;
+  color: #ccc;
+  border: 1px solid #555;
+}
+
+.post-update-btn.tertiary:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  border-color: #777;
+}
+
+/* Responsive design */
+@media (max-width: 480px) {
+  .post-update-notification {
+    width: calc(100vw - 40px);
+    right: 20px;
+    left: 20px;
+  }
+  
+  .post-update-actions {
+    flex-direction: column;
+  }
+  
+  .post-update-btn {
+    flex: none;
+    width: 100%;
+  }
+}

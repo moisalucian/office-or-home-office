@@ -1,0 +1,72 @@
+.status-section {
+  margin-top: auto;
+  margin-bottom: 1rem;
+}
+
+.status-title-draggable {
+  -webkit-app-region: drag;
+  text-align: center;
+  cursor: default;
+  padding: 0 2rem;
+  margin: 0 0 1rem 0;
+  color: var(--text-color);
+  transition: color 0.3s;
+}
+
+.container.maximized .status-title-draggable {
+  -webkit-app-region: no-drag;
+}
+
+.status-title-text {
+  -webkit-app-region: no-drag;
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+  user-select: text;
+  cursor: text;
+  display: inline-block;
+}
+
+.status-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.25rem;
+  padding: 0.5rem 0;
+  max-height: 150px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.status-grid::-webkit-scrollbar {
+  width: 6px;
+}
+
+.status-grid::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+  border-radius: 3px;
+}
+
+.status-grid::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 3px;
+}
+
+.status-grid::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+}
+
+.container.maximized .status-section {
+  margin-bottom: 2rem;
+}
+
+.container.maximized .status-grid {
+  max-height: 200px;
+  gap: 0.5rem;
+}
+
+.container.maximized .status-card {
+  padding: 0.8rem 1.5rem;
+  margin: 0.4rem;
+  font-size: 1rem;
+}

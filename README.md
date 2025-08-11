@@ -34,6 +34,25 @@ Follow these steps to set up and build the app:
    };
    ```
 
+3. **Configure Firebase Authentication and Security Rules:**
+   
+   **a) Enable Anonymous Authentication:**
+   - Go to Firebase Console → Authentication → Sign-in method
+   - Enable "Anonymous" authentication
+   
+   **b) Update Database Security Rules:**
+   - Go to Firebase Console → Realtime Database → Rules
+   - Replace the rules with:
+   ```json
+   {
+     "rules": {
+       ".read": "auth != null",
+       ".write": "auth != null"
+     }
+   }
+   ```
+   - Click "Publish" to save the rules
+
 3. **Install dependencies:**
    ```bash
    npm install

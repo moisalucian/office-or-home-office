@@ -19,3 +19,6 @@ Thumbs.db
 # Editor folders (optional)
 .vscode/
 .idea/
+
+# Developer documentation (personal notes)
+README-DEV.md

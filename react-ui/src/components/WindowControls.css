@@ -1,0 +1,27 @@
+.window-controls {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  gap: 0.3rem;
+  z-index: 1000;
+}
+
+.window-controls button {
+  background: var(--control-button-bg);
+  border: none;
+  border-radius: 6px;
+  color: var(--control-button-text);
+  font-size: 1rem;
+  padding: 0.3rem 0.6rem;
+  cursor: pointer;
+  transition: background 0.3s, color 0.3s;
+}
+
+.window-controls button:hover {
+  background: var(--control-button-hover);
+}
+
+.window-controls .close:hover {
+  background: #c0392b;
+}

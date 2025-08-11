@@ -1,9 +1,49 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { database } from "./firebase";
 import { ref, set, onValue, remove, get } from "firebase/database";
+import "./styles/theme.css";
+import "./styles/layout.css";
 import "./styles.css";
 import UpdateNotification from "./UpdateNotification";
-import { checkForUpdates, shouldCheckForUpdates, dismissUpdate, isUpdateDismissed, clearUpdateDismissal } from "./versionCheck";
+import PostUpdateNotification from "./PostUpdateNotification";
+import { 
+  checkForUpdates, 
+  shouldCheckForUpdates, 
+  dismissUpdate, 
+  postponeUpdate,
+  shouldShowUpdateNotification,
+  downloadAndInstallUpdate,
+  manualUpdateCheck as performManualUpdateCheck,
+  setCurrentVersion,
+  simulateTestUpdate
+} from "./versionCheck";
+import { logStatusChange, getActivityLogs } from "./activityLogger";
+import { initializeAuth, waitForAuth } from "./auth";
+
+// Components
+import WindowControls from "./components/WindowControls";
+import StatusGrid from "./components/StatusGrid";
+// import Settings from "./components/Settings";
+
+// Hooks
+import { useTheme } from "./hooks/useTheme";
+import { useWindowState } from "./hooks/useWindowState";
+import { useNotificationSound } from "./hooks/useNotificationSound";
+
+// Utils
+import { 
+  getHumanReadableTimestamp, 
+  getTomorrowDate, 
+  getNextWorkingDayName,
+  calculateOptimalHeight 
+} from "./utils/dateUtils";
+import { 
+  saveNotificationSettings, 
+  loadNotificationSettings, 
+  updateNotificationSettingsName,
+  loadSetting 
+} from "./utils/storageUtils";
+import { STATUS_TYPES, CACHE_DURATION, UPDATE_CHECK_INTERVAL } from "./utils/constants";
 
 function App() {
   const [name, setName] = useState("");
@@ -15,10 +55,128 @@ function App() {
   const [notifications, setNotifications] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const [notificationSummary, setNotificationSummary] = useState('');
-  const [launchAtStartup, setLaunchAtStartup] = useState(false);
-  const [isMaximized, setIsMaximized] = useState(false);
   const [updateInfo, setUpdateInfo] = useState(null);
   const [showUpdateNotification, setShowUpdateNotification] = useState(false);
+  const [postUpdateState, setPostUpdateState] = useState(null);
+  const [showPostUpdateNotification, setShowPostUpdateNotification] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarWidth, setSidebarWidth] = useState(() => {
+    const saved = localStorage.getItem('sidebarWidth');
+    return saved ? parseInt(saved) : 300;
+  });
+  const [activityLogs, setActivityLogs] = useState([]);
+  const [activityLogsCache, setActivityLogsCache] = useState(null);
+  const [lastCacheTime, setLastCacheTime] = useState(0);
+  const [showSettings, setShowSettings] = useState(false);
+  const [manualUpdateCheck, setManualUpdateCheck] = useState({
+    isChecking: false,
+    lastChecked: null,
+    result: null
+  });
+  const [appVersion, setAppVersion] = useState('1.0.0');
+  const [updateProgress, setUpdateProgress] = useState({
+    phase: null, // 'downloading', 'installing', 'ready'
+    percent: 0,
+    message: ''
+  });
+  
+  // Use custom hooks
+  const { theme, themeSetting, handleThemeChange } = useTheme();
+  const { notificationSound, handleNotificationSoundChange, previewNotificationSound } = useNotificationSound();
+  const { 
+    isMaximized, 
+    launchAtStartup,
+    launchInTray,
+    defaultLaunchOption,
+    handleStartupToggle,
+    handleLaunchInTrayToggle,
+    handleDefaultLaunchOptionChange
+  } = useWindowState();
+
+  // Calculate dates (moved to avoid duplication)
+  const tomorrow = getTomorrowDate();
+  const nextWorkDay = getNextWorkingDayName();
+  
+  // Load activity logs when needed with caching
+  const loadActivityLogs = useCallback(async () => {
+    const now = Date.now();
+    
+    // Use cache if it's fresh
+    if (activityLogsCache && (now - lastCacheTime) < CACHE_DURATION) {
+      setActivityLogs(activityLogsCache);
+      return;
+    }
+    
+    const logs = await getActivityLogs();
+    setActivityLogs(logs);
+    setActivityLogsCache(logs);
+    setLastCacheTime(now);
+  }, [activityLogsCache, lastCacheTime]);
+
+  // Initialize app version
+  useEffect(() => {
+    const getVersion = async () => {
+      try {
+        if (window.electronAPI?.getAppVersion) {
+          const version = await window.electronAPI.getAppVersion();
+          setAppVersion(version || '1.0.0');
+        }
+      } catch (error) {
+        console.error('Error getting app version:', error);
+        setAppVersion('1.0.0');
+      }
+    };
+    getVersion();
+  }, []);
+
+  // Load activity logs when sidebar opens or app starts
+  useEffect(() => {
+    if (sidebarOpen) {
+      loadActivityLogs();
+    }
+  }, [sidebarOpen, loadActivityLogs]);
+  
+  // Preload activity logs on app start for faster satellite window
+  useEffect(() => {
+    const preloadLogs = async () => {
+      await loadActivityLogs();
+    };
+    preloadLogs();
+  }, [loadActivityLogs]);
+
+  // Check if this is the sidebar window
+  const isSidebarWindow = window.location.hash === '#sidebar';
+  
+  // Shared activity log content component
+  const ActivityLogContent = () => (
+    <>
+      <h3>Activity Log</h3>
+      <div className="activity-log-container">
+        {activityLogs.length === 0 ? (
+          <p style={{ color: '#888', textAlign: 'center', marginTop: '2rem' }}>
+            No activity recorded yet.<br/>
+            Status changes will appear here.
+          </p>
+        ) : (
+          activityLogs.map((dayLog, dayIndex) => (
+            <div key={dayLog.date} className="activity-day">
+              <h4 className="activity-day-header">{dayLog.dayName}</h4>
+              {dayLog.entries.map((entry, entryIndex) => (
+                <div key={entryIndex} className="activity-entry">
+                  <span className="activity-time">{entry.time}</span>
+                  <span 
+                    className={`activity-message ${entry.colorClass}`}
+                  >
+                    {entry.message}
+                  </span>
+                </div>
+              ))}
+            </div>
+          ))
+        )}
+      </div>
+    </>
+  );
   
   // Use ref to always get current name value in popup handler
   const nameRef = useRef(name);
@@ -26,55 +184,44 @@ function App() {
     nameRef.current = name;
   }, [name]);
 
-  const tomorrowDate = new Date(Date.now() + 86400000).toISOString().split("T")[0];
-
   // Calculate optimal window height based on content
-  const calculateOptimalHeight = useCallback(() => {
-    const tomorrowStatuses = Object.entries(statuses).filter(([_, v]) => v.date === tomorrowDate);
-    const statusCount = tomorrowStatuses.length;
-    
-    // Base height for header, buttons, and other content
-    const baseHeight = 520;
-    
-    // Height per status card (including wrapping)
-    const cardHeight = 40; // Approximate height per card including margins
-    const cardsPerRow = 4; // Approximate cards per row
-    const rows = Math.ceil(statusCount / cardsPerRow);
-    
-    // Always calculate for maximum possible content to prevent resizing
-    const maxRows = 3; // Fixed to prevent window resizing
-    const visibleRows = Math.min(rows, maxRows);
-    
-    const statusSectionHeight = visibleRows * cardHeight + 80; // Extra space for titles
-    
-    // Calculate for maximum notification space to avoid resizing
-    // Assume maximum 3 notifications when open + 100px for controls
-    const maxNotificationHeight = 3 * 120 + 150; // Space for header + controls
-    
-    const totalHeight = baseHeight + statusSectionHeight + maxNotificationHeight;
-    
-    // Fixed height approach - min 700px, max 800px for consistent behavior
-    return Math.min(Math.max(totalHeight, 700), 800);
-  }, [statuses, tomorrowDate]); // Removed showNotifications and notifications from dependencies
+  const calculateOptimalHeightCallback = useCallback(() => {
+    return calculateOptimalHeight(statuses, tomorrow);
+  }, [statuses, tomorrow]);
 
   useEffect(() => {
     if (window.electronAPI?.resizeWindow && !isMaximized) {
-      const optimalHeight = calculateOptimalHeight();
-      console.log('Resizing window to:', 650, optimalHeight);
-      window.electronAPI.resizeWindow(650, optimalHeight);
+      const optimalHeight = calculateOptimalHeightCallback();
+      console.log('Resizing window to:', 940, optimalHeight);
+      window.electronAPI.resizeWindow(940, optimalHeight);
     }
-  }, [statuses, isMaximized, calculateOptimalHeight]); // Removed notifications and showNotifications
+  }, [statuses, isMaximized, calculateOptimalHeightCallback]);
 
   useEffect(() => {
-    const savedName = localStorage.getItem("username");
+    const savedName = loadSetting("username");
     if (savedName) {
       setName(savedName);
       setOldName(savedName);
       setIsNameSaved(true);
+      // Load notifications for the saved user
+      const loaded = loadNotificationSettings(savedName);
+      setNotifications(loaded);
     }
+  }, []);
 
-    const savedStartup = localStorage.getItem("launchAtStartup") === "true";
-    setLaunchAtStartup(savedStartup);
+  // Initialize anonymous authentication on app startup
+  useEffect(() => {
+    const authenticateUser = async () => {
+      try {
+        await initializeAuth();
+        console.log('Authentication initialized successfully');
+      } catch (error) {
+        console.error('Authentication failed:', error);
+        // App will still work, but database operations might fail
+      }
+    };
+
+    authenticateUser();
   }, []);
 
   useEffect(() => {
@@ -99,9 +246,9 @@ function App() {
       if (notifications.length > 0) {
         const descrieri = notifications.map((n) => {
           const zile = n.days.join(', ');
-          return `🕘 ${n.time} în zilele: ${zile}`;
+          return `🕘 ${n.time} on days: ${zile}`;
         }).join("\n");
-        setNotificationSummary(`${name}, ai setat notificări pentru:\n${descrieri}`);
+        setNotificationSummary(`${name}, you have notifications set for:\n${descrieri}`);
       } else {
         setNotificationSummary('');
       }
@@ -109,7 +256,10 @@ function App() {
   }, [notifications, name]);
 
   useEffect(() => {
-    const interval = setInterval(() => {
+    let timeoutId;
+    let intervalId;
+
+    const checkNotifications = () => {
       const now = new Date();
       const currentDay = ["D", "L", "Ma", "Mi", "J", "V", "S"][now.getDay()];
       const currentTime = now.toTimeString().slice(0, 5);
@@ -121,31 +271,70 @@ function App() {
           }
         }
       });
-    }, 60000);
+    };
 
-    return () => clearInterval(interval);
+    const scheduleNextCheck = () => {
+      const now = new Date();
+      // Calculate milliseconds until the next minute (when seconds = 0)
+      const msUntilNextMinute = (60 - now.getSeconds()) * 1000 - now.getMilliseconds();
+      
+      // Schedule the first check at the exact start of the next minute
+      timeoutId = setTimeout(() => {
+        checkNotifications();
+        // After the first precise check, set up regular interval checks every minute
+        intervalId = setInterval(checkNotifications, 60000);
+      }, msUntilNextMinute);
+    };
+
+    // Start the precise scheduling
+    scheduleNextCheck();
+
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+      if (intervalId) clearInterval(intervalId);
+    };
   }, [notifications]);
 
   useEffect(() => {
     if (!window.electronAPI?.onPopupStatus) return;
 
-    const handlePopup = (status) => {
+    const handlePopup = async (status) => {
       const currentName = nameRef.current; // Get current name from ref
       if (!currentName || !currentName.trim()) return; // Ensure name exists and is not empty
       
+      // Convert boolean values to string for backward compatibility
+      let normalizedStatus = status;
+      if (typeof status === 'boolean') {
+        normalizedStatus = status ? 'yes' : 'no';
+      }
+      
       // Use the current name for saving status
       const userRef = ref(database, `statuses/${currentName}`);
-      set(userRef, {
-        date: tomorrowDate,
-        status,
-        updatedAt: Date.now()
-      })
-        .then(() => {
-          // No need to update statusMessage here as it's handled by the main saveStatus function
-        })
-        .catch((error) => {
-          console.error("Eroare la salvare din popup:", error);
+      
+      try {
+        await set(userRef, {
+          date: tomorrow,
+          status: normalizedStatus,
+          updatedAt: getHumanReadableTimestamp()
         });
+
+        // Log this change to activity log
+        await logStatusChange(currentName, normalizedStatus, tomorrow);
+        
+        // Clear cache and refresh activity logs if sidebar is open
+        setActivityLogsCache(null);
+        if (sidebarOpen) {
+          await loadActivityLogs();
+        }
+        
+        // Notify satellite window to refresh if it exists
+        if (window.electronAPI?.refreshSidebarActivityLogs) {
+          window.electronAPI.refreshSidebarActivityLogs();
+        }
+        
+      } catch (error) {
+        console.error("Error saving from popup:", error);
+      }
     };
 
     window.electronAPI.onPopupStatus(handlePopup);
@@ -159,87 +348,153 @@ function App() {
 
     const handleWindowStateChange = (state) => {
       setIsMaximized(state.maximized);
+      
+      // Close sidebar window if switching to maximized mode
+      if (state.maximized && sidebarOpen && !isMaximized) {
+        if (window.electronAPI?.toggleSidebarWindow) {
+          window.electronAPI.toggleSidebarWindow(false);
+        }
+      }
     };
 
     window.electronAPI.onWindowStateChanged(handleWindowStateChange);
+  }, [sidebarOpen, isMaximized]);
+
+  // Listen for sidebar window being closed externally
+  useEffect(() => {
+    if (!window.electronAPI?.onSidebarWindowClosed) return;
+
+    const handleSidebarClosed = () => {
+      setSidebarOpen(false);
+    };
+
+    window.electronAPI.onSidebarWindowClosed(handleSidebarClosed);
   }, []);
 
   // Version checking effect
   useEffect(() => {
     const checkVersion = async () => {
-      if (shouldCheckForUpdates() && !isUpdateDismissed()) {
+      if (shouldCheckForUpdates()) {
         const result = await checkForUpdates();
-        if (result.hasUpdate) {
+        if (result.hasUpdate && shouldShowUpdateNotification(result)) {
           setUpdateInfo(result);
           setShowUpdateNotification(true);
         }
       }
     };
 
-    // Check for updates when app starts
+    const checkPostUpdateState = async () => {
+      if (window.electronAPI?.checkUpdateState) {
+        try {
+          const updateState = await window.electronAPI.checkUpdateState();
+          if (updateState) {
+            console.log('Post-update state detected:', updateState);
+            // Clear any existing update progress/notifications
+            setUpdateProgress({ phase: null, percent: 0, message: '' });
+            setShowUpdateNotification(false);
+            
+            // Show post-update notification
+            setPostUpdateState({
+              success: true,
+              version: updateState.version,
+              timestamp: updateState.timestamp
+            });
+            setShowPostUpdateNotification(true);
+          }
+        } catch (error) {
+          console.error('Error checking post-update state:', error);
+        }
+      }
+    };
+
+    // Check for post-update state first
+    checkPostUpdateState();
+    
+    // Then check for updates when app starts
     checkVersion();
     
-    // Check for updates every hour while app is running
-    const interval = setInterval(checkVersion, 60 * 60 * 1000);
+    // Check for updates every 2 hours while app is running
+    const interval = setInterval(checkVersion, 2 * 60 * 60 * 1000);
     
     return () => clearInterval(interval);
   }, []);
 
-  const saveNotificationSettings = (username, settings) => {
-    const current = JSON.parse(localStorage.getItem("notificationSettings")) || {};
-    current[username] = settings;
-    localStorage.setItem("notificationSettings", JSON.stringify(current));
-  };
-
-  const loadNotificationSettings = (username) => {
-    const current = JSON.parse(localStorage.getItem("notificationSettings")) || {};
-    return current[username] || [];
-  };
-
-  const updateNotificationSettingsName = (oldUsername, newUsername) => {
-    const settings = JSON.parse(localStorage.getItem("notificationSettings")) || {};
-    if (settings[oldUsername]) {
-      settings[newUsername] = settings[oldUsername];
-      delete settings[oldUsername];
-      localStorage.setItem("notificationSettings", JSON.stringify(settings));
-    }
-  };
-
-  const saveStatus = (status) => {
+  const saveStatus = async (status) => {
     if (!name) {
-      alert("Te rog completează numele înainte de a confirma statusul.");
+      alert("Please enter your name before confirming status.");
       return;
     }
 
-    const userRef = ref(database, `statuses/${name}`);
-    set(userRef, {
-      date: tomorrowDate,
-      status,
-      updatedAt: Date.now()
-    })
-      .then(() => {
-        setStatusMessage(
-          status
-            ? `${name} a confirmat că vine mâine la birou.`
-            : `${name} a confirmat că NU vine mâine la birou.`
-        );
-        setStatusColor(status ? 'green' : 'red');
-      })
-      .catch((error) => {
-        console.error("Eroare la salvare:", error);
-        setStatusMessage("A apărut o eroare la salvarea statusului.");
-        setStatusColor('gray');
+    try {
+      // Ensure user is authenticated before database operations
+      await waitForAuth();
+      
+      const userRef = ref(database, `statuses/${name}`);
+      
+      await set(userRef, {
+        date: tomorrow,
+        status,
+        updatedAt: getHumanReadableTimestamp()
       });
+
+      const dayText = nextWorkDay.toLowerCase() === 'monday' ? 'Monday' : 'Tomorrow';
+      
+      let message = '';
+      let color = '';
+      
+      switch (status) {
+        case 'yes':
+          message = `${name}, you confirmed that you're working from the office ${dayText}.`;
+          color = 'green';
+          break;
+        case 'no':
+          message = `${name}, you confirmed that you're working from the home office ${dayText}.`;
+          color = 'red';
+          break;
+        case 'undecided':
+          message = `${name}, you marked that you're not sure yet where you'll work ${dayText}.`;
+          color = 'orange';
+          break;
+        default:
+          message = "Status saved.";
+          color = 'gray';
+      }
+      
+      setStatusMessage(message);
+      setStatusColor(color);
+      
+      // Log this change to activity log
+      await logStatusChange(name, status, tomorrow);
+      
+      // Clear cache and refresh activity logs if sidebar is open
+      setActivityLogsCache(null);
+      if (sidebarOpen) {
+        await loadActivityLogs();
+      }
+      
+      // Notify satellite window to refresh if it exists
+      if (window.electronAPI?.refreshSidebarActivityLogs) {
+        window.electronAPI.refreshSidebarActivityLogs();
+      }
+      
+    } catch (error) {
+      console.error("Error saving:", error);
+      setStatusMessage("An error occurred while saving status.");
+      setStatusColor('gray');
+    }
   };
 
   const handleSaveName = async () => {
     if (!name) {
-      alert("Completează un nume.");
+      alert("Please enter a name.");
       return;
     }
 
     if (oldName && oldName !== name) {
       try {
+        // Ensure user is authenticated before database operations
+        await waitForAuth();
+        
         const oldUserRef = ref(database, `statuses/${oldName}`);
         const snapshot = await get(oldUserRef);
         if (snapshot.exists()) {
@@ -247,13 +502,13 @@ function App() {
           const newUserRef = ref(database, `statuses/${name}`);
           await set(newUserRef, oldData);
           await remove(oldUserRef);
-          setStatusMessage(`${name} a preluat statusul de la ${oldName}.`);
+          setStatusMessage(`${name} took over status from ${oldName}.`);
           setStatusColor('blue');
         }
         updateNotificationSettingsName(oldName, name);
       } catch (err) {
-        console.error("Eroare la mutarea statusului:", err);
-        setStatusMessage("A apărut o eroare la mutarea statusului vechi.");
+        console.error("Error transferring status:", err);
+        setStatusMessage("An error occurred while transferring the old status.");
         setStatusColor('gray');
       }
     }
@@ -270,14 +525,14 @@ function App() {
     setName("");
   };
 
-  const handleStartupToggle = (e) => {
-    const isChecked = e.target.checked;
-    setLaunchAtStartup(isChecked);
-    localStorage.setItem("launchAtStartup", isChecked);
-    if (window?.electronAPI?.setStartup) {
-      window.electronAPI.setStartup(isChecked);
+  // Listen for sound errors
+  useEffect(() => {
+    if (window.electronAPI?.onSoundError) {
+      window.electronAPI.onSoundError((errorMessage) => {
+        alert(`Sound Error: ${errorMessage}\n\nPlease add the sound files to the electron/sounds/ folder.`);
+      });
     }
-  };
+  }, []);
 
   const addNotification = () => {
     setNotifications([...notifications, { time: "", days: [] }]);
@@ -289,60 +544,662 @@ function App() {
     setNotifications(updated);
   };
 
-  const handleUpdateDismiss = () => {
-    dismissUpdate();
+  const handleUpdateDismiss = (version) => {
+    dismissUpdate(version);
     setShowUpdateNotification(false);
     setUpdateInfo(null);
+    setUpdateProgress({ phase: null, percent: 0, message: '' });
+    // Clear update check result
+    setManualUpdateCheck(prev => ({ ...prev, result: null }));
   };
+
+  const handleUpdatePostpone = (version) => {
+    postponeUpdate(version);
+    setShowUpdateNotification(false);
+    setUpdateInfo(null);
+    setUpdateProgress({ phase: null, percent: 0, message: '' });
+    // Clear update check result
+    setManualUpdateCheck(prev => ({ ...prev, result: null }));
+  };
+
+  const handleUpdateNow = async (updateInfo) => {
+    console.log('handleUpdateNow called with:', updateInfo);
+    
+    try {
+      // Check if this is a test scenario - test versions are 1.0.1 OR commit-based versions like 1.0.0-abc123
+      const isTestScenario = updateInfo.latestVersion === '1.0.1' || 
+                            /^\d+\.\d+\.\d+-[a-f0-9]+$/.test(updateInfo.latestVersion);
+      
+      if (isTestScenario) {
+        console.log('Test scenario detected - simulating update without actual download');
+        console.log('Test version:', updateInfo.latestVersion);
+        
+        // Reset progress
+        setUpdateProgress({ phase: 'downloading', percent: 0, message: 'Starting download...' });
+        
+        // Simulate download progress
+        const downloadInterval = setInterval(() => {
+          setUpdateProgress(prev => {
+            if (prev.percent >= 100) {
+              clearInterval(downloadInterval);
+              // Start install phase
+              setUpdateProgress({ phase: 'installing', percent: 0, message: 'Installing update...' });
+              
+              // Simulate install progress
+              const installInterval = setInterval(() => {
+                setUpdateProgress(prev => {
+                  if (prev.percent >= 100) {
+                    clearInterval(installInterval);
+                    setUpdateProgress({ phase: 'ready', percent: 100, message: 'Update installed successfully!' });
+                    return prev;
+                  }
+                  return { ...prev, percent: prev.percent + 10, message: 'Installing update...' };
+                });
+              }, 200);
+              
+              return prev;
+            }
+            return { ...prev, percent: prev.percent + 5, message: 'Downloading update...' };
+          });
+        }, 100);
+        
+        // For test scenarios, just simulate without calling actual download
+        return;
+      }
+      
+      // For real updates, check if we have a download URL
+      if (updateInfo.downloadUrl) {
+        console.log('Download URL exists:', updateInfo.downloadUrl);
+        
+        // Reset progress
+        setUpdateProgress({ phase: 'downloading', percent: 0, message: 'Starting download...' });
+        
+        // Call the actual download function
+        console.log('About to call downloadAndInstallUpdate for real update');
+        await downloadAndInstallUpdate(updateInfo.downloadUrl);
+        // The app should restart after successful update
+      } else {
+        console.log('No download URL, opening browser fallback');
+        // Fallback: open repository
+        window.open('https://github.com/moisalucian/office-or-home-office/releases/latest', '_blank');
+        throw new Error('Auto-update not available, opened download page');
+      }
+    } catch (error) {
+      console.error('Update failed:', error);
+      setUpdateProgress({ phase: null, percent: 0, message: '' });
+      throw error;
+    }
+  };
+
+  const handleManualUpdateCheck = async () => {
+    setManualUpdateCheck(prev => ({ ...prev, isChecking: true }));
+    
+    try {
+      const result = await performManualUpdateCheck();
+      setManualUpdateCheck({
+        isChecking: false,
+        lastChecked: new Date(),
+        result
+      });
+      
+      if (result.hasUpdate) {
+        setUpdateInfo(result);
+        setShowUpdateNotification(true);
+      }
+    } catch (error) {
+      console.error('Manual update check failed:', error);
+      setManualUpdateCheck({
+        isChecking: false,
+        lastChecked: new Date(),
+        result: { hasUpdate: false, error: error.message }
+      });
+    }
+  };
+
+  // TEMPORARY: Test update notification
+  const handleTestUpdateNotification = () => {
+    const testUpdate = simulateTestUpdate();
+    setUpdateInfo(testUpdate);
+    setShowUpdateNotification(true);
+  };
+
+  // Post-update notification handlers
+  const handlePostUpdateDismiss = () => {
+    setShowPostUpdateNotification(false);
+    setPostUpdateState(null);
+    // In development mode, mark that we've shown the post-update notification
+    const isDev = window.location.hostname === 'localhost';
+    if (isDev) {
+      localStorage.setItem('dev-post-update-dismissed', 'true');
+    }
+  };
+
+  const handlePostUpdateRetry = () => {
+    // Trigger a new update check and show the update notification
+    setShowPostUpdateNotification(false);
+    setPostUpdateState(null);
+    handleManualUpdateCheck();
+  };
+
+  const handlePostUpdateManual = () => {
+    window.open('https://github.com/moisalucian/office-or-home-office/releases/latest', '_blank');
+  };
+
+  // Settings and theme integration useEffect
+  useEffect(() => {
+    if (window.electronAPI) {
+      // Handle tray double-click launch settings request
+      const handleTrayLaunchRequest = () => {
+        const settings = {
+          defaultLaunchOption: localStorage.getItem('defaultLaunchOption') || 'window'
+        };
+        window.electronAPI.sendTrayLaunchSettings(settings);
+      };
+      
+      // Set up listeners
+      window.electronAPI.onGetSettingsForTrayLaunch(handleTrayLaunchRequest);
+    }
+  }, []);
+
+  const toggleSidebar = () => {
+    if (isMaximized) {
+      setSidebarOpen(!sidebarOpen);
+    } else {
+      // For normal mode, toggle satellite window
+      const newState = !sidebarOpen;
+      setSidebarOpen(newState);
+      if (window.electronAPI?.toggleSidebarWindow) {
+        window.electronAPI.toggleSidebarWindow(newState);
+      }
+    }
+  };
+
+  // Cleanup effect for sidebar resize
+  useEffect(() => {
+    const cleanup = () => {
+      document.body.style.userSelect = '';
+      document.body.style.cursor = '';
+    };
+
+    // Cleanup when sidebar closes
+    if (!sidebarOpen) {
+      cleanup();
+    }
+
+    // Cleanup on unmount
+    return cleanup;
+  }, [sidebarOpen]);
+
+  // Special render for sidebar window
+  if (isSidebarWindow) {
+    const [isLoading, setIsLoading] = useState(true);
+    
+    // Initialize theme for sidebar window
+    useEffect(() => {
+      const initSidebarTheme = async () => {
+        const savedTheme = localStorage.getItem('theme') || 'dark';
+        
+        if (savedTheme === 'system') {
+          try {
+            const systemTheme = await window.electronAPI.getSystemTheme();
+            document.documentElement.setAttribute('data-theme', systemTheme);
+          } catch (error) {
+            console.log('Could not get system theme for sidebar, defaulting to dark');
+            document.documentElement.setAttribute('data-theme', 'dark');
+          }
+        } else {
+          document.documentElement.setAttribute('data-theme', savedTheme);
+        }
+      };
+      
+      // Listen for theme changes from main process
+      const handleThemeChange = (newTheme) => {
+        document.documentElement.setAttribute('data-theme', newTheme);
+      };
+      
+      if (window.electronAPI?.onThemeChanged) {
+        window.electronAPI.onThemeChanged(handleThemeChange);
+      }
+      
+      initSidebarTheme();
+    }, []);
+    
+    // Load activity logs when satellite window opens
+    useEffect(() => {
+      const loadData = async () => {
+        // Show window immediately, load data in background
+        setIsLoading(false); // Show content immediately
+        await loadActivityLogs();
+      };
+      loadData();
+      
+      // Listen for refresh events from main window
+      const handleRefresh = async () => {
+        await loadActivityLogs();
+      };
+      
+      if (window.electronAPI?.onRefreshActivityLogs) {
+        window.electronAPI.onRefreshActivityLogs(handleRefresh);
+      }
+    }, [loadActivityLogs]);
+
+    // Initialize theme for sidebar window
+    useEffect(() => {
+      const initSidebarTheme = async () => {
+        const savedTheme = localStorage.getItem('theme') || 'dark';
+        if (savedTheme === 'system') {
+          try {
+            const systemTheme = await window.electronAPI.getSystemTheme();
+            document.documentElement.setAttribute('data-theme', systemTheme);
+          } catch (error) {
+            document.documentElement.setAttribute('data-theme', 'dark');
+          }
+        } else {
+          document.documentElement.setAttribute('data-theme', savedTheme);
+        }
+      };
+      
+      initSidebarTheme();
+      
+      // Listen for theme changes
+      if (window.electronAPI?.onThemeChanged) {
+        window.electronAPI.onThemeChanged((newTheme) => {
+          document.documentElement.setAttribute('data-theme', newTheme);
+        });
+      }
+    }, []);
+
+    return (
+      <div className="sidebar-window">
+        <div className="sidebar-content">
+          <ActivityLogContent />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={`container ${isMaximized ? 'maximized' : ''}`}>
+      <WindowControls />
+      {/* Sidebar toggle arrow */}
+      <button 
+        className={`sidebar-toggle ${isMaximized ? 'maximized' : 'normal'} ${sidebarOpen && isMaximized ? 'open' : ''}`}
+        onClick={toggleSidebar}
+        title="Toggle Activity Log"
+      >
+        {isMaximized ? (sidebarOpen ? '◀' : '▶') : '◀'}
+      </button>
+
+      {/* Settings icon */}
+      <button 
+        className="settings-icon"
+        onClick={() => setShowSettings(!showSettings)}
+        title="Settings"
+      >
+        ⚙️
+      </button>
+
+      {/* Sidebar for maximized mode */}
+      {isMaximized && (
+        <div 
+          className="sidebar-maximized" 
+          style={{ 
+            width: sidebarOpen ? `${sidebarWidth}px` : '0px'
+          }}
+        >
+          {sidebarOpen && (
+            <>
+              <div className="sidebar-content">
+                <ActivityLogContent />
+              </div>
+              <div 
+                className="sidebar-resize-handle" 
+                onMouseDown={(e) => {
+                  const startX = e.clientX;
+                  const startWidth = sidebarWidth;
+
+                  const onMouseMove = (e) => {
+                    const newWidth = startWidth + (e.clientX - startX);
+                    const clampedWidth = Math.max(200, Math.min(600, newWidth));
+                    setSidebarWidth(clampedWidth);
+                    localStorage.setItem('sidebarWidth', clampedWidth);
+                  };
+
+                  const onMouseUp = () => {
+                    document.removeEventListener('mousemove', onMouseMove);
+                    document.removeEventListener('mouseup', onMouseUp);
+                  };
+
+                  document.addEventListener('mousemove', onMouseMove);
+                  document.addEventListener('mouseup', onMouseUp);
+                }}
+              ></div>
+            </>
+          )}
+        </div>
+      )}
+
       {/* Update notification */}
       {showUpdateNotification && updateInfo && (
         <UpdateNotification 
           updateInfo={updateInfo} 
           onDismiss={handleUpdateDismiss}
+          onPostpone={handleUpdatePostpone}
+          onUpdateNow={handleUpdateNow}
+          updateProgress={updateProgress}
+          onRestartNow={async () => {
+            if (window.electronAPI?.restartApp && window.electronAPI?.markUpdateCompleted) {
+              try {
+                // Mark that the update was completed before restarting
+                const currentVersion = await window.electronAPI.getAppVersion();
+                console.log('Marking update completed for version:', currentVersion);
+                await window.electronAPI.markUpdateCompleted(currentVersion);
+                
+                // Check if we're in development mode (localhost indicates dev server)
+                const isDev = window.location.hostname === 'localhost';
+                if (isDev) {
+                  console.log('Development mode detected - simulating post-update state');
+                  // Clear current update state
+                  setShowUpdateNotification(false);
+                  setUpdateInfo(null);
+                  setUpdateProgress({ phase: null, percent: 0, message: '' });
+                  
+                  // Show post-update notification after a brief delay (only if not already dismissed)
+                  setTimeout(() => {
+                    const alreadyDismissed = localStorage.getItem('dev-post-update-dismissed');
+                    if (!alreadyDismissed) {
+                      setPostUpdateState({
+                        success: true,
+                        version: currentVersion,
+                        timestamp: Date.now()
+                      });
+                      setShowPostUpdateNotification(true);
+                    }
+                  }, 1000);
+                } else {
+                  // Production mode - actual restart
+                  console.log('Production mode - restarting app');
+                  window.electronAPI.restartApp();
+                }
+              } catch (error) {
+                console.error('Error during restart process:', error);
+              }
+            }
+          }}
+          onRestartLater={() => {
+            setShowUpdateNotification(false);
+            setUpdateInfo(null);
+            setUpdateProgress({ phase: null, percent: 0, message: '' });
+            // Clear update check result
+            setManualUpdateCheck(prev => ({ ...prev, result: null }));
+          }}
         />
       )}
+
+      {/* Post-update notification */}
+      {showPostUpdateNotification && postUpdateState && (
+        <PostUpdateNotification 
+          updateState={postUpdateState}
+          onDismiss={handlePostUpdateDismiss}
+          onRetryUpdate={handlePostUpdateRetry}
+          onManualUpdate={handlePostUpdateManual}
+        />
+      )}
+
+      {/* Settings popup */}
+      {showSettings && (
+        <div className="settings-overlay" onClick={() => setShowSettings(false)}>
+          <div className="settings-popup" onClick={(e) => e.stopPropagation()}>
+            <div className="settings-header">
+              <h3>⚙️ Settings</h3>
+              <button className="settings-close" onClick={() => setShowSettings(false)}>❌</button>
+            </div>
+            <div className="settings-content">
+              <div className="setting-item">
+                <div className="setting-label" title="Start the app when Windows starts">
+                  <span className="setting-title">Launch at startup</span>
+                  <label className="toggle-switch">
+                    <input 
+                      type="checkbox" 
+                      checked={launchAtStartup} 
+                      onChange={handleStartupToggle}
+                    />
+                    <span className="toggle-slider"></span>
+                  </label>
+                </div>
+              </div>
+
+              <div className="setting-item">
+                <div className="setting-label" title="Start minimized to system tray">
+                  <span className="setting-title">Launch in tray directly</span>
+                  <label className="toggle-switch">
+                    <input 
+                      type="checkbox" 
+                      checked={launchInTray} 
+                      onChange={handleLaunchInTrayToggle}
+                    />
+                    <span className="toggle-slider"></span>
+                  </label>
+                </div>
+              </div>
+
+              <div className="setting-item">
+                <div className="setting-label" title="How the app opens on startup">
+                  <span className="setting-title">Default launch option</span>
+                  <select 
+                    className="setting-select"
+                    value={defaultLaunchOption} 
+                    onChange={handleDefaultLaunchOptionChange}
+                    title="How the app opens on startup"
+                  >
+                    <option value="window">Window</option>
+                    <option value="maximized">Full screen</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="setting-item">
+                <div className="setting-label" title="App appearance and colors">
+                  <span className="setting-title">Theme</span>
+                  <select 
+                    className="setting-select"
+                    value={themeSetting} 
+                    onChange={handleThemeChange}
+                    title="App appearance and colors"
+                  >
+                    <option value="dark">Dark</option>
+                    <option value="light">Light</option>
+                    <option value="system">System</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="setting-item">
+                <div className="setting-label" title="Sound played when notification popup appears">
+                  <span className="setting-title">Notification sound</span>
+                  <div className="sound-setting-controls">
+                    <select 
+                      className="setting-select"
+                      value={notificationSound} 
+                      onChange={handleNotificationSoundChange}
+                      title="Sound played when notification popup appears"
+                    >
+                      <option value="none">None</option>
+                      <option value="alien-sound">Alien Sound</option>
+                      <option value="bong-chime">Bong Chime</option>
+                      <option value="cartoon-dash">Cartoon Dash</option>
+                      <option value="drip-echo">Drip Echo</option>
+                      <option value="glass-ding">Glass Ding</option>
+                      <option value="light-min">Light Minimal</option>
+                      <option value="notification-chime">Notification Chime</option>
+                      <option value="notification-sound-soft">Soft Notification</option>
+                      <option value="oh-yeah">Oh Yeah</option>
+                      <option value="sci-fi-bubble">Sci-Fi Bubble</option>
+                      <option value="thai-bird">Thai Bird</option>
+                      <option value="three-note-doorbell">Three Note Doorbell</option>
+                      <option value="woohoo">Woohoo</option>
+                    </select>
+                    {notificationSound !== 'none' && (
+                      <button 
+                        className="play-sound-button"
+                        onClick={() => previewNotificationSound()}
+                        title="Preview selected sound"
+                      >
+                        🔊
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* App Updates - moved to last position */}
+              <div className="setting-item">
+                <div className="setting-label" title="Check for app updates">
+                  <span className="setting-title">App Updates</span>
+                  <div className="update-setting-controls">
+                    <button 
+                      className="update-check-button"
+                      onClick={handleManualUpdateCheck}
+                      disabled={manualUpdateCheck.isChecking}
+                      title="Check for new app version"
+                    >
+                      {manualUpdateCheck.isChecking ? (
+                        <>
+                          <span className="loading-spinner">⏳</span>
+                          Checking...
+                        </>
+                      ) : (
+                        <>
+                          🔄 Check for Updates
+                        </>
+                      )}
+                    </button>
+                    {manualUpdateCheck.result && (
+                      <div className="update-check-result">
+                        {manualUpdateCheck.result.hasUpdate ? (
+                          <span className="update-available">✅ Update available!</span>
+                        ) : manualUpdateCheck.result.error ? (
+                          <span className="update-error">❌ Check failed</span>
+                        ) : (
+                          <span className="update-latest">✅ You have the latest version</span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* TEMPORARY: Test update notification button */}
+              <div className="setting-item">
+                <div className="setting-label" title="Test the update notification system">
+                  <span className="setting-title">Test Update System</span>
+                  <div className="update-setting-controls">
+                    <button 
+                      className="update-check-button"
+                      onClick={handleTestUpdateNotification}
+                      title="Show a test update notification"
+                      style={{ backgroundColor: '#ff9800', borderColor: '#ff9800' }}
+                    >
+                      🧪 Test Update Notification
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Version display as last item in settings content */}
+              <div className="settings-version-content">
+                Current Version: v{appVersion}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       
-      <div className="window-controls">
-        <button onClick={() => window.electronAPI.minimize()}>➖</button>
-        <button onClick={() => window.electronAPI.maximize()}>🔲</button>
-        <button onClick={() => window.electronAPI.close()} className="close">❌</button>
+      <div 
+        className={`header-area ${isMaximized && sidebarOpen ? 'sidebar-active' : ''}`}
+        style={{
+          '--header-margin-left': isMaximized ? (sidebarOpen ? `${sidebarWidth}px` : '0px') : '0px',
+          '--header-width': isMaximized ? (sidebarOpen ? `calc(100% - ${sidebarWidth}px)` : '100%') : '100%'
+        }}
+      >
+        <h1 className="title-draggable">
+          <span className="title-text">Office or Home Office</span>
+        </h1>
       </div>
 
-      <div className="header-area">
-        <h1>Office or Home Office</h1>
-      </div>
-
-      <div className="content-area">
+      <div 
+        className={`content-area ${isMaximized && sidebarOpen ? 'sidebar-active' : ''}`}
+        style={{
+          '--content-margin-left': isMaximized ? (sidebarOpen ? `${sidebarWidth}px` : '0px') : '0px',
+          '--content-width': isMaximized ? (sidebarOpen ? `calc(100% - ${sidebarWidth}px)` : '100%') : '100%'
+        }}
+      >
         {!isNameSaved ? (
-          <div className="name-input-section">
-            <input
-              type="text"
-              placeholder="Numele tău"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-            />
-            <button className="primary" onClick={handleSaveName}>
-              Salvează numele
-            </button>
+          <div className="name-input-container" style={{ marginBottom: "1rem" }}>
+            <div className="name-input-section">
+              <input
+                type="text"
+                placeholder="Your name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
+              <button className="primary" onClick={handleSaveName}>
+                Save name
+              </button>
+            </div>
           </div>
         ) : (
-          <div className="name-display-row">
-            <p><strong>Nume:</strong> {name}</p>
-            <button className="secondary" onClick={handleEditName}>Edit Name</button>
-            {/* ✅ checkbox startup */}
-            <label style={{ display: "flex", alignItems: "center", gap: "0.3rem", color: "#fff" }}>
-              <input type="checkbox" checked={launchAtStartup} onChange={handleStartupToggle} />
-              Pornește la startup
-            </label>
+          <div className="name-section-container" style={{ marginBottom: "1rem" }}>
+            <div className="name-display-row">
+              <p><strong>Name:</strong> {name}</p>
+              <button className="secondary" onClick={handleEditName}>Edit Name</button>
+            </div>
           </div>
         )}
 
-        <div className="action-buttons" style={{ marginBottom: "2rem" }}>
-          <button className="primary" style={{ backgroundColor: "green", marginRight: "1rem" }} onClick={() => saveStatus(true)}>Vin mâine</button>
-          <button className="primary" style={{ backgroundColor: "red" }} onClick={() => saveStatus(false)}>Nu vin mâine</button>
+        <div className="action-buttons" style={{ marginBottom: "2rem", display: "flex", flexDirection: "column", alignItems: "center", gap: "1rem" }}>
+          <div className="button-row-container" style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
+            <button 
+              className="primary" 
+              style={{ 
+                backgroundColor: "green", 
+                minWidth: "140px", 
+                height: "40px",
+                padding: "0.6rem 1rem",
+                whiteSpace: "nowrap"
+              }} 
+              onClick={() => saveStatus('yes')}
+            >
+              Office
+            </button>
+            <button 
+              className="primary" 
+              style={{ 
+                backgroundColor: "red", 
+                minWidth: "140px", 
+                height: "40px",
+                padding: "0.6rem 1rem",
+                whiteSpace: "nowrap"
+              }} 
+              onClick={() => saveStatus('no')}
+            >
+              Home Office
+            </button>
+          </div>
+          <div className="button-row-container" style={{ display: "flex", justifyContent: "center" }}>
+            <button 
+              className="primary" 
+              style={{ 
+                backgroundColor: "orange", 
+                minWidth: "140px", 
+                height: "40px",
+                padding: "0.6rem 1rem"
+              }} 
+              onClick={() => saveStatus('undecided')}
+            >
+              Not Sure Yet
+            </button>
+          </div>
         </div>
 
         {notificationSummary && (
@@ -394,7 +1251,7 @@ function App() {
                     <button
                       className="danger"
                       onClick={() => deleteNotification(index)}
-                      title="Șterge notificarea"
+                      title="Delete notification"
                       style={{ fontSize: "1rem", minWidth: "30px" }}
                     >
                       ❌
@@ -404,7 +1261,7 @@ function App() {
               ))}
               <div style={{ textAlign: "center", marginTop: "1rem" }}>
                 <button className="primary" onClick={addNotification}>
-                  + Adaugă notificare
+                  + Add notification
                 </button>
               </div>
             </div>
@@ -412,25 +1269,20 @@ function App() {
         </div>
 
         {statusMessage && (
-          <div style={{ color: statusColor, marginTop: '10px', textAlign: 'center' }}>
+          <div className="status-message" style={{ color: statusColor, marginTop: '10px', textAlign: 'center' }}>
             {statusMessage}
           </div>
         )}
 
-        <div className="status-section">
-          <h2>Status pentru {tomorrowDate}</h2>
-          <div className="status-grid">
-            {Object.entries(statuses)
-              .filter(([_, v]) => v.date === tomorrowDate)
-              .map(([user, data]) => (
-                <div
-                  key={user}
-                  className={`status-card ${data.status ? "status-true" : "status-false"}`}
-                >
-                  <strong>{user}</strong>
-                </div>
-              ))}
-          </div>
+        <StatusGrid 
+          statuses={statuses}
+          tomorrowDate={tomorrow}
+          nextWorkingDayName={nextWorkDay}
+        />
+
+        {/* Version display in bottom left corner of main app */}
+        <div className="app-version">
+          v{appVersion}
         </div>
       </div>
     </div>
