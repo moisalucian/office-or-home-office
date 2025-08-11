@@ -31,9 +31,6 @@
   "build": {
     "appId": "com.office.homeoffice.app",
     "productName": "Office or Home Office",
-    "directories": {
-      "buildResources": "assets"
-    },
     "files": [
       "electron/**",
       "preload.js",
