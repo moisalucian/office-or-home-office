@@ -42,8 +42,7 @@
     ],
     "extraResources": [],
     "win": {
-      "target": "nsis",
-      "icon": "assets/icon.ico"
+      "target": "nsis"
     },
     "publish": null
   }
