@@ -25,10 +25,11 @@ jobs:
     - name: Build React app
       run: npm run build-react
       
-    - name: Build Electron app
+    - name: Build Electron app (without publishing)
       run: npm run build
       env:
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # Disable electron-builder auto-publishing
+        CI: false
         
     - name: Get version from tag
       id: get_version
