@@ -36,39 +36,26 @@ jobs:
       run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
       shell: bash
       
-    - name: Create Release
-      id: create_release
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        tag_name: ${{ github.ref }}
-        release_name: Version ${{ steps.get_version.outputs.VERSION }}
-        body: |
-          ## What's New in Version ${{ steps.get_version.outputs.VERSION }}
-          
-          - Auto-generated release
-          - Download the zip file below and extract to use the app
-          - Existing users will be notified automatically
-          
-          ## Installation
-          1. Download `Office-or-Home-Office-v${{ steps.get_version.outputs.VERSION }}.zip`
-          2. Extract the zip file
-          3. Run `Office or Home Office.exe`
-        draft: false
-        prerelease: false
-        
     - name: Create zip package
       run: |
         Compress-Archive -Path "dist/win-unpacked/*" -DestinationPath "Office-or-Home-Office-v${{ steps.get_version.outputs.VERSION }}.zip"
       shell: powershell
       
-    - name: Upload Release Asset
-      uses: actions/upload-release-asset@v1
+    - name: Create Release with GitHub CLI
+      run: |
+        gh release create ${{ github.ref_name }} `
+          "Office-or-Home-Office-v${{ steps.get_version.outputs.VERSION }}.zip" `
+          --title "Version ${{ steps.get_version.outputs.VERSION }}" `
+          --notes "## What's New in Version ${{ steps.get_version.outputs.VERSION }}
+
+        - Auto-generated release
+        - Download the zip file below and extract to use the app
+        - Existing users will be notified automatically
+
+        ## Installation
+        1. Download ``Office-or-Home-Office-v${{ steps.get_version.outputs.VERSION }}.zip``
+        2. Extract the zip file
+        3. Run ``Office or Home Office.exe``"
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./Office-or-Home-Office-v${{ steps.get_version.outputs.VERSION }}.zip
-        asset_name: Office-or-Home-Office-v${{ steps.get_version.outputs.VERSION }}.zip
-        asset_content_type: application/zip
+      shell: powershell
