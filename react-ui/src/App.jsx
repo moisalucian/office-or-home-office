@@ -14,8 +14,7 @@ import {
   shouldShowUpdateNotification,
   downloadAndInstallUpdate,
   manualUpdateCheck as performManualUpdateCheck,
-  setCurrentVersion,
-  simulateTestUpdate
+  setCurrentVersion
 } from "./versionCheck";
 import { logStatusChange, getActivityLogs } from "./activityLogger";
 import { initializeAuth, waitForAuth } from "./auth";
@@ -563,63 +562,16 @@ function App() {
   };
 
   const handleUpdateNow = async (updateInfo) => {
-    console.log('handleUpdateNow called with:', updateInfo);
-    
     try {
-      // Check if this is a test scenario - test versions are 1.0.1 OR commit-based versions like 1.0.0-abc123
-      const isTestScenario = updateInfo.latestVersion === '1.0.1' || 
-                            /^\d+\.\d+\.\d+-[a-f0-9]+$/.test(updateInfo.latestVersion);
-      
-      if (isTestScenario) {
-        console.log('Test scenario detected - simulating update without actual download');
-        console.log('Test version:', updateInfo.latestVersion);
-        
-        // Reset progress
-        setUpdateProgress({ phase: 'downloading', percent: 0, message: 'Starting download...' });
-        
-        // Simulate download progress
-        const downloadInterval = setInterval(() => {
-          setUpdateProgress(prev => {
-            if (prev.percent >= 100) {
-              clearInterval(downloadInterval);
-              // Start install phase
-              setUpdateProgress({ phase: 'installing', percent: 0, message: 'Installing update...' });
-              
-              // Simulate install progress
-              const installInterval = setInterval(() => {
-                setUpdateProgress(prev => {
-                  if (prev.percent >= 100) {
-                    clearInterval(installInterval);
-                    setUpdateProgress({ phase: 'ready', percent: 100, message: 'Update installed successfully!' });
-                    return prev;
-                  }
-                  return { ...prev, percent: prev.percent + 10, message: 'Installing update...' };
-                });
-              }, 200);
-              
-              return prev;
-            }
-            return { ...prev, percent: prev.percent + 5, message: 'Downloading update...' };
-          });
-        }, 100);
-        
-        // For test scenarios, just simulate without calling actual download
-        return;
-      }
-      
-      // For real updates, check if we have a download URL
+      // Check if we have a download URL
       if (updateInfo.downloadUrl) {
-        console.log('Download URL exists:', updateInfo.downloadUrl);
-        
         // Reset progress
         setUpdateProgress({ phase: 'downloading', percent: 0, message: 'Starting download...' });
         
         // Call the actual download function
-        console.log('About to call downloadAndInstallUpdate for real update');
         await downloadAndInstallUpdate(updateInfo.downloadUrl);
         // The app should restart after successful update
       } else {
-        console.log('No download URL, opening browser fallback');
         // Fallback: open repository
         window.open('https://github.com/moisalucian/office-or-home-office/releases/latest', '_blank');
         throw new Error('Auto-update not available, opened download page');
@@ -656,22 +608,12 @@ function App() {
     }
   };
 
-  // TEMPORARY: Test update notification
-  const handleTestUpdateNotification = () => {
-    const testUpdate = simulateTestUpdate();
-    setUpdateInfo(testUpdate);
-    setShowUpdateNotification(true);
-  };
+  // REMOVED: Test update notification function for production
 
   // Post-update notification handlers
   const handlePostUpdateDismiss = () => {
     setShowPostUpdateNotification(false);
     setPostUpdateState(null);
-    // In development mode, mark that we've shown the post-update notification
-    const isDev = window.location.hostname === 'localhost';
-    if (isDev) {
-      localStorage.setItem('dev-post-update-dismissed', 'true');
-    }
   };
 
   const handlePostUpdateRetry = () => {
@@ -892,35 +834,8 @@ function App() {
               try {
                 // Mark that the update was completed before restarting
                 const currentVersion = await window.electronAPI.getAppVersion();
-                console.log('Marking update completed for version:', currentVersion);
                 await window.electronAPI.markUpdateCompleted(currentVersion);
-                
-                // Check if we're in development mode (localhost indicates dev server)
-                const isDev = window.location.hostname === 'localhost';
-                if (isDev) {
-                  console.log('Development mode detected - simulating post-update state');
-                  // Clear current update state
-                  setShowUpdateNotification(false);
-                  setUpdateInfo(null);
-                  setUpdateProgress({ phase: null, percent: 0, message: '' });
-                  
-                  // Show post-update notification after a brief delay (only if not already dismissed)
-                  setTimeout(() => {
-                    const alreadyDismissed = localStorage.getItem('dev-post-update-dismissed');
-                    if (!alreadyDismissed) {
-                      setPostUpdateState({
-                        success: true,
-                        version: currentVersion,
-                        timestamp: Date.now()
-                      });
-                      setShowPostUpdateNotification(true);
-                    }
-                  }, 1000);
-                } else {
-                  // Production mode - actual restart
-                  console.log('Production mode - restarting app');
-                  window.electronAPI.restartApp();
-                }
+                window.electronAPI.restartApp();
               } catch (error) {
                 console.error('Error during restart process:', error);
               }
@@ -1085,23 +1000,6 @@ function App() {
                         )}
                       </div>
                     )}
-                  </div>
-                </div>
-              </div>
-
-              {/* TEMPORARY: Test update notification button */}
-              <div className="setting-item">
-                <div className="setting-label" title="Test the update notification system">
-                  <span className="setting-title">Test Update System</span>
-                  <div className="update-setting-controls">
-                    <button 
-                      className="update-check-button"
-                      onClick={handleTestUpdateNotification}
-                      title="Show a test update notification"
-                      style={{ backgroundColor: '#ff9800', borderColor: '#ff9800' }}
-                    >
-                      🧪 Test Update Notification
-                    </button>
                   </div>
                 </div>
               </div>

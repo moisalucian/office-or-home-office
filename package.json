@@ -1,6 +1,6 @@
 {
   "name": "office-or-homeoffice",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Office or Remote status tracking app",
   "main": "electron/main.js",
   "scripts": {
@@ -42,7 +42,8 @@
     ],
     "extraResources": [],
     "win": {
-      "target": "nsis"
+      "target": "nsis",
+      "icon": "assets/icon.ico"
     },
     "publish": null
   }

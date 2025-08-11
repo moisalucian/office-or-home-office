@@ -220,17 +220,3 @@ export const manualUpdateCheck = async () => {
   setLastVersionCheck();
   return result;
 };
-
-// TEMPORARY: Simulate a test update for demonstration
-export const simulateTestUpdate = () => {
-  return {
-    hasUpdate: true,
-    currentVersion: '1.0.0',
-    latestVersion: '1.0.1',
-    releaseNotes: '🎉 Test Release!\n\n• Fixed notification positioning\n• Added version display\n• Improved auto-update system\n• Better user experience',
-    releaseDate: new Date().toLocaleDateString(),
-    downloadUrl: 'https://github.com/moisalucian/office-or-home-office/releases/download/v1.0.1/Office-or-Home-Office-v1.0.1.zip',
-    wasDismissed: false,
-    wasPostponed: false
-  };
-};

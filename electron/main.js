@@ -207,21 +207,18 @@ function createWindow(shouldShow = true, shouldMaximize = false) {
   });
 
   if (process.env.NODE_ENV === 'development') {
-    console.log('Loading React dev server from http://localhost:5173');
     win.loadURL('http://localhost:5173');
   } else {
     win.loadFile(path.join(__dirname, '../react-ui/dist/index.html'));
   }
 
-  // Add more detailed logging
+  // Add event listeners
   win.webContents.on('dom-ready', () => {
-    console.log('DOM is ready');
+    // DOM is ready
   });
 
   // Wait for content to load, then show the window
   win.webContents.once('did-finish-load', () => {
-    console.log('Window content loaded, showing window...');
-    
     if (shouldShow && !isHiddenLaunch) {
       win.show();
       win.focus();
@@ -571,34 +568,6 @@ ipcMain.handle('download-and-install-update', async (_, downloadUrl) => {
 
 // Restart the application
 ipcMain.handle('restart-app', () => {
-  console.log('Restart app requested');
-  
-  // Check if we're in development mode
-  const isDev = process.env.NODE_ENV === 'development';
-  
-  if (isDev) {
-    console.log('Development mode detected - simulating restart');
-    // In development mode, we can't truly restart, so simulate it
-    // by clearing the update state and reloading the window
-    setTimeout(() => {
-      if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.reload();
-      }
-    }, 500);
-    return;
-  }
-  
-  // Production mode - actual restart
-  console.log('Production mode - performing actual restart');
-  
-  // Mark that we're restarting after an update
-  app.setUserTasks([{
-    program: process.execPath,
-    arguments: '--updated',
-    title: 'Updated',
-    description: 'App restarted after update'
-  }]);
-  
   app.relaunch({ args: ['--updated'] });
   app.quit();
 });
