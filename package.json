@@ -43,6 +43,7 @@
     "extraResources": [],
     "win": {
       "target": "nsis"
-    }
+    },
+    "publish": null
   }
 }

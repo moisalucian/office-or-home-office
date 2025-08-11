@@ -26,7 +26,7 @@ jobs:
       run: npm run build-react
       
     - name: Build Electron app (without publishing)
-      run: npm run build
+      run: npm run build-react && electron-builder --publish never
       env:
         # Disable electron-builder auto-publishing
         CI: false
