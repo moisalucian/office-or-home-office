@@ -4,15 +4,12 @@ const GITHUB_RELEASES_URL = `${GITHUB_API_URL}/releases/latest`;
 const VERSION_CHECK_INTERVAL = 2 * 60 * 60 * 1000; // 2 hours in milliseconds
 
 // Get current app version from package.json or fallback
-export const getCurrentVersion = () => {
+export const getCurrentVersion = async () => {
   // Try to get from app metadata first (will be injected by Electron)
   if (window.electronAPI?.getAppVersion) {
     try {
-      const version = window.electronAPI.getAppVersion();
-      // Handle if it returns a promise
-      if (version && typeof version.then === 'function') {
-        return '1.0.0'; // Fallback for now
-      }
+      const version = await window.electronAPI.getAppVersion();
+      console.log('Got version from Electron:', version);
       return version || '1.0.0';
     } catch (error) {
       console.error('Error getting app version:', error);
@@ -47,7 +44,7 @@ export const shouldCheckForUpdates = () => {
 // Enhanced update checking with proper semantic versioning
 export const checkForUpdates = async () => {
   try {
-    const currentVersion = getCurrentVersion();
+    const currentVersion = await getCurrentVersion();
     console.log('Current version:', currentVersion);
     
     const response = await fetch(GITHUB_RELEASES_URL);
@@ -104,7 +101,7 @@ const checkForUpdatesFromCommits = async () => {
     
     const data = await response.json();
     const latestCommitSha = data.sha.substring(0, 7);
-    const currentVersion = getCurrentVersion();
+    const currentVersion = await getCurrentVersion();
     
     // For commit-based versioning, use commit SHA comparison
     const storedCommitSha = localStorage.getItem('currentCommitSha') || '';
