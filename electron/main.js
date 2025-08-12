@@ -154,17 +154,29 @@ function createSidebarWindow() {
     let indexPath;
     
     if (app.isPackaged) {
-      // When packaged, files are in different location
-      indexPath = path.join(process.resourcesPath, 'app', 'react-ui', 'dist', 'index.html');
+      // When packaged with electron-builder, try multiple possible locations
+      const possiblePaths = [
+        path.join(process.resourcesPath, 'app', 'react-ui', 'dist', 'index.html'),
+        path.join(process.resourcesPath, 'react-ui', 'dist', 'index.html'),
+        path.join(__dirname, 'react-ui', 'dist', 'index.html'),
+        path.join(__dirname, '../react-ui/dist/index.html')
+      ];
+      
+      for (const testPath of possiblePaths) {
+        if (fs.existsSync(testPath)) {
+          indexPath = testPath;
+          break;
+        }
+      }
     } else {
       // When not packaged (npm run build)
       indexPath = path.join(__dirname, '../react-ui/dist/index.html');
     }
     
-    if (fs.existsSync(indexPath)) {
+    if (indexPath && fs.existsSync(indexPath)) {
       sidebarWindowRef.loadFile(indexPath, { hash: 'sidebar' });
     } else {
-      console.error('Index.html not found for sidebar at:', indexPath);
+      console.error('Index.html not found for sidebar at any location');
     }
   }
 
@@ -233,8 +245,22 @@ function createWindow(shouldShow = true, shouldMaximize = false) {
     let indexPath;
     
     if (app.isPackaged) {
-      // When packaged, files are in different location
-      indexPath = path.join(process.resourcesPath, 'app', 'react-ui', 'dist', 'index.html');
+      // When packaged with electron-builder, files are in app.asar or app folder
+      // Try multiple possible locations
+      const possiblePaths = [
+        path.join(process.resourcesPath, 'app', 'react-ui', 'dist', 'index.html'),
+        path.join(process.resourcesPath, 'react-ui', 'dist', 'index.html'),
+        path.join(__dirname, 'react-ui', 'dist', 'index.html'),
+        path.join(__dirname, '../react-ui/dist/index.html')
+      ];
+      
+      for (const testPath of possiblePaths) {
+        console.log('Testing path:', testPath, 'exists:', fs.existsSync(testPath));
+        if (fs.existsSync(testPath)) {
+          indexPath = testPath;
+          break;
+        }
+      }
     } else {
       // When not packaged (npm run build)
       indexPath = path.join(__dirname, '../react-ui/dist/index.html');
@@ -243,10 +269,10 @@ function createWindow(shouldShow = true, shouldMaximize = false) {
     console.log('App packaged:', app.isPackaged);
     console.log('Process resources path:', process.resourcesPath);
     console.log('__dirname:', __dirname);
-    console.log('Loading from:', indexPath);
+    console.log('Final loading path:', indexPath);
     console.log('File exists:', fs.existsSync(indexPath));
     
-    if (fs.existsSync(indexPath)) {
+    if (indexPath && fs.existsSync(indexPath)) {
       win.loadFile(indexPath).catch(error => {
         console.error('Failed to load file:', error);
         dialog.showErrorBox(
@@ -255,10 +281,10 @@ function createWindow(shouldShow = true, shouldMaximize = false) {
         );
       });
     } else {
-      console.error('Index.html not found at:', indexPath);
+      console.error('Index.html not found at any location');
       dialog.showErrorBox(
         'Application Load Error',
-        `Cannot find application files at: ${indexPath}`
+        `Cannot find application files. Searched paths:\n${app.isPackaged ? possiblePaths.join('\n') : indexPath}`
       );
     }
   }

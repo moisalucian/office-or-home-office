@@ -1,6 +1,6 @@
 {
   "name": "office-or-homeoffice",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "Office or Remote status tracking app",
   "main": "electron/main.js",
   "scripts": {
@@ -33,10 +33,12 @@
     "productName": "Office or Home Office",
     "files": [
       "electron/**",
-      "preload.js",
       "react-ui/dist/**",
       "package.json"
     ],
+    "directories": {
+      "buildResources": "build"
+    },
     "extraResources": [],
     "win": {
       "target": "nsis"
