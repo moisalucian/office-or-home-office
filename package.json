@@ -1,13 +1,14 @@
 {
   "name": "office-or-homeoffice",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "Office or Remote status tracking app",
   "main": "electron/main.js",
   "scripts": {
     "start": "cross-env NODE_ENV=development concurrently -k \"npm run dev --prefix react-ui\" \"npm run electron-dev\"",
     "electron-dev": "wait-on http://localhost:5173 && electron .",
     "build-react": "npm run build --prefix react-ui",
-    "build": "npm run build-react && electron-builder"
+    "copy-react": "xcopy \"react-ui\\dist\" \"electron\\dist\" /E /I /Y",
+    "build": "npm run build-react && npm run copy-react && electron-builder"
   },
   "keywords": [],
   "author": "Your Name",
@@ -33,7 +34,6 @@
     "productName": "Office or Home Office",
     "files": [
       "electron/**",
-      "react-ui/dist/**",
       "package.json"
     ],
     "directories": {
