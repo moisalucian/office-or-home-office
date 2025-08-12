@@ -8,7 +8,8 @@ const UpdateNotification = ({
   onUpdateNow, 
   updateProgress,
   onRestartNow,
-  onRestartLater 
+  onRestartLater,
+  onCancelUpdate 
 }) => {
   const [isVisible, setIsVisible] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
@@ -26,6 +27,14 @@ const UpdateNotification = ({
     setTimeout(() => onPostpone(updateInfo.latestVersion), 300);
   };
 
+  const handleCancelUpdate = () => {
+    setIsUpdating(false);
+    setUpdateError(null);
+    if (onCancelUpdate) {
+      onCancelUpdate();
+    }
+  };
+
   const handleUpdateNow = async () => {
     setIsUpdating(true);
     setUpdateError(null);
@@ -37,6 +46,7 @@ const UpdateNotification = ({
       setUpdateError(error.message);
       setIsUpdating(false);
     }
+  };
   };
 
   // Reset updating state when progress completes
@@ -135,6 +145,13 @@ const UpdateNotification = ({
                 {updateProgress.phase === 'downloading' && '📥 Downloading Update...'}
                 {updateProgress.phase === 'installing' && '⚙️ Installing Update...'}
               </h4>
+              <button 
+                className="cancel-update-btn" 
+                onClick={handleCancelUpdate}
+                title="Cancel update"
+              >
+                ❌
+              </button>
             </div>
             
             <div className="progress-bar-container">

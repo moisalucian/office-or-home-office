@@ -561,6 +561,17 @@ function App() {
     setManualUpdateCheck(prev => ({ ...prev, result: null }));
   };
 
+  const handleCancelUpdate = () => {
+    // Reset the update progress and show error
+    setUpdateProgress({ phase: null, percent: 0, message: '' });
+    
+    // You can also set an error message if needed
+    // setUpdateError('Update cancelled by user');
+    
+    // Clear update check result
+    setManualUpdateCheck(prev => ({ ...prev, result: null }));
+  };
+
   const handleUpdateNow = async (updateInfo) => {
     try {
       // Check if we have a download URL
@@ -829,6 +840,7 @@ function App() {
           onPostpone={handleUpdatePostpone}
           onUpdateNow={handleUpdateNow}
           updateProgress={updateProgress}
+          onCancelUpdate={handleCancelUpdate}
           onRestartNow={async () => {
             if (window.electronAPI?.restartApp && window.electronAPI?.markUpdateCompleted) {
               try {

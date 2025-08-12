@@ -325,6 +325,31 @@
   font-size: 0.85rem !important;
 }
 
+/* Cancel update button styling */
+.progress-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.cancel-update-btn {
+  background: none;
+  border: none;
+  color: #999;
+  cursor: pointer;
+  font-size: 0.9rem;
+  padding: 0.3rem;
+  border-radius: 4px;
+  transition: color 0.2s, background-color 0.2s;
+  flex-shrink: 0;
+}
+
+.cancel-update-btn:hover {
+  color: #ff5c5c;
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
 /* Responsive design */
 @media (max-width: 400px) {
   .update-notification {

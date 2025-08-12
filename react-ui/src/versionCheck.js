@@ -203,12 +203,19 @@ export const downloadAndInstallUpdate = async (downloadUrl) => {
   }
   
   if (window.electronAPI?.downloadAndInstallUpdate) {
-    return await window.electronAPI.downloadAndInstallUpdate(downloadUrl);
+    // Add timeout to prevent hanging downloads
+    return await Promise.race([
+      window.electronAPI.downloadAndInstallUpdate(downloadUrl),
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Download timeout - please try again or download manually')), 120000) // 2 minute timeout
+      )
+    ]);
   } else {
     // Fallback: open download URL
     window.open(downloadUrl, '_blank');
     throw new Error('Auto-update not supported in this environment');
   }
+};
 };
 
 // Manual update check (for settings button)
