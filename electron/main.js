@@ -180,7 +180,7 @@ function createSidebarWindow() {
     
     sidebarWindowRef = null;
     // Notify main window that sidebar was closed
-    if (win?.webContents) {
+    if (win && !win.isDestroyed() && win.webContents) {
       win.webContents.send('sidebar-window-closed');
     }
   });
@@ -389,7 +389,7 @@ ipcMain.on('show-notification-popup', () => {
 
 // ✅ Receive response from popup
 ipcMain.on('submit-status', (_, status) => {
-  if (win?.webContents) {
+  if (win && !win.isDestroyed() && win.webContents) {
     win.webContents.send('popup-status', status);
   }
 
@@ -540,7 +540,7 @@ ipcMain.on('preview-notification-sound', (_, sound) => {
       });
     } else {
       // Send error message to renderer only if file not found
-      if (win?.webContents) {
+      if (win && !win.isDestroyed() && win.webContents) {
         win.webContents.send('sound-error', `Sound file not found: ${sound}.wav`);
       }
     }
@@ -644,13 +644,13 @@ function applyTheme(themeSetting) {
   }
   
   // Send theme update to main window
-  if (win?.webContents) {
+  if (win && !win.isDestroyed() && win.webContents) {
     const currentTheme = nativeTheme.shouldUseDarkColors ? 'dark' : 'light';
     win.webContents.send('theme-changed', currentTheme);
   }
   
   // Send theme update to sidebar window
-  if (sidebarWindowRef?.webContents) {
+  if (sidebarWindowRef && !sidebarWindowRef.isDestroyed() && sidebarWindowRef.webContents) {
     const currentTheme = nativeTheme.shouldUseDarkColors ? 'dark' : 'light';
     sidebarWindowRef.webContents.send('theme-changed', currentTheme);
   }
@@ -704,7 +704,7 @@ ipcMain.on('toggle-sidebar-window', (_, show) => {
 
 // Refresh activity logs in sidebar window
 ipcMain.on('refresh-sidebar-activity-logs', () => {
-  if (sidebarWindowRef && !sidebarWindowRef.isDestroyed()) {
+  if (sidebarWindowRef && !sidebarWindowRef.isDestroyed() && sidebarWindowRef.webContents) {
     sidebarWindowRef.webContents.send('refresh-activity-logs');
   }
 });
