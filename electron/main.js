@@ -150,8 +150,16 @@ function createSidebarWindow() {
   if (process.env.NODE_ENV === 'development') {
     sidebarWindowRef.loadURL('http://localhost:5173#sidebar');
   } else {
-    // For production builds - same as main window
-    const indexPath = path.join(__dirname, '../react-ui/dist/index.html');
+    // For production builds - handle both packaged and unpackaged
+    let indexPath;
+    
+    if (app.isPackaged) {
+      // When packaged, files are in different location
+      indexPath = path.join(process.resourcesPath, 'app', 'react-ui', 'dist', 'index.html');
+    } else {
+      // When not packaged (npm run build)
+      indexPath = path.join(__dirname, '../react-ui/dist/index.html');
+    }
     
     if (fs.existsSync(indexPath)) {
       sidebarWindowRef.loadFile(indexPath, { hash: 'sidebar' });
@@ -221,24 +229,37 @@ function createWindow(shouldShow = true, shouldMaximize = false) {
   if (process.env.NODE_ENV === 'development') {
     win.loadURL('http://localhost:5173');
   } else {
-    // For production builds
-    const indexPath = path.join(__dirname, '../react-ui/dist/index.html');
+    // For production builds - handle both packaged and unpackaged
+    let indexPath;
+    
+    if (app.isPackaged) {
+      // When packaged, files are in different location
+      indexPath = path.join(process.resourcesPath, 'app', 'react-ui', 'dist', 'index.html');
+    } else {
+      // When not packaged (npm run build)
+      indexPath = path.join(__dirname, '../react-ui/dist/index.html');
+    }
+    
+    console.log('App packaged:', app.isPackaged);
+    console.log('Process resources path:', process.resourcesPath);
+    console.log('__dirname:', __dirname);
     console.log('Loading from:', indexPath);
     console.log('File exists:', fs.existsSync(indexPath));
     
     if (fs.existsSync(indexPath)) {
-      win.loadFile(indexPath);
-    } else {
-      console.error('Index.html not found at:', indexPath);
-      // Try alternative approach with URL
-      const fileUrl = `file://${indexPath.replace(/\\/g, '/')}`;
-      console.log('Trying file URL:', fileUrl);
-      win.loadURL(fileUrl).catch(error => {
+      win.loadFile(indexPath).catch(error => {
+        console.error('Failed to load file:', error);
         dialog.showErrorBox(
           'Application Load Error',
-          `Cannot load application: ${error.message}`
+          `Cannot load application file: ${error.message}`
         );
       });
+    } else {
+      console.error('Index.html not found at:', indexPath);
+      dialog.showErrorBox(
+        'Application Load Error',
+        `Cannot find application files at: ${indexPath}`
+      );
     }
   }
 
