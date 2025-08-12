@@ -260,13 +260,17 @@ function createWindow(shouldShow = true, shouldMaximize = false) {
     }
     
     win.setResizable(false);
-    win.webContents.send('window-state-changed', { maximized: true });
+    if (win && !win.isDestroyed() && win.webContents) {
+      win.webContents.send('window-state-changed', { maximized: true });
+    }
   });
 
   win.on('unmaximize', () => {
     windowState.maximized = false;
     win.setResizable(true);
-    win.webContents.send('window-state-changed', { maximized: false });
+    if (win && !win.isDestroyed() && win.webContents) {
+      win.webContents.send('window-state-changed', { maximized: false });
+    }
   });
 }
 
@@ -297,7 +301,7 @@ function createTray() {
   tray.setContextMenu(contextMenu);
 
   tray.on('double-click', () => {
-    if (win) {
+    if (win && !win.isDestroyed() && win.webContents) {
       // Get current settings from renderer process
       win.webContents.send('get-settings-for-tray-launch');
     }
@@ -406,7 +410,9 @@ ipcMain.on('maximize-window', () => {
       // Re-enable resizing when unmaximized
       win.setResizable(true);
       // Send event to remove fullscreen styling
-      win.webContents.send('window-state-changed', { maximized: false });
+      if (win && !win.isDestroyed() && win.webContents) {
+        win.webContents.send('window-state-changed', { maximized: false });
+      }
     } else {
       // Close sidebar window before maximizing to prevent conflicts
       if (sidebarWindowRef && !sidebarWindowRef.isDestroyed()) {
@@ -424,7 +430,9 @@ ipcMain.on('maximize-window', () => {
       // Disable resizing when maximized
       win.setResizable(false);
       // Send event to apply fullscreen styling
-      win.webContents.send('window-state-changed', { maximized: true });
+      if (win && !win.isDestroyed() && win.webContents) {
+        win.webContents.send('window-state-changed', { maximized: true });
+      }
     }
   }
 });
