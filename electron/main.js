@@ -150,13 +150,26 @@ function createSidebarWindow() {
   if (process.env.NODE_ENV === 'development') {
     sidebarWindowRef.loadURL('http://localhost:5173#sidebar');
   } else {
-    // For production builds
-    const indexPath = path.join(__dirname, '../react-ui/dist/index.html');
+    // For production builds - use same path resolution as main window
+    const possiblePaths = [
+      path.join(__dirname, '../react-ui/dist/index.html'),
+      path.join(app.getAppPath(), 'react-ui/dist/index.html'),
+      path.join(process.resourcesPath, 'app/react-ui/dist/index.html'),
+      path.join(__dirname, 'react-ui/dist/index.html')
+    ];
     
-    if (fs.existsSync(indexPath)) {
+    let indexPath = null;
+    for (const testPath of possiblePaths) {
+      if (fs.existsSync(testPath)) {
+        indexPath = testPath;
+        break;
+      }
+    }
+    
+    if (indexPath) {
       sidebarWindowRef.loadFile(indexPath, { hash: 'sidebar' });
     } else {
-      console.error('Index.html not found for sidebar at:', indexPath);
+      console.error('Index.html not found for sidebar');
     }
   }
 
@@ -221,19 +234,36 @@ function createWindow(shouldShow = true, shouldMaximize = false) {
   if (process.env.NODE_ENV === 'development') {
     win.loadURL('http://localhost:5173');
   } else {
-    // For production builds
-    const indexPath = path.join(__dirname, '../react-ui/dist/index.html');
-    console.log('Loading from:', indexPath);
-    console.log('File exists:', fs.existsSync(indexPath));
+    // For production builds - try multiple paths
+    console.log('App is packaged:', app.isPackaged);
+    console.log('App path:', app.getAppPath());
+    console.log('__dirname:', __dirname);
     
-    if (fs.existsSync(indexPath)) {
+    const possiblePaths = [
+      path.join(__dirname, '../react-ui/dist/index.html'),
+      path.join(app.getAppPath(), 'react-ui/dist/index.html'),
+      path.join(process.resourcesPath, 'app/react-ui/dist/index.html'),
+      path.join(__dirname, 'react-ui/dist/index.html')
+    ];
+    
+    let indexPath = null;
+    for (const testPath of possiblePaths) {
+      console.log('Testing path:', testPath, 'exists:', fs.existsSync(testPath));
+      if (fs.existsSync(testPath)) {
+        indexPath = testPath;
+        break;
+      }
+    }
+    
+    if (indexPath) {
+      console.log('Loading from:', indexPath);
       win.loadFile(indexPath);
     } else {
-      console.error('Index.html not found at:', indexPath);
+      console.error('Could not find index.html in any location');
       // Show error dialog
       dialog.showErrorBox(
         'Application Error',
-        `Cannot find application files at: ${indexPath}`
+        `Cannot find application files. Tried:\n${possiblePaths.join('\n')}`
       );
     }
   }
@@ -246,6 +276,12 @@ function createWindow(shouldShow = true, shouldMaximize = false) {
   // Wait for content to load, then show the window
   win.webContents.once('did-finish-load', () => {
     console.log('Window content finished loading');
+    
+    // Open dev tools in production to see console logs
+    if (process.env.NODE_ENV !== 'development') {
+      win.webContents.openDevTools();
+    }
+    
     if (shouldShow && !isHiddenLaunch) {
       win.show();
       win.focus();
