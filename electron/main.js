@@ -417,9 +417,6 @@ ipcMain.on('show-notification-popup', () => {
       soundPath = path.join(__dirname, 'sounds', `${notificationSound}.wav`);
     }
     
-    console.log('Sound path:', soundPath);
-    console.log('Sound file exists:', fs.existsSync(soundPath));
-    
     if (fs.existsSync(soundPath)) {
       const command = `powershell -c "(New-Object Media.SoundPlayer '${soundPath}').PlaySync();"`;
       
@@ -566,9 +563,6 @@ ipcMain.on('preview-notification-sound', (_, sound) => {
       // In development, sounds are in electron/sounds
       soundPath = path.join(__dirname, 'sounds', `${sound}.wav`);
     }
-    
-    console.log('Preview sound path:', soundPath);
-    console.log('Preview sound file exists:', fs.existsSync(soundPath));
     
     if (fs.existsSync(soundPath)) {
       // Use PowerShell to play the sound

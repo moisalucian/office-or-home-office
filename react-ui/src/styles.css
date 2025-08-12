@@ -86,10 +86,10 @@ html, body {
   -webkit-app-region: drag; /* Make entire container draggable */
 }
 
-/* Adjust padding based on window state to avoid arrow overlap */
+/* Adjust padding based on window state to achieve balanced spacing */
 .container:not(.maximized) {
-  padding-left: 8rem; /* Double the gap - 128px for windowed mode */
-  padding-right: 6rem; /* Double the gap - 96px */
+  padding-left: 6rem; /* Same as right padding for balance */
+  padding-right: 6rem; /* Keep consistent */
 }
 
 .container.maximized {
@@ -657,6 +657,9 @@ button.danger:hover {
   justify-content: center;
   min-width: 32px;
   min-height: 32px;
+  position: relative;
+  z-index: 10;
+  pointer-events: auto;
 }
 
 .settings-close:hover {
@@ -951,7 +954,7 @@ button.danger:hover {
 
 /* Arrow positioning based on window state */
 .sidebar-toggle.normal {
-  left: 15px; /* Moved slightly right for better balance */
+  left: 1.5rem; /* Positioned within the left padding space */
 }
 
 .sidebar-toggle.maximized {
