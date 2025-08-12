@@ -1,6 +1,6 @@
 {
   "name": "office-or-homeoffice",
-  "version": "1.0.8",
+  "version": "1.0.9",
   "description": "Office or Remote status tracking app",
   "main": "electron/main.js",
   "scripts": {
@@ -36,10 +36,15 @@
       "electron/**",
       "package.json"
     ],
+    "extraResources": [
+      {
+        "from": "electron/sounds",
+        "to": "sounds"
+      }
+    ],
     "directories": {
       "buildResources": "build"
     },
-    "extraResources": [],
     "win": {
       "target": "nsis"
     },

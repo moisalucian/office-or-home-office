@@ -407,17 +407,32 @@ ipcMain.on('show-notification-popup', () => {
   const notificationSound = settings.notificationSound || 'none';
   
   if (notificationSound !== 'none') {
-    const soundPath = path.join(__dirname, 'sounds', `${notificationSound}.wav`);
+    let soundPath;
+    
+    if (app.isPackaged) {
+      // In packaged app, sounds are in extraResources
+      soundPath = path.join(process.resourcesPath, 'sounds', `${notificationSound}.wav`);
+    } else {
+      // In development, sounds are in electron/sounds
+      soundPath = path.join(__dirname, 'sounds', `${notificationSound}.wav`);
+    }
+    
+    console.log('Sound path:', soundPath);
+    console.log('Sound file exists:', fs.existsSync(soundPath));
+    
     if (fs.existsSync(soundPath)) {
       const command = `powershell -c "(New-Object Media.SoundPlayer '${soundPath}').PlaySync();"`;
       
       exec(command, (error) => {
         if (error) {
+          console.error('Sound playback error:', error);
           // Fallback to default player
           const altCommand = `start "" "${soundPath}"`;
           exec(altCommand, () => {});
         }
       });
+    } else {
+      console.error('Sound file not found:', soundPath);
     }
   }
 
@@ -542,7 +557,18 @@ ipcMain.on('set-notification-sound', (_, sound) => {
 // Preview notification sound
 ipcMain.on('preview-notification-sound', (_, sound) => {
   if (sound !== 'none') {
-    const soundPath = path.join(__dirname, 'sounds', `${sound}.wav`);
+    let soundPath;
+    
+    if (app.isPackaged) {
+      // In packaged app, sounds are in extraResources
+      soundPath = path.join(process.resourcesPath, 'sounds', `${sound}.wav`);
+    } else {
+      // In development, sounds are in electron/sounds
+      soundPath = path.join(__dirname, 'sounds', `${sound}.wav`);
+    }
+    
+    console.log('Preview sound path:', soundPath);
+    console.log('Preview sound file exists:', fs.existsSync(soundPath));
     
     if (fs.existsSync(soundPath)) {
       // Use PowerShell to play the sound
@@ -550,10 +576,12 @@ ipcMain.on('preview-notification-sound', (_, sound) => {
       
       exec(command, (error, stdout, stderr) => {
         if (error) {
+          console.error('Preview sound error:', error);
           // Fallback to default player
           const altCommand = `start "" "${soundPath}"`;
           exec(altCommand, (altError) => {
             if (altError) {
+              console.error('Alternative sound playback failed:', altError);
               // Final fallback to web audio in main window
               if (win && !win.isDestroyed()) {
                 win.webContents.executeJavaScript(`
@@ -590,6 +618,7 @@ ipcMain.on('preview-notification-sound', (_, sound) => {
         }
       });
     } else {
+      console.error('Preview sound file not found:', soundPath);
       // Send error message to renderer only if file not found
       if (win && !win.isDestroyed() && win.webContents) {
         win.webContents.send('sound-error', `Sound file not found: ${sound}.wav`);
