@@ -150,34 +150,14 @@ function createSidebarWindow() {
   if (process.env.NODE_ENV === 'development') {
     sidebarWindowRef.loadURL('http://localhost:5173#sidebar');
   } else {
-    // Multiple path attempts for production
-    let indexPath;
+    // For production builds
+    const indexPath = path.join(__dirname, '../react-ui/dist/index.html');
     
-    if (app.isPackaged) {
-      // When packaged, try these paths in order
-      const possiblePaths = [
-        path.join(process.resourcesPath, 'app', 'react-ui', 'dist', 'index.html'),
-        path.join(__dirname, '..', 'react-ui', 'dist', 'index.html'),
-        path.join(process.resourcesPath, 'react-ui', 'dist', 'index.html'),
-        path.join(__dirname, 'react-ui', 'dist', 'index.html')
-      ];
-      
-      for (const possiblePath of possiblePaths) {
-        if (fs.existsSync(possiblePath)) {
-          indexPath = possiblePath;
-          break;
-        }
-      }
-      
-      if (!indexPath) {
-        console.error('Could not find index.html in any expected location for sidebar');
-        indexPath = possiblePaths[0]; // fallback
-      }
+    if (fs.existsSync(indexPath)) {
+      sidebarWindowRef.loadFile(indexPath, { hash: 'sidebar' });
     } else {
-      indexPath = path.join(__dirname, '../react-ui/dist/index.html');
+      console.error('Index.html not found for sidebar at:', indexPath);
     }
-    
-    sidebarWindowRef.loadFile(indexPath, { hash: 'sidebar' });
   }
 
   // Remove previous listeners if they exist
@@ -241,35 +221,21 @@ function createWindow(shouldShow = true, shouldMaximize = false) {
   if (process.env.NODE_ENV === 'development') {
     win.loadURL('http://localhost:5173');
   } else {
-    // Multiple path attempts for production
-    let indexPath;
-    
-    if (app.isPackaged) {
-      // When packaged, try these paths in order
-      const possiblePaths = [
-        path.join(process.resourcesPath, 'app', 'react-ui', 'dist', 'index.html'),
-        path.join(__dirname, '..', 'react-ui', 'dist', 'index.html'),
-        path.join(process.resourcesPath, 'react-ui', 'dist', 'index.html'),
-        path.join(__dirname, 'react-ui', 'dist', 'index.html')
-      ];
-      
-      for (const possiblePath of possiblePaths) {
-        if (fs.existsSync(possiblePath)) {
-          indexPath = possiblePath;
-          break;
-        }
-      }
-      
-      if (!indexPath) {
-        console.error('Could not find index.html in any expected location');
-        indexPath = possiblePaths[0]; // fallback
-      }
-    } else {
-      indexPath = path.join(__dirname, '../react-ui/dist/index.html');
-    }
-    
+    // For production builds
+    const indexPath = path.join(__dirname, '../react-ui/dist/index.html');
     console.log('Loading from:', indexPath);
-    win.loadFile(indexPath);
+    console.log('File exists:', fs.existsSync(indexPath));
+    
+    if (fs.existsSync(indexPath)) {
+      win.loadFile(indexPath);
+    } else {
+      console.error('Index.html not found at:', indexPath);
+      // Show error dialog
+      dialog.showErrorBox(
+        'Application Error',
+        `Cannot find application files at: ${indexPath}`
+      );
+    }
   }
 
   // Add event listeners
@@ -279,6 +245,7 @@ function createWindow(shouldShow = true, shouldMaximize = false) {
 
   // Wait for content to load, then show the window
   win.webContents.once('did-finish-load', () => {
+    console.log('Window content finished loading');
     if (shouldShow && !isHiddenLaunch) {
       win.show();
       win.focus();
