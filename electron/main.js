@@ -120,6 +120,11 @@ function createSidebarWindow() {
     return; // Already exists
   }
 
+  // Don't create sidebar if main window is being destroyed
+  if (!win || win.isDestroyed()) {
+    return;
+  }
+
   const mainBounds = win.getBounds();
   
   sidebarWindowRef = new BrowserWindow({
@@ -206,8 +211,8 @@ function createSidebarWindow() {
     }
     
     sidebarWindowRef = null;
-    // Notify main window that sidebar was closed
-    if (win && !win.isDestroyed() && win.webContents) {
+    // Notify main window that sidebar was closed ONLY if main window still exists and is not being destroyed
+    if (win && !win.isDestroyed() && win.webContents && !win.webContents.isDestroyed()) {
       win.webContents.send('sidebar-window-closed');
     }
   });
@@ -301,6 +306,12 @@ function createWindow(shouldShow = true, shouldMaximize = false) {
     if (!app.isQuiting) {
       event.preventDefault();
       win.hide(); // 🔒 hide instead of closing
+    } else {
+      // If app is actually quitting, clean up sidebar first
+      if (sidebarWindowRef && !sidebarWindowRef.isDestroyed()) {
+        sidebarWindowRef.destroy(); // Force destroy sidebar without trying to communicate back
+        sidebarWindowRef = null;
+      }
     }
   });
 
