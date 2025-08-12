@@ -145,7 +145,34 @@ function createSidebarWindow() {
   if (process.env.NODE_ENV === 'development') {
     sidebarWindowRef.loadURL('http://localhost:5173#sidebar');
   } else {
-    sidebarWindowRef.loadFile(path.join(__dirname, '../react-ui/dist/index.html'), { hash: 'sidebar' });
+    // Multiple path attempts for production
+    let indexPath;
+    
+    if (app.isPackaged) {
+      // When packaged, try these paths in order
+      const possiblePaths = [
+        path.join(process.resourcesPath, 'app', 'react-ui', 'dist', 'index.html'),
+        path.join(__dirname, '..', 'react-ui', 'dist', 'index.html'),
+        path.join(process.resourcesPath, 'react-ui', 'dist', 'index.html'),
+        path.join(__dirname, 'react-ui', 'dist', 'index.html')
+      ];
+      
+      for (const possiblePath of possiblePaths) {
+        if (fs.existsSync(possiblePath)) {
+          indexPath = possiblePath;
+          break;
+        }
+      }
+      
+      if (!indexPath) {
+        console.error('Could not find index.html in any expected location for sidebar');
+        indexPath = possiblePaths[0]; // fallback
+      }
+    } else {
+      indexPath = path.join(__dirname, '../react-ui/dist/index.html');
+    }
+    
+    sidebarWindowRef.loadFile(indexPath, { hash: 'sidebar' });
   }
 
   // Remove previous listeners if they exist
@@ -209,7 +236,35 @@ function createWindow(shouldShow = true, shouldMaximize = false) {
   if (process.env.NODE_ENV === 'development') {
     win.loadURL('http://localhost:5173');
   } else {
-    win.loadFile(path.join(__dirname, '../react-ui/dist/index.html'));
+    // Multiple path attempts for production
+    let indexPath;
+    
+    if (app.isPackaged) {
+      // When packaged, try these paths in order
+      const possiblePaths = [
+        path.join(process.resourcesPath, 'app', 'react-ui', 'dist', 'index.html'),
+        path.join(__dirname, '..', 'react-ui', 'dist', 'index.html'),
+        path.join(process.resourcesPath, 'react-ui', 'dist', 'index.html'),
+        path.join(__dirname, 'react-ui', 'dist', 'index.html')
+      ];
+      
+      for (const possiblePath of possiblePaths) {
+        if (fs.existsSync(possiblePath)) {
+          indexPath = possiblePath;
+          break;
+        }
+      }
+      
+      if (!indexPath) {
+        console.error('Could not find index.html in any expected location');
+        indexPath = possiblePaths[0]; // fallback
+      }
+    } else {
+      indexPath = path.join(__dirname, '../react-ui/dist/index.html');
+    }
+    
+    console.log('Loading from:', indexPath);
+    win.loadFile(indexPath);
   }
 
   // Add event listeners
@@ -234,6 +289,12 @@ function createWindow(shouldShow = true, shouldMaximize = false) {
   // Add error handling
   win.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
     console.error('Failed to load window content:', errorCode, errorDescription);
+    
+    // Try to show a basic error dialog if the window fails to load
+    dialog.showErrorBox(
+      'Application Load Error',
+      `Failed to load application content.\nError: ${errorDescription}\nCode: ${errorCode}`
+    );
   });
 
   win.on('close', (event) => {
@@ -281,7 +342,7 @@ function createTray() {
     {
       label: 'Show',
       click: () => {
-        if (win) {
+        if (win && !win.isDestroyed()) {
           win.show();
           win.focus();
           if (win.isMinimized()) win.restore();
@@ -301,9 +362,15 @@ function createTray() {
   tray.setContextMenu(contextMenu);
 
   tray.on('double-click', () => {
-    if (win && !win.isDestroyed() && win.webContents) {
-      // Get current settings from renderer process
-      win.webContents.send('get-settings-for-tray-launch');
+    if (win && !win.isDestroyed()) {
+      win.show();
+      win.focus();
+      if (win.isMinimized()) win.restore();
+      
+      // Only send IPC message if webContents is ready
+      if (win.webContents && !win.webContents.isDestroyed()) {
+        win.webContents.send('get-settings-for-tray-launch');
+      }
     }
   });
 }
