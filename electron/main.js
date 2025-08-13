@@ -117,7 +117,26 @@ async function extractAndInstallUpdate(filePath, win) {
         }
         // Copy extracted files to app directory
         const appPath = app.getAppPath();
-        copyRecursiveSync(extractPath, appPath, win);
+        // Check for resources/app.asar and resources/app
+        const extractedResources = path.join(extractPath, 'resources');
+        const destResources = path.join(appPath, 'resources');
+        const extractedAsar = path.join(extractedResources, 'app.asar');
+        const extractedAppFolder = path.join(extractedResources, 'app');
+        const destAsar = path.join(destResources, 'app.asar');
+        const destAppFolder = path.join(destResources, 'app');
+        const fs = require('fs');
+        if (fs.existsSync(extractedAsar)) {
+          fs.copyFileSync(extractedAsar, destAsar);
+        } else if (fs.existsSync(extractedAppFolder)) {
+          // Remove old app folder if exists
+          if (fs.existsSync(destAppFolder)) {
+            fs.rmSync(destAppFolder, { recursive: true, force: true });
+          }
+          copyRecursiveSync(extractedAppFolder, destAppFolder, win);
+        } else {
+          // Fallback: copy all resources
+          copyRecursiveSync(extractedResources, destResources, win);
+        }
         if (win && win.webContents) {
           win.webContents.send('update-install-progress', { phase: 'installing', percent: 100, message: 'Install complete.' });
         }
