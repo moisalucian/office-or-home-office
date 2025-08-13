@@ -203,15 +203,35 @@ export const downloadAndInstallUpdate = async (downloadUrl) => {
   }
   if (window.electronAPI?.downloadAndInstallUpdate && window.electronAPI?.extractAndInstallUpdate) {
     // Download the update file
-    const result = await Promise.race([
-      window.electronAPI.downloadAndInstallUpdate(downloadUrl),
-      new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Download timeout - please try again or download manually')), 120000)
-      )
-    ]);
+    let result;
+    try {
+      result = await Promise.race([
+        window.electronAPI.downloadAndInstallUpdate(downloadUrl),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Download timeout - please try again or download manually')), 120000)
+        )
+      ]);
+      console.log('Download result:', result);
+    } catch (err) {
+      console.error('Download failed:', err);
+      throw err;
+    }
     // Now extract and install the update
     if (result && result.success && window.electronAPI?.extractAndInstallUpdate) {
-      await window.electronAPI.extractAndInstallUpdate(result.filePath);
+      try {
+        const installResult = await Promise.race([
+          window.electronAPI.extractAndInstallUpdate(result.filePath),
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Install timeout - extraction/install never started')), 60000)
+          )
+        ]);
+        console.log('Install result:', installResult);
+      } catch (err) {
+        console.error('Install failed:', err);
+        throw err;
+      }
+    } else {
+      throw new Error('Download succeeded but no file to install');
     }
     return result;
   } else {
