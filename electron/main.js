@@ -131,27 +131,38 @@ async function downloadFile(url, dest, win) {
 async function extractAndInstallUpdate(filePath) {
   return new Promise((resolve, reject) => {
     const extractPath = path.join(os.tmpdir(), 'office-home-office-update');
-    
     // For Windows, we expect a zip file or installer
     if (path.extname(filePath) === '.exe') {
-      // If it's an installer, run it
+      if (win && win.webContents) {
+        win.webContents.send('update-install-progress', { phase: 'installing', percent: 10, message: 'Running installer...' });
+      }
       exec(`"${filePath}" /S`, (error) => {
         if (error) {
           reject(error);
         } else {
+          if (win && win.webContents) {
+            win.webContents.send('update-install-progress', { phase: 'installing', percent: 100, message: 'Install complete.' });
+          }
           resolve();
         }
       });
     } else if (path.extname(filePath) === '.zip') {
-      // If it's a zip file, extract and replace current files
       const AdmZip = require('adm-zip');
       try {
+        if (win && win.webContents) {
+          win.webContents.send('update-install-progress', { phase: 'installing', percent: 10, message: 'Extracting update...' });
+        }
         const zip = new AdmZip(filePath);
         zip.extractAllTo(extractPath, true);
-        
+        if (win && win.webContents) {
+          win.webContents.send('update-install-progress', { phase: 'installing', percent: 50, message: 'Copying files...' });
+        }
         // Copy extracted files to app directory
         const appPath = app.getAppPath();
         copyRecursiveSync(extractPath, appPath);
+        if (win && win.webContents) {
+          win.webContents.send('update-install-progress', { phase: 'installing', percent: 100, message: 'Install complete.' });
+        }
         resolve();
       } catch (error) {
         reject(error);
