@@ -142,6 +142,8 @@ const UpdateNotification = ({
               <h4>
                 {updateProgress.phase === 'downloading' && '📥 Downloading Update...'}
                 {updateProgress.phase === 'installing' && '⚙️ Installing Update...'}
+                {updateProgress.phase === 'ready' && '🎉 Update Installed!'}
+                {updateProgress.phase === 'error' && '❌ Update Failed'}
               </h4>
               <button 
                 className="cancel-update-btn" 

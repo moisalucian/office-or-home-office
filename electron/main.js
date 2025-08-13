@@ -140,6 +140,9 @@ async function extractAndInstallUpdate(filePath, winRef) {
       }
       exec(`"${filePath}" /S`, (error) => {
         if (error) {
+          if (winRef && winRef.webContents) {
+            winRef.webContents.send('update-install-progress', { phase: 'error', percent: 100, message: `Installer failed: ${error.message}` });
+          }
           reject(error);
         } else {
           if (winRef && winRef.webContents) {
@@ -168,15 +171,31 @@ async function extractAndInstallUpdate(filePath, winRef) {
         if (winRef && winRef.webContents) {
           winRef.webContents.send('update-install-progress', { phase: 'installing', percent, message: 'Copying resources...' });
         }
-        if (fs.existsSync(resourcesSrc)) {
-          copyRecursiveSync(resourcesSrc, resourcesDest);
+        try {
+          if (fs.existsSync(resourcesSrc)) {
+            copyRecursiveSync(resourcesSrc, resourcesDest);
+          }
+        } catch (err) {
+          if (winRef && winRef.webContents) {
+            winRef.webContents.send('update-install-progress', { phase: 'error', percent: percent, message: `Failed to copy resources: ${err.message}` });
+          }
+          reject(err);
+          return;
         }
         percent = 60;
         if (winRef && winRef.webContents) {
           winRef.webContents.send('update-install-progress', { phase: 'installing', percent, message: 'Copying locales...' });
         }
-        if (fs.existsSync(localesSrc)) {
-          copyRecursiveSync(localesSrc, localesDest);
+        try {
+          if (fs.existsSync(localesSrc)) {
+            copyRecursiveSync(localesSrc, localesDest);
+          }
+        } catch (err) {
+          if (winRef && winRef.webContents) {
+            winRef.webContents.send('update-install-progress', { phase: 'error', percent: percent, message: `Failed to copy locales: ${err.message}` });
+          }
+          reject(err);
+          return;
         }
         percent = 90;
         if (winRef && winRef.webContents) {
@@ -190,9 +209,15 @@ async function extractAndInstallUpdate(filePath, winRef) {
         }
         resolve();
       } catch (error) {
+        if (winRef && winRef.webContents) {
+          winRef.webContents.send('update-install-progress', { phase: 'error', percent: 100, message: `Extraction failed: ${error.message}` });
+        }
         reject(error);
       }
     } else {
+      if (winRef && winRef.webContents) {
+        winRef.webContents.send('update-install-progress', { phase: 'error', percent: 100, message: 'Unsupported file format' });
+      }
       reject(new Error('Unsupported file format'));
     }
   });
