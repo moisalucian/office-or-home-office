@@ -59,6 +59,29 @@ function App() {
   const [postUpdateState, setPostUpdateState] = useState(null);
   const [showPostUpdateNotification, setShowPostUpdateNotification] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  // Listen for download progress events from Electron
+  useEffect(() => {
+    if (window.electronAPI?.onUpdateDownloadProgress) {
+      window.electronAPI.onUpdateDownloadProgress((progress) => {
+        setUpdateProgress((prev) => ({
+          ...prev,
+          phase: 'downloading',
+          percent: progress.percent,
+          message: `Downloaded ${progress.downloaded} of ${progress.total} bytes`
+        }));
+      });
+    }
+    if (window.electronAPI?.onUpdateInstallProgress) {
+      window.electronAPI.onUpdateInstallProgress((progress) => {
+        setUpdateProgress((prev) => ({
+          ...prev,
+          phase: 'installing',
+          percent: progress.percent,
+          message: progress.message
+        }));
+      });
+    }
+  }, []);
   const [sidebarWidth, setSidebarWidth] = useState(() => {
     const saved = localStorage.getItem('sidebarWidth');
     return saved ? parseInt(saved) : 300;
