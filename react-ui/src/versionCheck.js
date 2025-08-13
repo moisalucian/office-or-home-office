@@ -216,7 +216,7 @@ export const downloadAndInstallUpdate = async (downloadUrl) => {
     throw new Error('Auto-update not supported in this environment');
   }
 };
-};
+
 
 // Manual update check (for settings button)
 export const manualUpdateCheck = async () => {
