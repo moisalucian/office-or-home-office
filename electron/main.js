@@ -708,10 +708,8 @@ ipcMain.handle('download-and-install-update', async (_, downloadUrl) => {
   try {
     const fileName = path.basename(downloadUrl);
     const tempPath = path.join(os.tmpdir(), fileName);
-    
-    // Download the update file
-    await downloadFile(downloadUrl, tempPath);
-    
+    // Download the update file and send progress to renderer
+    await downloadFile(downloadUrl, tempPath, win);
     // Return success without showing dialog - let the UI handle the restart prompt
     return { success: true, filePath: tempPath };
   } catch (error) {
