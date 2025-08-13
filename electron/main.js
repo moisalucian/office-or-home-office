@@ -718,6 +718,17 @@ ipcMain.handle('download-and-install-update', async (_, downloadUrl) => {
   }
 });
 
+// Extract and install update (called from renderer after download)
+ipcMain.handle('extract-and-install-update', async (_, filePath) => {
+  try {
+    await extractAndInstallUpdate(filePath, win);
+    return { success: true };
+  } catch (error) {
+    console.error('Update install failed:', error);
+    throw error;
+  }
+});
+
 // Restart the application
 ipcMain.handle('restart-app', () => {
   app.relaunch({ args: ['--updated'] });
