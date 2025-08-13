@@ -46,9 +46,7 @@ const UpdateNotification = ({
       setUpdateError(error.message);
       setIsUpdating(false);
     }
-  };
-  };
-
+    };
   // Reset updating state when progress completes
   useEffect(() => {
     if (updateProgress?.phase === 'ready') {
