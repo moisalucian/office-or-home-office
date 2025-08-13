@@ -37,76 +37,94 @@ function saveSetting(key, value) {
 }
 
 // Auto-update functionality
-async function downloadFile(url, dest) {
+async function downloadFile(url, dest, win) {
   return new Promise((resolve, reject) => {
-      const file = fs.createWriteStream(dest);
-      let downloadError = null;
-      https.get(url, (response) => {
-        if (response.statusCode === 302 || response.statusCode === 301) {
-          // Handle redirect
-          return downloadFile(response.headers.location, dest).then(resolve).catch(reject);
+    // Clean up any previous file
+    try { if (fs.existsSync(dest)) fs.unlinkSync(dest); } catch (e) {}
+
+    const tempDest = dest + '.download';
+    try { if (fs.existsSync(tempDest)) fs.unlinkSync(tempDest); } catch (e) {}
+
+    const file = fs.createWriteStream(tempDest);
+    let downloadError = null;
+    let total = 0;
+    let downloaded = 0;
+
+    const request = https.get(url, (response) => {
+      if (response.statusCode === 302 || response.statusCode === 301) {
+        // Handle redirect
+        return downloadFile(response.headers.location, dest, win).then(resolve).catch(reject);
+      }
+      if (response.statusCode !== 200) {
+        reject(new Error(`Failed to download: HTTP Status ${response.statusCode}`));
+        return;
+      }
+
+      total = parseInt(response.headers['content-length'], 10) || 0;
+
+      response.on('data', (chunk) => {
+        downloaded += chunk.length;
+        if (win && win.webContents) {
+          win.webContents.send('update-download-progress', {
+            percent: total ? Math.round((downloaded / total) * 100) : 0,
+            downloaded,
+            total
+          });
         }
-        if (response.statusCode !== 200) {
-          reject(new Error(`Failed to download: HTTP Status ${response.statusCode}`));
+      });
+
+      response.pipe(file);
+    });
+
+    file.on('error', (err) => {
+      downloadError = err;
+      try { fs.unlinkSync(tempDest); } catch (e) {}
+      reject(err);
+    });
+
+    request.on('error', (err) => {
+      downloadError = err;
+      try { fs.unlinkSync(tempDest); } catch (e) {}
+      reject(err);
+    });
+
+    file.on('finish', () => {
+      file.close((closeErr) => {
+        if (closeErr) {
+          downloadError = closeErr;
+          try { fs.unlinkSync(tempDest); } catch (e) {}
+          reject(closeErr);
           return;
         }
-        
-        const total = parseInt(response.headers['content-length'], 10);
-        let downloaded = 0;
-        
-        response.on('data', (chunk) => {
-          downloaded += chunk.length;
+        // Check file size and zip integrity
+        fs.stat(tempDest, (statErr, stats) => {
+          if (statErr) {
+            downloadError = statErr;
+            try { fs.unlinkSync(tempDest); } catch (e) {}
+            reject(statErr);
+            return;
+          }
+          if (total && stats.size !== total) {
+            downloadError = new Error(`Downloaded file size mismatch. Expected ${total}, got ${stats.size}.`);
+            try { fs.unlinkSync(tempDest); } catch (e) {}
+            reject(downloadError);
+            return;
+          }
+          try {
+            const AdmZip = require('adm-zip');
+            const zipTest = new AdmZip(tempDest);
+            const entries = zipTest.getEntries();
+            if (entries.length === 0) throw new Error('Downloaded ZIP file is empty or contains no entries.');
+            // Move temp file to final destination
+            fs.renameSync(tempDest, dest);
+            resolve();
+          } catch (zipVerifyError) {
+            try { fs.unlinkSync(tempDest); } catch (e) {}
+            reject(new Error(`Downloaded file verification failed: ${zipVerifyError.message}. The file might be corrupted or incomplete.`));
+          }
         });
-        
-        response.pipe(file);
-        
-        file.on('finish', () => {
-          file.close((closeErr) => {
-            if (closeErr) {
-              console.error('[DEBUG] Error closing file after download:', closeErr);
-              downloadError = closeErr;
-            }
-            // Check file size and integrity after download
-            fs.stat(dest, (statErr, stats) => {
-              if (statErr) {
-                console.error('[DEBUG] Error stating downloaded file:', statErr);
-                downloadError = statErr;
-              } else {
-                console.log('[DEBUG] Downloaded file size:', stats.size);
-                if (total && stats.size !== total) {
-                    console.warn(`[DEBUG] Downloaded file size mismatch! Expected: ${total}, Got: ${stats.size}`);
-                    downloadError = new Error(`Downloaded file size mismatch. Expected ${total}, got ${stats.size}.`);
-                } else if (stats.size < 1000) { // Arbitrary small size check
-                  console.warn('[DEBUG] Downloaded file is suspiciously small:', stats.size);
-                }
-              }
-              if (downloadError) {
-                fs.unlink(dest, () => {}); // Delete partial file
-                reject(downloadError);
-              } else {
-                // --- NEW: ZIP integrity check ---
-                try {
-                  const AdmZip = require('adm-zip');
-                  const zipTest = new AdmZip(dest);
-                  const entries = zipTest.getEntries(); // This will throw if the zip is corrupted or not a zip
-                  if (entries.length === 0) {
-                    throw new Error('Downloaded ZIP file is empty or contains no entries.');
-                  }
-                  console.log(`[DEBUG] Downloaded ZIP contains ${entries.length} entries. Verification successful.`);
-                  resolve(); // Only resolve if verification passes
-                } catch (zipVerifyError) {
-                  console.error('[DEBUG] Downloaded ZIP file verification failed:', zipVerifyError);
-                  fs.unlink(dest, () => {}); // Delete the corrupted/invalid file
-                  reject(new Error(`Downloaded file verification failed: ${zipVerifyError.message}. The file might be corrupted or incomplete.`));
-                }
-              }
-            });
-          });
-        });
-      }).on('error', (err) => {
-        fs.unlink(dest, () => {}); // Delete the file on error
-        reject(err);
       });
+    });
   });
 }
 
