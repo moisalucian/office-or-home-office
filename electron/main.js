@@ -37,69 +37,90 @@ function saveSetting(key, value) {
 }
 
 // Auto-update functionality
-async function downloadFile(url, dest, win) {
+async function downloadFile(url, dest) {
   return new Promise((resolve, reject) => {
-    const file = fs.createWriteStream(dest);
-    https.get(url, (response) => {
-      if (response.statusCode === 302 || response.statusCode === 301) {
-        // Handle redirect
-        return downloadFile(response.headers.location, dest, win).then(resolve).catch(reject);
-      }
-      if (response.statusCode !== 200) {
-        reject(new Error(`Failed to download: ${response.statusCode}`));
-        return;
-      }
-
-      const total = parseInt(response.headers['content-length'], 10);
-      let downloaded = 0;
-
-      response.on('data', (chunk) => {
-        downloaded += chunk.length;
-        if (win && win.webContents) {
-          win.webContents.send('update-download-progress', {
-            percent: total ? Math.round((downloaded / total) * 100) : 0,
-            downloaded,
-            total
-          });
+      const file = fs.createWriteStream(dest);
+      let downloadError = null;
+      https.get(url, (response) => {
+        if (response.statusCode === 302 || response.statusCode === 301) {
+          // Handle redirect
+          return downloadFile(response.headers.location, dest).then(resolve).catch(reject);
         }
-      });
-
-      response.pipe(file);
-      file.on('finish', () => {
-        file.close();
-        if (win && win.webContents) {
-          win.webContents.send('update-download-progress', {
-            percent: 100,
-            downloaded,
-            total
-          });
+        if (response.statusCode !== 200) {
+          reject(new Error(`Failed to download: HTTP Status ${response.statusCode}`));
+          return;
         }
-        resolve();
+        
+        const total = parseInt(response.headers['content-length'], 10);
+        let downloaded = 0;
+        
+        response.on('data', (chunk) => {
+          downloaded += chunk.length;
+        });
+        
+        response.pipe(file);
+        
+        file.on('finish', () => {
+          file.close((closeErr) => {
+            if (closeErr) {
+              console.error('[DEBUG] Error closing file after download:', closeErr);
+              downloadError = closeErr;
+            }
+            // Check file size and integrity after download
+            fs.stat(dest, (statErr, stats) => {
+              if (statErr) {
+                console.error('[DEBUG] Error stating downloaded file:', statErr);
+                downloadError = statErr;
+              } else {
+                console.log('[DEBUG] Downloaded file size:', stats.size);
+                if (total && stats.size !== total) {
+                    console.warn(`[DEBUG] Downloaded file size mismatch! Expected: ${total}, Got: ${stats.size}`);
+                    downloadError = new Error(`Downloaded file size mismatch. Expected ${total}, got ${stats.size}.`);
+                } else if (stats.size < 1000) { // Arbitrary small size check
+                  console.warn('[DEBUG] Downloaded file is suspiciously small:', stats.size);
+                }
+              }
+              if (downloadError) {
+                fs.unlink(dest, () => {}); // Delete partial file
+                reject(downloadError);
+              } else {
+                // --- NEW: ZIP integrity check ---
+                try {
+                  const AdmZip = require('adm-zip');
+                  const zipTest = new AdmZip(dest);
+                  const entries = zipTest.getEntries(); // This will throw if the zip is corrupted or not a zip
+                  if (entries.length === 0) {
+                    throw new Error('Downloaded ZIP file is empty or contains no entries.');
+                  }
+                  console.log(`[DEBUG] Downloaded ZIP contains ${entries.length} entries. Verification successful.`);
+                  resolve(); // Only resolve if verification passes
+                } catch (zipVerifyError) {
+                  console.error('[DEBUG] Downloaded ZIP file verification failed:', zipVerifyError);
+                  fs.unlink(dest, () => {}); // Delete the corrupted/invalid file
+                  reject(new Error(`Downloaded file verification failed: ${zipVerifyError.message}. The file might be corrupted or incomplete.`));
+                }
+              }
+            });
+          });
+        });
+      }).on('error', (err) => {
+        fs.unlink(dest, () => {}); // Delete the file on error
+        reject(err);
       });
-    }).on('error', (err) => {
-      fs.unlink(dest, () => {}); // Delete the file on error
-      reject(err);
-    });
   });
 }
 
-async function extractAndInstallUpdate(filePath, win) {
+async function extractAndInstallUpdate(filePath) {
   return new Promise((resolve, reject) => {
     const extractPath = path.join(os.tmpdir(), 'office-home-office-update');
-
+    
     // For Windows, we expect a zip file or installer
     if (path.extname(filePath) === '.exe') {
       // If it's an installer, run it
-      if (win && win.webContents) {
-        win.webContents.send('update-install-progress', { phase: 'installing', percent: 10, message: 'Running installer...' });
-      }
       exec(`"${filePath}" /S`, (error) => {
         if (error) {
           reject(error);
         } else {
-          if (win && win.webContents) {
-            win.webContents.send('update-install-progress', { phase: 'installing', percent: 100, message: 'Install complete.' });
-          }
           resolve();
         }
       });
@@ -107,31 +128,12 @@ async function extractAndInstallUpdate(filePath, win) {
       // If it's a zip file, extract and replace current files
       const AdmZip = require('adm-zip');
       try {
-        if (win && win.webContents) {
-          win.webContents.send('update-install-progress', { phase: 'installing', percent: 10, message: 'Extracting update...' });
-        }
         const zip = new AdmZip(filePath);
         zip.extractAllTo(extractPath, true);
-        if (win && win.webContents) {
-          win.webContents.send('update-install-progress', { phase: 'installing', percent: 50, message: 'Copying files...' });
-        }
-        // Copy extracted resources folder to app directory (format-agnostic)
+        
+        // Copy extracted files to app directory
         const appPath = app.getAppPath();
-        const extractedResources = path.join(extractPath, 'resources');
-        const destResources = path.join(appPath, 'resources');
-        const fs = require('fs');
-        if (fs.existsSync(extractedResources)) {
-          // Remove old resources folder if exists
-          if (fs.existsSync(destResources)) {
-            fs.rmSync(destResources, { recursive: true, force: true });
-          }
-          copyRecursiveSync(extractedResources, destResources, win);
-        } else {
-          throw new Error('Update package is missing resources folder.');
-        }
-        if (win && win.webContents) {
-          win.webContents.send('update-install-progress', { phase: 'installing', percent: 100, message: 'Install complete.' });
-        }
+        copyRecursiveSync(extractPath, appPath);
         resolve();
       } catch (error) {
         reject(error);
@@ -142,38 +144,20 @@ async function extractAndInstallUpdate(filePath, win) {
   });
 }
 
-function copyRecursiveSync(src, dest, win, progress = { copied: 0, total: 0 }) {
+function copyRecursiveSync(src, dest) {
   const exists = fs.existsSync(src);
   const stats = exists && fs.statSync(src);
   const isDirectory = exists && stats.isDirectory();
-
+  
   if (isDirectory) {
     if (!fs.existsSync(dest)) {
       fs.mkdirSync(dest);
     }
-    const items = fs.readdirSync(src);
-    progress.total += items.length;
-    items.forEach((childItemName) => {
-      copyRecursiveSync(path.join(src, childItemName), path.join(dest, childItemName), win, progress);
-      progress.copied++;
-      if (win && win.webContents) {
-        win.webContents.send('update-install-progress', {
-          phase: 'installing',
-          percent: 50 + Math.round((progress.copied / progress.total) * 50),
-          message: `Copying files... (${progress.copied}/${progress.total})`
-        });
-      }
+    fs.readdirSync(src).forEach((childItemName) => {
+      copyRecursiveSync(path.join(src, childItemName), path.join(dest, childItemName));
     });
   } else {
     fs.copyFileSync(src, dest);
-    progress.copied++;
-    if (win && win.webContents) {
-      win.webContents.send('update-install-progress', {
-        phase: 'installing',
-        percent: 50 + Math.round((progress.copied / progress.total) * 50),
-        message: `Copying files... (${progress.copied}/${progress.total})`
-      });
-    }
   }
 }
 
@@ -481,6 +465,9 @@ ipcMain.on('show-notification-popup', () => {
       soundPath = path.join(__dirname, 'sounds', `${notificationSound}.wav`);
     }
     
+    console.log('Sound path:', soundPath);
+    console.log('Sound file exists:', fs.existsSync(soundPath));
+    
     if (fs.existsSync(soundPath)) {
       const command = `powershell -c "(New-Object Media.SoundPlayer '${soundPath}').PlaySync();"`;
       
@@ -628,6 +615,9 @@ ipcMain.on('preview-notification-sound', (_, sound) => {
       soundPath = path.join(__dirname, 'sounds', `${sound}.wav`);
     }
     
+    console.log('Preview sound path:', soundPath);
+    console.log('Preview sound file exists:', fs.existsSync(soundPath));
+    
     if (fs.existsSync(soundPath)) {
       // Use PowerShell to play the sound
       const command = `powershell -c "(New-Object Media.SoundPlayer '${soundPath}').PlaySync();"`;
@@ -700,14 +690,14 @@ ipcMain.handle('download-and-install-update', async (_, downloadUrl) => {
   try {
     const fileName = path.basename(downloadUrl);
     const tempPath = path.join(os.tmpdir(), fileName);
-    // Download the update file with progress reporting
-    await downloadFile(downloadUrl, tempPath, win);
-    // Install the update with progress reporting
-    await extractAndInstallUpdate(tempPath, win);
+    
+    // Download the update file
+    await downloadFile(downloadUrl, tempPath);
+    
     // Return success without showing dialog - let the UI handle the restart prompt
     return { success: true, filePath: tempPath };
   } catch (error) {
-    console.error('Update download/install failed:', error);
+    console.error('Update download failed:', error);
     throw error;
   }
 });
