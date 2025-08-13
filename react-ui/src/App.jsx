@@ -75,7 +75,7 @@ function App() {
       window.electronAPI.onUpdateInstallProgress((progress) => {
         setUpdateProgress((prev) => ({
           ...prev,
-          phase: 'installing',
+          phase: progress.phase || 'installing',
           percent: progress.percent,
           message: progress.message
         }));
