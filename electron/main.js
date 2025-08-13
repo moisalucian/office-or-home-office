@@ -128,20 +128,22 @@ async function downloadFile(url, dest, win) {
   });
 }
 
-async function extractAndInstallUpdate(filePath) {
+async function extractAndInstallUpdate(filePath, winRef) {
   return new Promise((resolve, reject) => {
     const extractPath = path.join(os.tmpdir(), 'office-home-office-update');
-    // For Windows, we expect a zip file or installer
+    // Clean up previous extraction
+    try { if (fs.existsSync(extractPath)) fs.rmSync(extractPath, { recursive: true, force: true }); } catch (e) {}
+
     if (path.extname(filePath) === '.exe') {
-      if (win && win.webContents) {
-        win.webContents.send('update-install-progress', { phase: 'installing', percent: 10, message: 'Running installer...' });
+      if (winRef && winRef.webContents) {
+        winRef.webContents.send('update-install-progress', { phase: 'installing', percent: 10, message: 'Running installer...' });
       }
       exec(`"${filePath}" /S`, (error) => {
         if (error) {
           reject(error);
         } else {
-          if (win && win.webContents) {
-            win.webContents.send('update-install-progress', { phase: 'installing', percent: 100, message: 'Install complete.' });
+          if (winRef && winRef.webContents) {
+            winRef.webContents.send('update-install-progress', { phase: 'installing', percent: 100, message: 'Install complete.' });
           }
           resolve();
         }
@@ -149,19 +151,42 @@ async function extractAndInstallUpdate(filePath) {
     } else if (path.extname(filePath) === '.zip') {
       const AdmZip = require('adm-zip');
       try {
-        if (win && win.webContents) {
-          win.webContents.send('update-install-progress', { phase: 'installing', percent: 10, message: 'Extracting update...' });
+        if (winRef && winRef.webContents) {
+          winRef.webContents.send('update-install-progress', { phase: 'installing', percent: 10, message: 'Extracting update...' });
         }
         const zip = new AdmZip(filePath);
         zip.extractAllTo(extractPath, true);
-        if (win && win.webContents) {
-          win.webContents.send('update-install-progress', { phase: 'installing', percent: 50, message: 'Copying files...' });
-        }
-        // Copy extracted files to app directory
+
+        // Copy resources and locales folders if present
         const appPath = app.getAppPath();
-        copyRecursiveSync(extractPath, appPath);
-        if (win && win.webContents) {
-          win.webContents.send('update-install-progress', { phase: 'installing', percent: 100, message: 'Install complete.' });
+        const resourcesSrc = path.join(extractPath, 'resources');
+        const resourcesDest = path.join(appPath, 'resources');
+        const localesSrc = path.join(extractPath, 'locales');
+        const localesDest = path.join(appPath, 'locales');
+
+        let percent = 20;
+        if (winRef && winRef.webContents) {
+          winRef.webContents.send('update-install-progress', { phase: 'installing', percent, message: 'Copying resources...' });
+        }
+        if (fs.existsSync(resourcesSrc)) {
+          copyRecursiveSync(resourcesSrc, resourcesDest);
+        }
+        percent = 60;
+        if (winRef && winRef.webContents) {
+          winRef.webContents.send('update-install-progress', { phase: 'installing', percent, message: 'Copying locales...' });
+        }
+        if (fs.existsSync(localesSrc)) {
+          copyRecursiveSync(localesSrc, localesDest);
+        }
+        percent = 90;
+        if (winRef && winRef.webContents) {
+          winRef.webContents.send('update-install-progress', { phase: 'installing', percent, message: 'Finalizing update...' });
+        }
+        // Clean up extraction folder
+        try { fs.rmSync(extractPath, { recursive: true, force: true }); } catch (e) {}
+
+        if (winRef && winRef.webContents) {
+          winRef.webContents.send('update-install-progress', { phase: 'ready', percent: 100, message: 'Update installed! Please restart.' });
         }
         resolve();
       } catch (error) {
@@ -735,6 +760,9 @@ ipcMain.handle('extract-and-install-update', async (_, filePath) => {
     await extractAndInstallUpdate(filePath, win);
     return { success: true };
   } catch (error) {
+    if (win && win.webContents) {
+      win.webContents.send('update-install-progress', { phase: 'error', percent: 100, message: error.message });
+    }
     console.error('Update install failed:', error);
     throw error;
   }
