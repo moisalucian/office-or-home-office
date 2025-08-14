@@ -216,8 +216,8 @@ export const downloadAndInstallUpdate = async (downloadUrl) => {
       console.error('Download failed:', err);
       throw err;
     }
-    // Now extract and install the update
-    if (result && result.success && window.electronAPI?.extractAndInstallUpdate) {
+    // Always try to trigger install after download, even if result is not success
+    if (result && result.filePath && window.electronAPI?.extractAndInstallUpdate) {
       try {
         const installResult = await Promise.race([
           window.electronAPI.extractAndInstallUpdate(result.filePath),
@@ -231,7 +231,7 @@ export const downloadAndInstallUpdate = async (downloadUrl) => {
         throw err;
       }
     } else {
-      throw new Error('Download succeeded but no file to install');
+      throw new Error('Download finished but no file to install or extractAndInstallUpdate missing');
     }
     return result;
   } else {

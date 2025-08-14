@@ -160,6 +160,17 @@ async function extractAndInstallUpdate(filePath, winRef) {
         const zip = new AdmZip(filePath);
         zip.extractAllTo(extractPath, true);
 
+        // Debug: Check if app.asar exists after extraction
+        const appAsarPath = path.join(extractPath, 'resources', 'app.asar');
+        if (!fs.existsSync(appAsarPath)) {
+          console.error('app.asar missing after extraction:', appAsarPath);
+          if (winRef && winRef.webContents) {
+            winRef.webContents.send('update-install-progress', { phase: 'error', percent: 100, message: `app.asar missing after extraction: ${appAsarPath}` });
+          }
+        } else {
+          console.log('app.asar found after extraction:', appAsarPath);
+        }
+
         // Copy resources and locales folders if present
         const appPath = app.getAppPath();
         const resourcesSrc = path.join(extractPath, 'resources');
@@ -343,6 +354,18 @@ function createWindow(shouldShow = true, shouldMaximize = false) {
       nodeIntegration: false,
       preload: path.join(__dirname, 'preload.js'),
     },
+  });
+
+  // Enable DevTools with F12 only when maximized
+  win.webContents.on('before-input-event', (event, input) => {
+    if (
+      input.type === 'keyDown' &&
+      input.key === 'F12' &&
+      win.isMaximized()
+    ) {
+      win.webContents.openDevTools({ mode: 'detach' });
+      event.preventDefault();
+    }
   });
 
   if (process.env.NODE_ENV === 'development') {
