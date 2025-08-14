@@ -226,14 +226,24 @@ export const downloadAndInstallUpdate = async (downloadUrl) => {
           )
         ]);
         console.log('Install result:', installResult);
+        return installResult;
       } catch (err) {
+        // Always log and show install errors
         console.error('Install failed:', err);
+        // Show error in UI if possible
+        if (window.setUpdateProgress) {
+          window.setUpdateProgress({ phase: 'error', percent: 100, message: String(err) });
+        }
         throw err;
       }
     } else {
-      throw new Error('Download finished but no file to install or extractAndInstallUpdate missing');
+      const errorMsg = 'Download finished but no file to install or extractAndInstallUpdate missing';
+      console.error(errorMsg);
+      if (window.setUpdateProgress) {
+        window.setUpdateProgress({ phase: 'error', percent: 100, message: errorMsg });
+      }
+      throw new Error(errorMsg);
     }
-    return result;
   } else {
     window.open(downloadUrl, '_blank');
     throw new Error('Auto-update not supported in this environment');
