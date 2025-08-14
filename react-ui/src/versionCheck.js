@@ -218,6 +218,10 @@ export const downloadAndInstallUpdate = async (downloadUrl) => {
     }
     // Always try to trigger install after download, even if result is not success
     if (result && result.filePath && window.electronAPI?.extractAndInstallUpdate) {
+      // Show install phase in UI
+      if (window.setUpdateProgress) {
+        window.setUpdateProgress({ phase: 'installing', percent: 0, message: 'Installing update...' });
+      }
       try {
         const installResult = await Promise.race([
           window.electronAPI.extractAndInstallUpdate(result.filePath),
@@ -230,7 +234,6 @@ export const downloadAndInstallUpdate = async (downloadUrl) => {
       } catch (err) {
         // Always log and show install errors
         console.error('Install failed:', err);
-        // Show error in UI if possible
         if (window.setUpdateProgress) {
           window.setUpdateProgress({ phase: 'error', percent: 100, message: String(err) });
         }
