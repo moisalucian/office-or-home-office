@@ -161,15 +161,15 @@ async function extractAndInstallUpdate(filePath, winRef) {
         zip.extractAllTo(extractPath, true);
 
         // Debug: Check if app.asar exists after extraction
-        const appAsarPath = path.join(extractPath, 'resources', 'app.asar');
-        if (!fs.existsSync(appAsarPath)) {
-          console.error('app.asar missing after extraction:', appAsarPath);
-          if (winRef && winRef.webContents) {
-            winRef.webContents.send('update-install-progress', { phase: 'error', percent: 100, message: `app.asar missing after extraction: ${appAsarPath}` });
-          }
-        } else {
-          console.log('app.asar found after extraction:', appAsarPath);
+      const appAsarPath = path.join(extractPath, 'resources', 'app.asar');
+      if (!fs.existsSync(appAsarPath)) {
+        console.error('app.asar missing after extraction:', appAsarPath);
+        if (winRef && winRef.webContents) {
+          winRef.webContents.send('update-install-progress', { phase: 'error', percent: 100, message: `app.asar missing after extraction: ${appAsarPath}` });
         }
+      } else {
+        console.log('app.asar found after extraction:', appAsarPath);
+      }
 
         // Copy resources and locales folders if present
         const appPath = app.getAppPath();
