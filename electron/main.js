@@ -169,70 +169,64 @@ async function extractAndInstallUpdate(filePath, winRef) {
               winRef.webContents.send('update-install-progress', { phase: 'error', percent: 100, message: `app.asar missing after extraction: ${appAsarPath}` });
             }
             reject(new Error(`app.asar missing after extraction: ${appAsarPath}`));
+            return;
           } else {
             console.log('app.asar found after extraction:', appAsarPath);
-            resolve();
           }
+
+          // Copy resources and locales folders if present
+          const appPath = app.getAppPath();
+          const resourcesSrc = path.join(extractPath, 'resources');
+          const resourcesDest = path.join(appPath, 'resources');
+          const localesSrc = path.join(extractPath, 'locales');
+          const localesDest = path.join(appPath, 'locales');
+
+          let percent = 20;
+          if (winRef && winRef.webContents) {
+            winRef.webContents.send('update-install-progress', { phase: 'installing', percent, message: 'Copying resources...' });
+          }
+          try {
+            if (fs.existsSync(resourcesSrc)) {
+              copyRecursiveSync(resourcesSrc, resourcesDest);
+            }
+          } catch (err) {
+            if (winRef && winRef.webContents) {
+              winRef.webContents.send('update-install-progress', { phase: 'error', percent: percent, message: `Failed to copy resources: ${err.message}` });
+            }
+            reject(err);
+            return;
+          }
+          percent = 60;
+          if (winRef && winRef.webContents) {
+            winRef.webContents.send('update-install-progress', { phase: 'installing', percent, message: 'Copying locales...' });
+          }
+          try {
+            if (fs.existsSync(localesSrc)) {
+              copyRecursiveSync(localesSrc, localesDest);
+            }
+          } catch (err) {
+            if (winRef && winRef.webContents) {
+              winRef.webContents.send('update-install-progress', { phase: 'error', percent: percent, message: `Failed to copy locales: ${err.message}` });
+            }
+            reject(err);
+            return;
+          }
+          percent = 90;
+          if (winRef && winRef.webContents) {
+            winRef.webContents.send('update-install-progress', { phase: 'installing', percent, message: 'Finalizing update...' });
+          }
+          // Clean up extraction folder
+          try { fs.rmSync(extractPath, { recursive: true, force: true }); } catch (e) {}
+
+          if (winRef && winRef.webContents) {
+            winRef.webContents.send('update-install-progress', { phase: 'ready', percent: 100, message: 'Update installed! Please restart.' });
+          }
+          resolve();
         } catch (err) {
           console.error('[Electron] extract-zip error:', err);
           reject(err);
         }
       })();
-
-        // Copy resources and locales folders if present
-        const appPath = app.getAppPath();
-        const resourcesSrc = path.join(extractPath, 'resources');
-        const resourcesDest = path.join(appPath, 'resources');
-        const localesSrc = path.join(extractPath, 'locales');
-        const localesDest = path.join(appPath, 'locales');
-
-        let percent = 20;
-        if (winRef && winRef.webContents) {
-          winRef.webContents.send('update-install-progress', { phase: 'installing', percent, message: 'Copying resources...' });
-        }
-        try {
-          if (fs.existsSync(resourcesSrc)) {
-            copyRecursiveSync(resourcesSrc, resourcesDest);
-          }
-        } catch (err) {
-          if (winRef && winRef.webContents) {
-            winRef.webContents.send('update-install-progress', { phase: 'error', percent: percent, message: `Failed to copy resources: ${err.message}` });
-          }
-          reject(err);
-          return;
-        }
-        percent = 60;
-        if (winRef && winRef.webContents) {
-          winRef.webContents.send('update-install-progress', { phase: 'installing', percent, message: 'Copying locales...' });
-        }
-        try {
-          if (fs.existsSync(localesSrc)) {
-            copyRecursiveSync(localesSrc, localesDest);
-          }
-        } catch (err) {
-          if (winRef && winRef.webContents) {
-            winRef.webContents.send('update-install-progress', { phase: 'error', percent: percent, message: `Failed to copy locales: ${err.message}` });
-          }
-          reject(err);
-          return;
-        }
-        percent = 90;
-        if (winRef && winRef.webContents) {
-          winRef.webContents.send('update-install-progress', { phase: 'installing', percent, message: 'Finalizing update...' });
-        }
-        // Clean up extraction folder
-        try { fs.rmSync(extractPath, { recursive: true, force: true }); } catch (e) {}
-
-        if (winRef && winRef.webContents) {
-          winRef.webContents.send('update-install-progress', { phase: 'ready', percent: 100, message: 'Update installed! Please restart.' });
-        }
-        resolve();
-      } catch (error) {
-        if (winRef && winRef.webContents) {
-          winRef.webContents.send('update-install-progress', { phase: 'error', percent: 100, message: `Extraction failed: ${error.message}` });
-        }
-        reject(error);
-      }
     } else {
       if (winRef && winRef.webContents) {
         winRef.webContents.send('update-install-progress', { phase: 'error', percent: 100, message: 'Unsupported file format' });
