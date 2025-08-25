@@ -202,19 +202,22 @@ export const manualUpdateCheck = async () => {
 };
 
 export const downloadAndInstallUpdate = async (downloadUrl) => {
+  console.log('[Update] downloadAndInstallUpdate called with URL:', downloadUrl);
   if (!downloadUrl) {
+    console.error('[Update] No download URL provided');
     throw new Error('No download URL available');
   }
   if (window.electronAPI?.downloadAndInstallUpdate && window.electronAPI?.extractAndInstallUpdate) {
     let result;
     try {
+      console.log('[Update] Starting download via electronAPI.downloadAndInstallUpdate');
       result = await Promise.race([
         window.electronAPI.downloadAndInstallUpdate(downloadUrl),
         new Promise((_, reject) => setTimeout(() => reject(new Error('Download timeout - please try again or download manually')), 120000))
       ]);
-      console.log('Download result:', result);
+      console.log('[Update] Download result:', result);
     } catch (err) {
-      console.error('Download failed:', err);
+      console.error('[Update] Download failed:', err);
       if (window.setUpdateProgress) {
         window.setUpdateProgress({ phase: 'error', percent: 100, message: String(err) });
       }
@@ -222,31 +225,34 @@ export const downloadAndInstallUpdate = async (downloadUrl) => {
     }
 
     if (result && result.filePath && window.electronAPI?.extractAndInstallUpdate) {
+      console.log('[Update] Download complete, filePath:', result.filePath);
       if (window.setUpdateProgress) {
         window.setUpdateProgress({ phase: 'installing', percent: 0, message: 'Installing update...' });
       }
       try {
+        console.log('[Update] Starting extraction/install via electronAPI.extractAndInstallUpdate');
         const installResult = await Promise.race([
           window.electronAPI.extractAndInstallUpdate(result.filePath),
           new Promise((_, reject) => setTimeout(() => {
+            console.error('[Update] Install phase did not complete within 30 seconds');
             reject(new Error('Install phase did not complete within 30 seconds. Please restart the app or update manually.'));
             if (window.setUpdateProgress) {
               window.setUpdateProgress({ phase: 'error', percent: 100, message: 'Install phase did not complete. Please restart the app or update manually.' });
             }
           }, 30000))
         ]);
-        console.log('Install result:', installResult);
+        console.log('[Update] Install result:', installResult);
         setLastVersionCheck();
         return installResult;
       } catch (err) {
-        console.error('Install failed:', err);
+        console.error('[Update] Install failed:', err);
         if (window.setUpdateProgress) {
           window.setUpdateProgress({ phase: 'error', percent: 100, message: String(err) });
         }
         throw err;
       }
     } else {
-      const errorMsg = 'Download finished but no file to install or extractAndInstallUpdate missing';
+      const errorMsg = '[Update] Download finished but no file to install or extractAndInstallUpdate missing';
       console.error(errorMsg);
       if (window.setUpdateProgress) {
         window.setUpdateProgress({ phase: 'error', percent: 100, message: errorMsg });
@@ -254,6 +260,7 @@ export const downloadAndInstallUpdate = async (downloadUrl) => {
       throw new Error(errorMsg);
     }
   } else {
+    console.error('[Update] electronAPI.downloadAndInstallUpdate or extractAndInstallUpdate not available');
     window.open(downloadUrl, '_blank');
     throw new Error('Auto-update not available, opened download page');
   }
