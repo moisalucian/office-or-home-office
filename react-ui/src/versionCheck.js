@@ -230,7 +230,7 @@ export const downloadAndInstallUpdate = async (downloadUrl) => {
         window.setUpdateProgress({ phase: 'installing', percent: 0, message: 'Installing update...' });
       }
       try {
-        console.log('[Update] Starting extraction/install via electronAPI.extractAndInstallUpdate');
+        console.log('[Update] About to call electronAPI.extractAndInstallUpdate with:', result.filePath);
         const installResult = await Promise.race([
           window.electronAPI.extractAndInstallUpdate(result.filePath),
           new Promise((_, reject) => setTimeout(() => {

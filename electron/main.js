@@ -129,6 +129,7 @@ async function downloadFile(url, dest, win) {
 }
 
 async function extractAndInstallUpdate(filePath, winRef) {
+  console.log('[Electron] extractAndInstallUpdate function called with filePath:', filePath);
   return new Promise((resolve, reject) => {
     const extractPath = path.join(os.tmpdir(), 'office-home-office-update');
     // Clean up previous extraction
@@ -154,6 +155,7 @@ async function extractAndInstallUpdate(filePath, winRef) {
     } else if (path.extname(filePath) === '.zip') {
       const AdmZip = require('adm-zip');
       try {
+        console.log('[Electron] Starting extraction of zip:', filePath);
         if (winRef && winRef.webContents) {
           winRef.webContents.send('update-install-progress', { phase: 'installing', percent: 10, message: 'Extracting update...' });
         }
