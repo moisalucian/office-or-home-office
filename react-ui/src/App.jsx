@@ -596,22 +596,23 @@ function App() {
   };
 
   const handleUpdateNow = async (updateInfo) => {
+    console.log('[App] handleUpdateNow called with:', updateInfo);
     try {
       // Check if we have a download URL
       if (updateInfo.downloadUrl) {
+        console.log('[App] Download URL found:', updateInfo.downloadUrl);
         // Reset progress
         setUpdateProgress({ phase: 'downloading', percent: 0, message: 'Starting download...' });
-        
         // Call the actual download function
         await downloadAndInstallUpdate(updateInfo.downloadUrl);
         // The app should restart after successful update
       } else {
-        // Fallback: open repository
+        console.log('[App] No download URL, opening repository page.');
         window.open('https://github.com/moisalucian/office-or-home-office/releases/latest', '_blank');
         throw new Error('Auto-update not available, opened download page');
       }
     } catch (error) {
-      console.error('Update failed:', error);
+      console.error('[App] Update failed:', error);
       setUpdateProgress({ phase: null, percent: 0, message: '' });
       throw error;
     }
