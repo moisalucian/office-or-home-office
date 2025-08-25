@@ -153,25 +153,31 @@ async function extractAndInstallUpdate(filePath, winRef) {
         }
       });
     } else if (path.extname(filePath) === '.zip') {
-      const AdmZip = require('adm-zip');
-      try {
-        console.log('[Electron] Starting extraction of zip:', filePath);
-        if (winRef && winRef.webContents) {
-          winRef.webContents.send('update-install-progress', { phase: 'installing', percent: 10, message: 'Extracting update...' });
-        }
-        const zip = new AdmZip(filePath);
-        zip.extractAllTo(extractPath, true);
-
-        // Debug: Check if app.asar exists after extraction
-      const appAsarPath = path.join(extractPath, 'resources', 'app.asar');
-      if (!fs.existsSync(appAsarPath)) {
-        console.error('app.asar missing after extraction:', appAsarPath);
-        if (winRef && winRef.webContents) {
-          winRef.webContents.send('update-install-progress', { phase: 'error', percent: 100, message: `app.asar missing after extraction: ${appAsarPath}` });
-        }
-      } else {
-        console.log('app.asar found after extraction:', appAsarPath);
+      const extract = require('extract-zip');
+      console.log('[Electron] Starting extraction of zip with extract-zip:', filePath);
+      if (winRef && winRef.webContents) {
+        winRef.webContents.send('update-install-progress', { phase: 'installing', percent: 10, message: 'Extracting update...' });
       }
+      (async () => {
+        try {
+          await extract(filePath, { dir: extractPath });
+          // Debug: Check if app.asar exists after extraction
+          const appAsarPath = path.join(extractPath, 'resources', 'app.asar');
+          if (!fs.existsSync(appAsarPath)) {
+            console.error('app.asar missing after extraction:', appAsarPath);
+            if (winRef && winRef.webContents) {
+              winRef.webContents.send('update-install-progress', { phase: 'error', percent: 100, message: `app.asar missing after extraction: ${appAsarPath}` });
+            }
+            reject(new Error(`app.asar missing after extraction: ${appAsarPath}`));
+          } else {
+            console.log('app.asar found after extraction:', appAsarPath);
+            resolve();
+          }
+        } catch (err) {
+          console.error('[Electron] extract-zip error:', err);
+          reject(err);
+        }
+      })();
 
         // Copy resources and locales folders if present
         const appPath = app.getAppPath();
