@@ -197,6 +197,10 @@ export const shouldShowUpdateNotification = (updateInfo) => {
 };
 
 // Auto-update functionality
+export const manualUpdateCheck = async () => {
+  return await checkForUpdates();
+};
+
 export const downloadAndInstallUpdate = async (downloadUrl) => {
   if (!downloadUrl) {
     throw new Error('No download URL available');
