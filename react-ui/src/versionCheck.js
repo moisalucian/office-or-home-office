@@ -202,37 +202,50 @@ export const downloadAndInstallUpdate = async (downloadUrl) => {
     throw new Error('No download URL available');
   }
   if (window.electronAPI?.downloadAndInstallUpdate && window.electronAPI?.extractAndInstallUpdate) {
-    // Download the update file
     let result;
     try {
       result = await Promise.race([
         window.electronAPI.downloadAndInstallUpdate(downloadUrl),
-        new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Download timeout - please try again or download manually')), 120000)
-        )
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Download timeout - please try again or download manually')), 120000))
       ]);
       console.log('Download result:', result);
     } catch (err) {
       console.error('Download failed:', err);
+      if (window.setUpdateProgress) {
+        window.setUpdateProgress({ phase: 'error', percent: 100, message: String(err) });
+      }
       throw err;
     }
-    // Always try to trigger install after download, even if result is not success
+
     if (result && result.filePath && window.electronAPI?.extractAndInstallUpdate) {
-      // Show install phase in UI
       if (window.setUpdateProgress) {
         window.setUpdateProgress({ phase: 'installing', percent: 0, message: 'Installing update...' });
+      }
+      let installStarted = false;
+      const installProgressListener = (progress) => {
+        if (progress && progress.phase === 'installing') {
+          installStarted = true;
+        }
+      };
+      if (window.electronAPI?.onUpdateInstallProgress) {
+        window.electronAPI.onUpdateInstallProgress(installProgressListener);
       }
       try {
         const installResult = await Promise.race([
           window.electronAPI.extractAndInstallUpdate(result.filePath),
-          new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Install timeout - extraction/install never started')), 60000)
-          )
+          new Promise((_, reject) => setTimeout(() => {
+            if (!installStarted) {
+              reject(new Error('Install phase did not start within 30 seconds. Please restart the app or update manually.'));
+              if (window.setUpdateProgress) {
+                window.setUpdateProgress({ phase: 'error', percent: 100, message: 'Install phase did not start. Please restart the app or update manually.' });
+              }
+            }
+          }, 30000))
         ]);
         console.log('Install result:', installResult);
+        setLastVersionCheck();
         return installResult;
       } catch (err) {
-        // Always log and show install errors
         console.error('Install failed:', err);
         if (window.setUpdateProgress) {
           window.setUpdateProgress({ phase: 'error', percent: 100, message: String(err) });
@@ -249,14 +262,6 @@ export const downloadAndInstallUpdate = async (downloadUrl) => {
     }
   } else {
     window.open(downloadUrl, '_blank');
-    throw new Error('Auto-update not supported in this environment');
+    throw new Error('Auto-update not available, opened download page');
   }
-};
-
-
-// Manual update check (for settings button)
-export const manualUpdateCheck = async () => {
-  const result = await checkForUpdates();
-  setLastVersionCheck();
-  return result;
-};
+}
