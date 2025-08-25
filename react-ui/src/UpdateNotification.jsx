@@ -11,6 +11,25 @@ const UpdateNotification = ({
   onRestartLater,
   onCancelUpdate 
 }) => {
+
+  useEffect(() => {
+    console.log('[UpdateNotification] Props received:', {
+      updateInfo,
+      updateProgress,
+    });
+    if (updateProgress?.phase === 'downloading') {
+      console.log('[UpdateNotification] Download phase started. Progress:', updateProgress);
+    }
+    if (updateProgress?.phase === 'installing') {
+      console.log('[UpdateNotification] Install phase started. Progress:', updateProgress);
+    }
+    if (updateProgress?.phase === 'ready') {
+      console.log('[UpdateNotification] Update ready phase. Progress:', updateProgress);
+    }
+    if (updateProgress?.phase === 'error') {
+      console.log('[UpdateNotification] Update error phase. Progress:', updateProgress);
+    }
+  }, [updateProgress, updateInfo]);
   const [isVisible, setIsVisible] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
   const [updateError, setUpdateError] = useState(null);
@@ -36,17 +55,17 @@ const UpdateNotification = ({
   };
 
   const handleUpdateNow = async () => {
+    console.log('[UpdateNotification] Download and Install button clicked.');
     setIsUpdating(true);
     setUpdateError(null);
-    
     try {
       await onUpdateNow(updateInfo);
     } catch (error) {
-      console.error('Update failed:', error);
+      console.error('[UpdateNotification] Update failed:', error);
       setUpdateError(error.message);
       setIsUpdating(false);
     }
-    };
+  };
   // Reset updating state when progress completes
   useEffect(() => {
     if (updateProgress?.phase === 'ready') {
