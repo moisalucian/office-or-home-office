@@ -198,7 +198,7 @@ const UpdateNotification = ({
           <div className="update-actions">
             <button 
               className="update-btn primary" 
-              onClick={handleUpdateNow}
+              onClick={e => { console.log('[UpdateNotification] Download and Install button onClick fired'); handleUpdateNow(e); }}
               disabled={isUpdating}
               title="Download and install update automatically"
             >
