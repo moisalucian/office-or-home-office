@@ -234,12 +234,12 @@ export const downloadAndInstallUpdate = async (downloadUrl) => {
         const installResult = await Promise.race([
           window.electronAPI.extractAndInstallUpdate(result.filePath),
           new Promise((_, reject) => setTimeout(() => {
-            console.error('[Update] Install phase did not complete within 30 seconds');
-            reject(new Error('Install phase did not complete within 30 seconds. Please restart the app or update manually.'));
+            console.error('[Update] Install phase did not complete within 3 minutes');
+            reject(new Error('Install phase did not complete within 3 minutes. Please restart the app or update manually.'));
             if (window.setUpdateProgress) {
               window.setUpdateProgress({ phase: 'error', percent: 100, message: 'Install phase did not complete. Please restart the app or update manually.' });
             }
-          }, 30000))
+          }, 3 * 60 * 1000)) // 3 minutes
         ]);
         console.log('[Update] Install result:', installResult);
         setLastVersionCheck();

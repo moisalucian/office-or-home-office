@@ -41,3 +41,4 @@ export const NOTIFICATION_SOUNDS = [
 
 export const CACHE_DURATION = 30000; // 30 seconds
 export const UPDATE_CHECK_INTERVAL = 60 * 60 * 1000; // 1 hour
+export const UPDATE_INSTALL_TIMEOUT = 3 * 60 * 1000; // 3 minutes

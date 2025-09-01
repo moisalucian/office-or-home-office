@@ -4,6 +4,10 @@ const fs = require('fs');
 const { exec } = require('child_process');
 const https = require('https');
 const os = require('os');
+
+// Import timeout constant
+const { UPDATE_INSTALL_TIMEOUT } = require('../react-ui/src/utils/constants');
+
 const isHiddenLaunch = process.argv.includes('--hidden');
 
 let popupWindowRef = null;
@@ -65,10 +69,12 @@ async function downloadFile(url, dest, win) {
       response.on('data', (chunk) => {
         downloaded += chunk.length;
         if (win && win.webContents) {
+          const downloadedMB = (downloaded / 1024 / 1024).toFixed(1);
+          const totalMB = total ? (total / 1024 / 1024).toFixed(1) : '?';
           win.webContents.send('update-download-progress', {
             percent: total ? Math.round((downloaded / total) * 100) : 0,
-            downloaded,
-            total
+            downloaded: downloadedMB,
+            total: totalMB
           });
         }
       });
@@ -158,9 +164,30 @@ async function extractAndInstallUpdate(filePath, winRef) {
       if (winRef && winRef.webContents) {
         winRef.webContents.send('update-install-progress', { phase: 'installing', percent: 10, message: 'Extracting update...' });
       }
+      
+      // Set up timeout
+      let extractionTimeout = setTimeout(() => {
+        console.error(`[Electron] Extraction timed out after ${UPDATE_INSTALL_TIMEOUT / 1000} seconds`);
+        if (winRef && winRef.webContents) {
+          winRef.webContents.send('update-install-progress', { phase: 'error', percent: 20, message: `Extraction timed out after ${UPDATE_INSTALL_TIMEOUT / 1000} seconds.` });
+        }
+        reject(new Error(`Extraction timed out after ${UPDATE_INSTALL_TIMEOUT / 1000} seconds`));
+      }, UPDATE_INSTALL_TIMEOUT);
+
       (async () => {
         try {
+          console.log('[Electron] Starting extract-zip extraction');
+          if (winRef && winRef.webContents) {
+            winRef.webContents.send('update-install-progress', { phase: 'installing', percent: 15, message: 'Extracting files...' });
+          }
+          
           await extract(filePath, { dir: extractPath });
+          
+          clearTimeout(extractionTimeout);
+          console.log('[Electron] Extraction completed successfully');
+          if (winRef && winRef.webContents) {
+            winRef.webContents.send('update-install-progress', { phase: 'installing', percent: 40, message: 'Extraction completed' });
+          }
           // Debug: Check if app.asar exists after extraction
           const appAsarPath = path.join(extractPath, 'resources', 'app.asar');
           if (!fs.existsSync(appAsarPath)) {
@@ -223,7 +250,11 @@ async function extractAndInstallUpdate(filePath, winRef) {
           }
           resolve();
         } catch (err) {
+          clearTimeout(extractionTimeout);
           console.error('[Electron] extract-zip error:', err);
+          if (winRef && winRef.webContents) {
+            winRef.webContents.send('update-install-progress', { phase: 'error', percent: 20, message: `Extraction failed: ${err.message}` });
+          }
           reject(err);
         }
       })();

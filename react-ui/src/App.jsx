@@ -67,7 +67,7 @@ function App() {
           ...prev,
           phase: 'downloading',
           percent: progress.percent,
-          message: `Downloaded ${progress.downloaded} of ${progress.total} bytes`
+          message: `Downloaded ${progress.downloaded}MB of ${progress.total}MB`
         }));
       });
     }
