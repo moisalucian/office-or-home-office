@@ -135,7 +135,11 @@ async function downloadFile(url, dest, win) {
 }
 
 async function extractAndInstallUpdate(filePath, winRef, version) {
-  console.log('[Electron] extractAndInstallUpdate function called with filePath:', filePath);
+  console.log('[Electron] extractAndInstallUpdate function called with:');
+  console.log('  - filePath:', filePath);
+  console.log('  - version:', version);
+  console.log('  - version type:', typeof version);
+  
   return new Promise((resolve, reject) => {
     const extractPath = path.join(os.tmpdir(), 'office-home-office-update');
     // Clean up previous extraction
@@ -271,6 +275,10 @@ async function extractAndInstallUpdate(filePath, winRef, version) {
             });
           }
           
+          console.log('[Electron] About to create staged update info...');
+          console.log('[Electron] Version parameter at this point:', version);
+          console.log('[Electron] Version parameter type:', typeof version);
+          
           // Store the staged update path for startup application
           const stagedUpdateInfo = {
             extractPath: extractPath,
@@ -284,6 +292,11 @@ async function extractAndInstallUpdate(filePath, winRef, version) {
           // Save staged update info to a file
           const stagedUpdateFile = path.join(app.getPath('userData'), 'staged-update.json');
           fs.writeFileSync(stagedUpdateFile, JSON.stringify(stagedUpdateInfo, null, 2));
+          
+          // Verify what was actually written to the file
+          const writtenContent = fs.readFileSync(stagedUpdateFile, 'utf8');
+          console.log('[Electron] Verified content written to staging file:');
+          console.log(writtenContent);
           
           console.log('[Electron] Update staged successfully. Restart required to apply.');
           resolve('Update staged successfully');
