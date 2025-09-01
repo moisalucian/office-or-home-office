@@ -201,8 +201,8 @@ export const manualUpdateCheck = async () => {
   return await checkForUpdates();
 };
 
-export const downloadAndInstallUpdate = async (downloadUrl) => {
-  console.log('[Update] downloadAndInstallUpdate called with URL:', downloadUrl);
+export const downloadAndInstallUpdate = async (downloadUrl, version) => {
+  console.log('[Update] downloadAndInstallUpdate called with URL:', downloadUrl, 'version:', version);
   if (!downloadUrl) {
     console.error('[Update] No download URL provided');
     throw new Error('No download URL available');
@@ -230,9 +230,9 @@ export const downloadAndInstallUpdate = async (downloadUrl) => {
         window.setUpdateProgress({ phase: 'installing', percent: 0, message: 'Installing update...' });
       }
       try {
-        console.log('[Update] About to call electronAPI.extractAndInstallUpdate with:', result.filePath);
+        console.log('[Update] About to call electronAPI.extractAndInstallUpdate with:', result.filePath, 'version:', version);
         const installResult = await Promise.race([
-          window.electronAPI.extractAndInstallUpdate(result.filePath),
+          window.electronAPI.extractAndInstallUpdate(result.filePath, version),
           new Promise((_, reject) => setTimeout(() => {
             console.error('[Update] Install phase did not complete within 3 minutes');
             reject(new Error('Install phase did not complete within 3 minutes. Please restart the app or update manually.'));

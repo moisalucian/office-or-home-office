@@ -614,7 +614,7 @@ function App() {
         // Reset progress
         setUpdateProgress({ phase: 'downloading', percent: 0, message: 'Starting download...' });
         // Call the actual download function
-        await downloadAndInstallUpdate(updateInfo.downloadUrl);
+        await downloadAndInstallUpdate(updateInfo.downloadUrl, updateInfo.latestVersion);
         // The app should restart after successful update
       } else {
         console.log('[App] No download URL, opening repository page.');

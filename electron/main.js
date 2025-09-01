@@ -134,7 +134,7 @@ async function downloadFile(url, dest, win) {
   });
 }
 
-async function extractAndInstallUpdate(filePath, winRef) {
+async function extractAndInstallUpdate(filePath, winRef, version) {
   console.log('[Electron] extractAndInstallUpdate function called with filePath:', filePath);
   return new Promise((resolve, reject) => {
     const extractPath = path.join(os.tmpdir(), 'office-home-office-update');
@@ -275,7 +275,7 @@ async function extractAndInstallUpdate(filePath, winRef) {
           const stagedUpdateInfo = {
             extractPath: extractPath,
             timestamp: Date.now(),
-            version: 'v1.0.68'
+            version: version || 'unknown'
           };
           
           // Save staged update info to a file
@@ -579,6 +579,10 @@ function createTray() {
 }
 
 app.whenReady().then(async () => {
+  console.log('[Electron] App ready - starting initialization...');
+  console.log('[Electron] NODE_ENV:', process.env.NODE_ENV);
+  console.log('[Electron] app.isPackaged:', app.isPackaged);
+  
   // Only apply staged updates in production builds, not in development
   if (process.env.NODE_ENV !== 'development') {
     console.log('[Electron] Production mode - checking for staged updates...');
@@ -888,9 +892,9 @@ ipcMain.handle('download-and-install-update', async (_, downloadUrl) => {
 });
 
 // Extract and install update (called from renderer after download)
-ipcMain.handle('extract-and-install-update', async (_, filePath) => {
+ipcMain.handle('extract-and-install-update', async (_, filePath, version) => {
   try {
-    await extractAndInstallUpdate(filePath, win);
+    await extractAndInstallUpdate(filePath, win, version);
     return { success: true };
   } catch (error) {
     if (win && win.webContents) {
@@ -945,22 +949,30 @@ ipcMain.handle('mark-update-completed', (event, version) => {
 
 // Apply staged update on startup
 async function applyStagedUpdate() {
+  console.log('[Electron] applyStagedUpdate called - checking for staged update file...');
   const stagedUpdateFile = path.join(app.getPath('userData'), 'staged-update.json');
   
+  console.log('[Electron] Looking for staged update file at:', stagedUpdateFile);
   if (!fs.existsSync(stagedUpdateFile)) {
+    console.log('[Electron] No staged update file found - returning false');
     return false; // No staged update
   }
   
   try {
-    console.log('[Electron] Found staged update, applying...');
+    console.log('[Electron] Found staged update, reading file...');
     const stagedUpdateInfo = JSON.parse(fs.readFileSync(stagedUpdateFile, 'utf8'));
+    console.log('[Electron] Staged update info:', JSON.stringify(stagedUpdateInfo, null, 2));
     const extractPath = stagedUpdateInfo.extractPath;
     
+    console.log('[Electron] Checking if extract path exists:', extractPath);
     if (!fs.existsSync(extractPath)) {
       console.error('[Electron] Staged update path no longer exists:', extractPath);
+      console.log('[Electron] Cleaning up staged update file...');
       fs.unlinkSync(stagedUpdateFile);
       return false;
     }
+    
+    console.log('[Electron] Extract path exists, applying update...');
     
     // Apply the update by copying files
     // In production, we need to get the actual application directory, not the asar path
