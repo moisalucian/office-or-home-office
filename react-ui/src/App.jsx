@@ -415,7 +415,17 @@ function App() {
             setUpdateProgress({ phase: null, percent: 0, message: '' });
             setShowUpdateNotification(false);
             
-            // Show post-update notification
+            // Refresh current version display after update
+            if (window.electronAPI?.getAppVersion) {
+              try {
+                const newVersion = await window.electronAPI.getAppVersion();
+                setCurrentVersion(newVersion);
+              } catch (error) {
+                console.error('Error refreshing version after update:', error);
+              }
+            }
+            
+            // Show post-update notification with the actual new version
             setPostUpdateState({
               success: true,
               version: updateState.version,

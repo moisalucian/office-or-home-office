@@ -911,7 +911,7 @@ ipcMain.handle('restart-app', () => {
   
   // Force quit after a short delay to ensure cleanup
   setTimeout(() => {
-    app.relaunch({ args: ['--updated'] });
+    app.relaunch(); // Remove --updated flag to allow normal startup with staging
     app.exit(0);
   }, 100);
 });
