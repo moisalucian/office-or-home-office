@@ -1,6 +1,6 @@
 {
   "name": "office-or-homeoffice",
-  "version": "1.0.65",
+  "version": "1.0.67",
   "description": "Office or Remote status tracking app",
   "main": "electron/main.js",
   "scripts": {
@@ -19,7 +19,8 @@
     "extract-zip": "^2.0.1",
     "firebase": "^12.0.0",
     "react": "^19.1.0",
-    "react-dom": "^19.1.0"
+    "react-dom": "^19.1.0",
+    "yauzl": "^3.2.0"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.7.0",

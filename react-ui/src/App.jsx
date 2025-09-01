@@ -878,11 +878,10 @@ function App() {
             }
           }}
           onRestartLater={() => {
+            // Hide the notification but keep the staged update
             setShowUpdateNotification(false);
-            setUpdateInfo(null);
-            setUpdateProgress({ phase: null, percent: 0, message: '' });
-            // Clear update check result
-            setManualUpdateCheck(prev => ({ ...prev, result: null }));
+            // Note: We don't clear updateInfo or updateProgress here
+            // The staged update should still be applied on next restart
           }}
         />
       )}

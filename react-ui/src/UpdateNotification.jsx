@@ -68,7 +68,7 @@ const UpdateNotification = ({
   };
   // Reset updating state when progress completes
   useEffect(() => {
-    if (updateProgress?.phase === 'ready') {
+    if (updateProgress?.phase === 'restart_required') {
       setIsUpdating(false);
     }
   }, [updateProgress]);
@@ -76,16 +76,16 @@ const UpdateNotification = ({
   if (!isVisible) return null;
 
   // Show restart options when update is ready
-  if (updateProgress?.phase === 'ready') {
+  if (updateProgress?.phase === 'restart_required') {
     return (
       <div className="update-notification">
         <div className="update-notification-content">
           <div className="update-header">
-            <h3>🎉 Update Installed!</h3>
+            <h3>🎉 Update Staged Successfully!</h3>
           </div>
           
           <div className="update-info">
-            <p>The update has been installed successfully. Please restart the app to complete the update.</p>
+            <p>The update has been downloaded and staged. Restart the app to apply the update.</p>
           </div>
           
           <div className="update-actions">
@@ -161,16 +161,27 @@ const UpdateNotification = ({
               <h4>
                 {updateProgress.phase === 'downloading' && '📥 Downloading Update...'}
                 {updateProgress.phase === 'installing' && '⚙️ Installing Update...'}
-                {updateProgress.phase === 'ready' && '🎉 Update Installed!'}
+                {updateProgress.phase === 'restart_required' && '🎉 Update Staged!'}
                 {updateProgress.phase === 'error' && '❌ Update Failed'}
               </h4>
-              <button 
-                className="cancel-update-btn" 
-                onClick={handleCancelUpdate}
-                title="Cancel update"
-              >
-                ❌
-              </button>
+              {updateProgress.phase !== 'restart_required' && (
+                <button 
+                  className="cancel-update-btn" 
+                  onClick={handleCancelUpdate}
+                  title="Cancel update"
+                >
+                  ❌
+                </button>
+              )}
+              {updateProgress.phase === 'restart_required' && (
+                <button 
+                  className="cancel-update-btn" 
+                  onClick={onRestartLater}
+                  title="Hide notification - update will apply on next restart"
+                >
+                  ❌
+                </button>
+              )}
             </div>
             
             <div className="progress-bar-container">

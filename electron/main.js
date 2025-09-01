@@ -176,79 +176,115 @@ async function extractAndInstallUpdate(filePath, winRef) {
 
       (async () => {
         try {
-          console.log('[Electron] Starting extract-zip extraction');
+          console.log('[Electron] Starting AdmZip extraction (alternative method for app.asar compatibility)');
           if (winRef && winRef.webContents) {
-            winRef.webContents.send('update-install-progress', { phase: 'installing', percent: 15, message: 'Extracting files...' });
+            winRef.webContents.send('update-install-progress', { phase: 'installing', percent: 15, message: 'Extracting files with AdmZip...' });
           }
           
-          await extract(filePath, { dir: extractPath });
+          // Use AdmZip for better app.asar handling
+          const AdmZip = require('adm-zip');
+          const zip = new AdmZip(filePath);
+          
+          // Manual extraction to handle app.asar file properly
+          const entries = zip.getEntries();
+          let extractedCount = 0;
+          
+          for (const entry of entries) {
+            if (!entry.isDirectory) {
+              const entryPath = path.join(extractPath, entry.entryName);
+              const entryDir = path.dirname(entryPath);
+              
+              // Create directory if it doesn't exist
+              if (!fs.existsSync(entryDir)) {
+                fs.mkdirSync(entryDir, { recursive: true });
+              }
+              
+              const fileData = entry.getData();
+              
+              // Special handling for app.asar - use alternative filename to avoid "Invalid package" error
+              if (entry.entryName.includes('app.asar')) {
+                console.log(`[Electron] Special handling for app.asar file (${fileData.length} bytes)`);
+                
+                // For app.asar files, extract to a completely different extension to avoid Node.js package validation
+                const alternativeAsarPath = entryPath.replace('app.asar', 'app.package');
+                fs.writeFileSync(alternativeAsarPath, fileData, { encoding: null });
+                
+                console.log(`[Electron] app.asar extracted as app.package (${fs.statSync(alternativeAsarPath).size} bytes)`);
+              } else {
+                // Normal file extraction
+                fs.writeFileSync(entryPath, fileData, { encoding: null });
+              }
+              
+              extractedCount++;
+              
+              // Update progress
+              if (extractedCount % 1000 === 0) {
+                const percent = 15 + Math.floor((extractedCount / entries.length) * 25);
+                if (winRef && winRef.webContents) {
+                  winRef.webContents.send('update-install-progress', { 
+                    phase: 'installing', 
+                    percent, 
+                    message: `Extracted ${extractedCount}/${entries.length} files...` 
+                  });
+                }
+              }
+            } else {
+              // Create directory
+              const dirPath = path.join(extractPath, entry.entryName);
+              if (!fs.existsSync(dirPath)) {
+                fs.mkdirSync(dirPath, { recursive: true });
+              }
+            }
+          }
           
           clearTimeout(extractionTimeout);
-          console.log('[Electron] Extraction completed successfully');
+          console.log(`[Electron] AdmZip extraction completed successfully (${extractedCount} files)`);
           if (winRef && winRef.webContents) {
             winRef.webContents.send('update-install-progress', { phase: 'installing', percent: 40, message: 'Extraction completed' });
           }
           // Debug: Check if app.asar exists after extraction
           const appAsarPath = path.join(extractPath, 'resources', 'app.asar');
-          if (!fs.existsSync(appAsarPath)) {
-            console.error('app.asar missing after extraction:', appAsarPath);
+          const appPackagePath = path.join(extractPath, 'resources', 'app.package');
+          
+          if (!fs.existsSync(appPackagePath)) {
+            console.error('app.package missing after extraction:', appPackagePath);
             if (winRef && winRef.webContents) {
-              winRef.webContents.send('update-install-progress', { phase: 'error', percent: 100, message: `app.asar missing after extraction: ${appAsarPath}` });
+              winRef.webContents.send('update-install-progress', { phase: 'error', percent: 100, message: `app.package missing after extraction: ${appPackagePath}` });
             }
-            reject(new Error(`app.asar missing after extraction: ${appAsarPath}`));
+            reject(new Error(`app.package missing after extraction: ${appPackagePath}`));
             return;
           } else {
-            console.log('app.asar found after extraction:', appAsarPath);
+            console.log('app.package found after extraction:', appPackagePath);
+            // For staging, we'll leave it as app.package and rename during startup
+            console.log('Keeping app.package filename for staged update');
           }
 
-          // Copy resources and locales folders if present
-          const appPath = app.getAppPath();
-          const resourcesSrc = path.join(extractPath, 'resources');
-          const resourcesDest = path.join(appPath, 'resources');
-          const localesSrc = path.join(extractPath, 'locales');
-          const localesDest = path.join(appPath, 'locales');
-
-          let percent = 20;
+          // Instead of copying immediately (which fails during runtime),
+          // stage the update for next restart
+          console.log('[Electron] Staging update for next restart...');
+          
           if (winRef && winRef.webContents) {
-            winRef.webContents.send('update-install-progress', { phase: 'installing', percent, message: 'Copying resources...' });
+            winRef.webContents.send('update-install-progress', { 
+              phase: 'restart_required', 
+              percent: 100, 
+              message: 'Update ready - restart to apply' 
+            });
           }
-          try {
-            if (fs.existsSync(resourcesSrc)) {
-              copyRecursiveSync(resourcesSrc, resourcesDest);
-            }
-          } catch (err) {
-            if (winRef && winRef.webContents) {
-              winRef.webContents.send('update-install-progress', { phase: 'error', percent: percent, message: `Failed to copy resources: ${err.message}` });
-            }
-            reject(err);
-            return;
-          }
-          percent = 60;
-          if (winRef && winRef.webContents) {
-            winRef.webContents.send('update-install-progress', { phase: 'installing', percent, message: 'Copying locales...' });
-          }
-          try {
-            if (fs.existsSync(localesSrc)) {
-              copyRecursiveSync(localesSrc, localesDest);
-            }
-          } catch (err) {
-            if (winRef && winRef.webContents) {
-              winRef.webContents.send('update-install-progress', { phase: 'error', percent: percent, message: `Failed to copy locales: ${err.message}` });
-            }
-            reject(err);
-            return;
-          }
-          percent = 90;
-          if (winRef && winRef.webContents) {
-            winRef.webContents.send('update-install-progress', { phase: 'installing', percent, message: 'Finalizing update...' });
-          }
-          // Clean up extraction folder
-          try { fs.rmSync(extractPath, { recursive: true, force: true }); } catch (e) {}
-
-          if (winRef && winRef.webContents) {
-            winRef.webContents.send('update-install-progress', { phase: 'ready', percent: 100, message: 'Update installed! Please restart.' });
-          }
-          resolve();
+          
+          // Store the staged update path for startup application
+          const stagedUpdateInfo = {
+            extractPath: extractPath,
+            timestamp: Date.now(),
+            version: 'v1.0.68'
+          };
+          
+          // Save staged update info to a file
+          const stagedUpdateFile = path.join(app.getPath('userData'), 'staged-update.json');
+          fs.writeFileSync(stagedUpdateFile, JSON.stringify(stagedUpdateInfo, null, 2));
+          
+          console.log('[Electron] Update staged successfully. Restart required to apply.');
+          resolve('Update staged successfully');
+          return;
         } catch (err) {
           clearTimeout(extractionTimeout);
           console.error('[Electron] extract-zip error:', err);
@@ -542,7 +578,10 @@ function createTray() {
   });
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  // Apply any staged updates first
+  await applyStagedUpdate();
+  
   // Get launch settings from storage to determine how to open the app
   const settings = getSettings();
   const launchInTray = settings.launchInTray || false;
@@ -875,6 +914,82 @@ ipcMain.handle('mark-update-completed', (event, version) => {
     console.error('Failed to save update state:', error);
   }
 });
+
+// Apply staged update on startup
+async function applyStagedUpdate() {
+  const stagedUpdateFile = path.join(app.getPath('userData'), 'staged-update.json');
+  
+  if (!fs.existsSync(stagedUpdateFile)) {
+    return false; // No staged update
+  }
+  
+  try {
+    console.log('[Electron] Found staged update, applying...');
+    const stagedUpdateInfo = JSON.parse(fs.readFileSync(stagedUpdateFile, 'utf8'));
+    const extractPath = stagedUpdateInfo.extractPath;
+    
+    if (!fs.existsSync(extractPath)) {
+      console.error('[Electron] Staged update path no longer exists:', extractPath);
+      fs.unlinkSync(stagedUpdateFile);
+      return false;
+    }
+    
+    // Apply the update by copying files
+    const appPath = app.getAppPath();
+    const resourcesSrc = path.join(extractPath, 'resources');
+    const resourcesDest = path.join(appPath, 'resources');
+    const localesSrc = path.join(extractPath, 'locales');
+    const localesDest = path.join(appPath, 'locales');
+    
+    // Special handling for app.package -> app.asar
+    const appPackagePath = path.join(resourcesSrc, 'app.package');
+    const appAsarPath = path.join(resourcesDest, 'app.asar');
+    
+    if (fs.existsSync(appPackagePath)) {
+      // Copy app.package as app.asar
+      fs.copyFileSync(appPackagePath, appAsarPath);
+      console.log('[Electron] app.package -> app.asar updated successfully');
+    }
+    
+    // Copy other resources (excluding app.package)
+    if (fs.existsSync(resourcesSrc)) {
+      fs.readdirSync(resourcesSrc).forEach((item) => {
+        if (item !== 'app.package') { // Skip app.package since we handled it above
+          const srcItem = path.join(resourcesSrc, item);
+          const destItem = path.join(resourcesDest, item);
+          copyRecursiveSync(srcItem, destItem);
+        }
+      });
+      console.log('[Electron] Resources updated successfully');
+    }
+    
+    if (fs.existsSync(localesSrc)) {
+      copyRecursiveSync(localesSrc, localesDest);
+      console.log('[Electron] Locales updated successfully');
+    }
+    
+    // Clean up
+    try { fs.rmSync(extractPath, { recursive: true, force: true }); } catch (e) {}
+    fs.unlinkSync(stagedUpdateFile);
+    
+    // Create update state for UI notification
+    const updateStateFile = path.join(app.getPath('userData'), 'update-state.json');
+    fs.writeFileSync(updateStateFile, JSON.stringify({
+      applied: true,
+      version: stagedUpdateInfo.version,
+      timestamp: Date.now()
+    }));
+    
+    console.log('[Electron] Staged update applied successfully');
+    return true;
+    
+  } catch (error) {
+    console.error('[Electron] Failed to apply staged update:', error);
+    // Clean up failed update
+    try { fs.unlinkSync(stagedUpdateFile); } catch (e) {}
+    return false;
+  }
+}
 
 // Check if app was restarted after update
 ipcMain.handle('check-update-state', () => {
