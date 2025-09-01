@@ -278,6 +278,9 @@ async function extractAndInstallUpdate(filePath, winRef, version) {
             version: version || 'unknown'
           };
           
+          console.log('[Electron] Creating staged update info with version:', version);
+          console.log('[Electron] Staged update info:', JSON.stringify(stagedUpdateInfo, null, 2));
+          
           // Save staged update info to a file
           const stagedUpdateFile = path.join(app.getPath('userData'), 'staged-update.json');
           fs.writeFileSync(stagedUpdateFile, JSON.stringify(stagedUpdateInfo, null, 2));
@@ -893,6 +896,7 @@ ipcMain.handle('download-and-install-update', async (_, downloadUrl) => {
 
 // Extract and install update (called from renderer after download)
 ipcMain.handle('extract-and-install-update', async (_, filePath, version) => {
+  console.log('[Electron] extract-and-install-update called with filePath:', filePath, 'version:', version);
   try {
     await extractAndInstallUpdate(filePath, win, version);
     return { success: true };
@@ -1038,11 +1042,13 @@ async function applyStagedUpdate() {
     
     // Create update state for UI notification
     const updateStateFile = path.join(app.getPath('userData'), 'update-state.json');
-    fs.writeFileSync(updateStateFile, JSON.stringify({
+    const updateState = {
       applied: true,
       version: stagedUpdateInfo.version,
       timestamp: Date.now()
-    }));
+    };
+    console.log('[Electron] Creating update state file with:', JSON.stringify(updateState, null, 2));
+    fs.writeFileSync(updateStateFile, JSON.stringify(updateState));
     
     console.log('[Electron] Staged update applied successfully');
     return true;
@@ -1062,12 +1068,18 @@ ipcMain.handle('check-update-state', () => {
   const userDataPath = app.getPath('userData');
   const updateStateFile = path.join(userDataPath, 'update-state.json');
   
+  console.log('[Electron] check-update-state called, looking for file:', updateStateFile);
+  
   try {
     if (fs.existsSync(updateStateFile)) {
       const updateState = JSON.parse(fs.readFileSync(updateStateFile, 'utf8'));
+      console.log('[Electron] Found update state file with content:', JSON.stringify(updateState, null, 2));
       // Clear the state file after reading
       fs.unlinkSync(updateStateFile);
+      console.log('[Electron] Update state file deleted after reading');
       return updateState;
+    } else {
+      console.log('[Electron] No update state file found');
     }
   } catch (error) {
     console.error('Failed to read update state:', error);
