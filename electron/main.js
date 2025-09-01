@@ -599,19 +599,19 @@ app.whenReady().then(async () => {
   console.log('[Electron] NODE_ENV:', process.env.NODE_ENV);
   console.log('[Electron] app.isPackaged:', app.isPackaged);
   
-  // Only apply staged updates in production builds, not in development
-  if (process.env.NODE_ENV !== 'development') {
-    console.log('[Electron] Production mode - checking for staged updates...');
+  // Only apply staged updates in packaged builds (production), not in development
+  if (app.isPackaged) {
+    console.log('[Electron] Packaged build detected - checking for staged updates...');
     const updateApplied = await applyStagedUpdate();
     console.log('[Electron] Staged update application result:', updateApplied);
   } else {
-    console.log('[Electron] Development mode - skipping staged update application');
-    console.log('[Electron] Skipping staged update application in development mode');
+    console.log('[Electron] Development build detected - skipping staged update application');
+    console.log('[Electron] Skipping staged update application in development build');
     // Clean up any staged updates in development to avoid confusion
     const stagedUpdateFile = path.join(app.getPath('userData'), 'staged-update.json');
     if (fs.existsSync(stagedUpdateFile)) {
       fs.unlinkSync(stagedUpdateFile);
-      console.log('[Electron] Cleaned up staged update from development mode');
+      console.log('[Electron] Cleaned up staged update from development build');
     }
   }
   
