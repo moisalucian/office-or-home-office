@@ -5,8 +5,8 @@ const { exec } = require('child_process');
 const https = require('https');
 const os = require('os');
 
-// Import timeout constant
-const { UPDATE_INSTALL_TIMEOUT } = require('../react-ui/src/utils/constants');
+// Update install timeout constant (3 minutes)
+const UPDATE_INSTALL_TIMEOUT = 3 * 60 * 1000; // 3 minutes
 
 const isHiddenLaunch = process.argv.includes('--hidden');
 
