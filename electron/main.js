@@ -221,7 +221,7 @@ async function extractAndInstallUpdate(filePath, winRef, version) {
               
               extractedCount++;
               
-              // Update progress
+              // Update progress every 1000 files to reduce log spam
               if (extractedCount % 1000 === 0) {
                 const percent = 15 + Math.floor((extractedCount / entries.length) * 25);
                 if (winRef && winRef.webContents) {
@@ -231,6 +231,8 @@ async function extractAndInstallUpdate(filePath, winRef, version) {
                     message: `Extracted ${extractedCount}/${entries.length} files...` 
                   });
                 }
+                // Log progress every 1000 files only
+                console.log(`[Electron] Extraction progress: ${extractedCount}/${entries.length} files (${percent}%)`);
               }
             } else {
               // Create directory
@@ -606,13 +608,8 @@ app.whenReady().then(async () => {
     console.log('[Electron] Staged update application result:', updateApplied);
   } else {
     console.log('[Electron] Development build detected - skipping staged update application');
-    console.log('[Electron] Skipping staged update application in development build');
-    // Clean up any staged updates in development to avoid confusion
-    const stagedUpdateFile = path.join(app.getPath('userData'), 'staged-update.json');
-    if (fs.existsSync(stagedUpdateFile)) {
-      fs.unlinkSync(stagedUpdateFile);
-      console.log('[Electron] Cleaned up staged update from development build');
-    }
+    console.log('[Electron] Note: Restart testing requires packaged build');
+    // Don't clean up staged updates in development so they can be tested with packaged builds
   }
   
   // Get launch settings from storage to determine how to open the app
