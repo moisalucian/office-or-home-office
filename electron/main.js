@@ -9,6 +9,7 @@ const os = require('os');
 const UPDATE_INSTALL_TIMEOUT = 3 * 60 * 1000; // 3 minutes
 
 const isHiddenLaunch = process.argv.includes('--hidden');
+const isShowWindowRestart = process.argv.includes('--show-window');
 
 let popupWindowRef = null;
 let sidebarWindowRef = null;
@@ -611,7 +612,8 @@ app.whenReady().then(async () => {
   });
   
   // Determine how to create the window based on settings
-  const shouldShow = !launchInTray && !isHiddenLaunch;
+  // Force show window if restarting from update
+  const shouldShow = isShowWindowRestart || (!launchInTray && !isHiddenLaunch);
   const shouldMaximize = defaultLaunchOption === 'maximized';
   
   createWindow(shouldShow, shouldMaximize);
@@ -910,8 +912,9 @@ ipcMain.handle('restart-app', () => {
   });
   
   // Force quit after a short delay to ensure cleanup
+  // Relaunch with --show-window to force window visibility after restart
   setTimeout(() => {
-    app.relaunch({ args: ['--updated'] });
+    app.relaunch({ args: ['--show-window'] });
     app.exit(0);
   }, 100);
 });
