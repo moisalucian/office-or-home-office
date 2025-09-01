@@ -581,8 +581,11 @@ function createTray() {
 app.whenReady().then(async () => {
   // Only apply staged updates in production builds, not in development
   if (process.env.NODE_ENV !== 'development') {
-    await applyStagedUpdate();
+    console.log('[Electron] Production mode - checking for staged updates...');
+    const updateApplied = await applyStagedUpdate();
+    console.log('[Electron] Staged update application result:', updateApplied);
   } else {
+    console.log('[Electron] Development mode - skipping staged update application');
     console.log('[Electron] Skipping staged update application in development mode');
     // Clean up any staged updates in development to avoid confusion
     const stagedUpdateFile = path.join(app.getPath('userData'), 'staged-update.json');
@@ -901,6 +904,8 @@ ipcMain.handle('extract-and-install-update', async (_, filePath) => {
 // Restart the application
 ipcMain.handle('restart-app', () => {
   console.log('[Electron] Restart requested, relaunching application...');
+  console.log('[Electron] Current process.execPath:', process.execPath);
+  console.log('[Electron] App.isPackaged:', app.isPackaged);
   
   // Ensure all windows are closed and tray is cleaned up
   BrowserWindow.getAllWindows().forEach(window => {
@@ -911,6 +916,7 @@ ipcMain.handle('restart-app', () => {
   
   // Force quit after a short delay to ensure cleanup
   setTimeout(() => {
+    console.log('[Electron] Executing app.relaunch() now...');
     app.relaunch(); // Remove --updated flag to allow normal startup with staging
     app.exit(0);
   }, 100);
