@@ -579,8 +579,18 @@ function createTray() {
 }
 
 app.whenReady().then(async () => {
-  // Apply any staged updates first
-  await applyStagedUpdate();
+  // Only apply staged updates in production builds, not in development
+  if (process.env.NODE_ENV !== 'development') {
+    await applyStagedUpdate();
+  } else {
+    console.log('[Electron] Skipping staged update application in development mode');
+    // Clean up any staged updates in development to avoid confusion
+    const stagedUpdateFile = path.join(app.getPath('userData'), 'staged-update.json');
+    if (fs.existsSync(stagedUpdateFile)) {
+      fs.unlinkSync(stagedUpdateFile);
+      console.log('[Electron] Cleaned up staged update from development mode');
+    }
+  }
   
   // Get launch settings from storage to determine how to open the app
   const settings = getSettings();
@@ -890,8 +900,20 @@ ipcMain.handle('extract-and-install-update', async (_, filePath) => {
 
 // Restart the application
 ipcMain.handle('restart-app', () => {
-  app.relaunch({ args: ['--updated'] });
-  app.quit();
+  console.log('[Electron] Restart requested, relaunching application...');
+  
+  // Ensure all windows are closed and tray is cleaned up
+  BrowserWindow.getAllWindows().forEach(window => {
+    if (!window.isDestroyed()) {
+      window.close();
+    }
+  });
+  
+  // Force quit after a short delay to ensure cleanup
+  setTimeout(() => {
+    app.relaunch({ args: ['--updated'] });
+    app.exit(0);
+  }, 100);
 });
 
 // Handle update completion state
@@ -935,7 +957,21 @@ async function applyStagedUpdate() {
     }
     
     // Apply the update by copying files
-    const appPath = app.getAppPath();
+    // In production, we need to get the actual application directory, not the asar path
+    let appPath;
+    if (app.isPackaged) {
+      // In production, get the directory containing the executable
+      appPath = path.dirname(process.execPath);
+    } else {
+      // In development, use the project root
+      appPath = app.getAppPath();
+    }
+    
+    console.log('[Electron] Update application paths:');
+    console.log('  - Extract path:', extractPath);
+    console.log('  - App path:', appPath);
+    console.log('  - Is packaged:', app.isPackaged);
+    
     const resourcesSrc = path.join(extractPath, 'resources');
     const resourcesDest = path.join(appPath, 'resources');
     const localesSrc = path.join(extractPath, 'locales');
@@ -946,9 +982,19 @@ async function applyStagedUpdate() {
     const appAsarPath = path.join(resourcesDest, 'app.asar');
     
     if (fs.existsSync(appPackagePath)) {
-      // Copy app.package as app.asar
-      fs.copyFileSync(appPackagePath, appAsarPath);
-      console.log('[Electron] app.package -> app.asar updated successfully');
+      try {
+        // Ensure destination directory exists
+        if (!fs.existsSync(resourcesDest)) {
+          fs.mkdirSync(resourcesDest, { recursive: true });
+        }
+        
+        // Copy app.package as app.asar
+        fs.copyFileSync(appPackagePath, appAsarPath);
+        console.log('[Electron] app.package -> app.asar updated successfully');
+      } catch (error) {
+        console.error('[Electron] Failed to update app.asar:', error);
+        throw error;
+      }
     }
     
     // Copy other resources (excluding app.package)
