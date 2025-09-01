@@ -6,7 +6,7 @@
   "scripts": {
     "start": "cross-env NODE_ENV=development concurrently -k \"npm run dev --prefix react-ui\" \"npm run electron-dev\"",
     "electron-dev": "wait-on http://localhost:5173 && electron .",
-    "build-react": "npm run build --prefix react-ui",
+    "build-react": "npm run build --prefix react-ui && npm run copy-react",
     "copy-react": "xcopy \"react-ui\\dist\" \"electron\\dist\" /E /I /Y",
     "build": "npm run build-react && npm run copy-react && electron-builder"
   },
