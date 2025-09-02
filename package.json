@@ -40,7 +40,10 @@
       "electron/popup-preload.js", 
       "electron/popup.html",
       "electron/icon.ico",
-      "electron/dist/**/*",
+      {
+        "from": "electron/dist/",
+        "to": "."
+      },
       "package.json"
     ],
     "extraResources": [

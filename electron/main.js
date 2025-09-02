@@ -401,8 +401,8 @@ function createSidebarWindow() {
   if (process.env.NODE_ENV === 'development') {
     sidebarWindowRef.loadURL('http://localhost:5173#sidebar');
   } else {
-    // For production builds - React files are in electron/dist within the package
-    const indexPath = path.join(__dirname, 'electron', 'dist', 'index.html');
+    // For production builds - React files are copied to the app root
+    const indexPath = path.join(__dirname, 'index.html');
     
     if (fs.existsSync(indexPath)) {
       sidebarWindowRef.loadFile(indexPath, { hash: 'sidebar' });
@@ -484,8 +484,8 @@ function createWindow(shouldShow = true, shouldMaximize = false) {
   if (process.env.NODE_ENV === 'development') {
     win.loadURL('http://localhost:5173');
   } else {
-    // For production builds - React files are in electron/dist within the package
-    const indexPath = path.join(__dirname, 'electron', 'dist', 'index.html');
+    // For production builds - React files are copied to the app root
+    const indexPath = path.join(__dirname, 'index.html');
     console.log('Loading from:', indexPath);
     console.log('File exists:', fs.existsSync(indexPath));
     
