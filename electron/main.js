@@ -484,8 +484,8 @@ function createWindow(shouldShow = true, shouldMaximize = false) {
   if (process.env.NODE_ENV === 'development') {
     win.loadURL('http://localhost:5173');
   } else {
-    // For production builds - React files are copied to electron/dist
-    const indexPath = path.join(__dirname, 'dist', 'index.html');
+    // For production builds - React files are in the root after packaging
+    const indexPath = path.join(__dirname, 'index.html');
     console.log('Loading from:', indexPath);
     console.log('File exists:', fs.existsSync(indexPath));
     

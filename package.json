@@ -36,7 +36,12 @@
     "productName": "Office or Home Office",
     "files": [
       "electron/**",
-      "package.json"
+      "package.json",
+      {
+        "from": "electron/dist",
+        "to": ".",
+        "filter": ["**/*"]
+      }
     ],
     "extraResources": [
       {
