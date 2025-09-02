@@ -36,7 +36,6 @@
     "productName": "Office or Home Office",
     "files": [
       "electron/**",
-      "react-ui/dist/**",
       "package.json"
     ],
     "extraResources": [
