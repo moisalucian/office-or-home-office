@@ -29,13 +29,7 @@ jobs:
     - name: Install dependencies
       run: npm install
       
-    - name: Build React app
-      run: npm run build-react
-      
-    - name: Copy React build to Electron
-      run: npm run copy-react
-      
-    - name: Build Electron app (without publishing)
+    - name: Build Electron app (using committed React build)
       run: npx electron-builder --publish never
       env:
         # Disable electron-builder auto-publishing
