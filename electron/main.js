@@ -597,6 +597,9 @@ function createTray() {
 }
 
 app.whenReady().then(async () => {
+  console.log('='.repeat(80));
+  console.log('🚀 TEST BUILD v1.0.107+ - THIS SHOULD APPEAR IN PRODUCTION IF CURRENT CODE IS USED');
+  console.log('='.repeat(80));
   console.log('[Electron] App ready - starting initialization...');
   console.log('[Electron] NODE_ENV:', process.env.NODE_ENV);
   console.log('[Electron] app.isPackaged:', app.isPackaged);

@@ -1143,6 +1143,21 @@ function App() {
               Not Sure Yet
             </button>
           </div>
+          <div className="button-row-container" style={{ display: "flex", justifyContent: "center", marginTop: "10px" }}>
+            <button 
+              className="primary" 
+              style={{ 
+                backgroundColor: "purple", 
+                minWidth: "140px", 
+                height: "40px",
+                padding: "0.6rem 1rem",
+                color: "white"
+              }} 
+              onClick={() => alert('TEST BUTTON clicked! This proves the production build is using current code.')}
+            >
+              TEST BUTTON
+            </button>
+          </div>
         </div>
 
         {notificationSummary && (
