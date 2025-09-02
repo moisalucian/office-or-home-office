@@ -32,7 +32,7 @@ jobs:
     - name: Build React app
       run: npm run build-react
       
-    - name: Copy React build to Electron (ensures fresh build in production)
+    - name: Copy React build to Electron
       run: npm run copy-react
       
     - name: Build Electron app (without publishing)
