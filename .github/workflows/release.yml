@@ -32,8 +32,11 @@ jobs:
     - name: Build React app
       run: npm run build-react
       
+    - name: Copy React build to Electron
+      run: npm run copy-react
+      
     - name: Build Electron app (without publishing)
-      run: npm run build-react && npx electron-builder --publish never
+      run: npx electron-builder --publish never
       env:
         # Disable electron-builder auto-publishing
         CI: false
