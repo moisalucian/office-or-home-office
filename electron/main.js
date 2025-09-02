@@ -458,12 +458,37 @@ function createWindow(shouldShow = true, shouldMaximize = false) {
   if (process.env.NODE_ENV === 'development') {
     win.loadURL('http://localhost:5173');
   } else {
-    // For production builds - React files are copied to electron/dist
-    const indexPath = path.join(__dirname, 'dist', 'index.html');
-    console.log('Loading from:', indexPath);
-    console.log('File exists:', fs.existsSync(indexPath));
+    // For production builds - check multiple possible locations
+    let indexPath;
     
-    if (fs.existsSync(indexPath)) {
+    // Option 1: Check if React files are in electron/dist (our copy approach)
+    const distPath = path.join(__dirname, 'dist', 'index.html');
+    
+    // Option 2: Check if React files are in root app directory (electron-builder approach)  
+    const rootPath = path.join(__dirname, '..', 'react-ui', 'dist', 'index.html');
+    
+    // Option 3: Check if React files are in app root
+    const appRootPath = path.join(process.resourcesPath, 'app', 'react-ui', 'dist', 'index.html');
+    
+    if (fs.existsSync(distPath)) {
+      indexPath = distPath;
+      console.log('Loading from electron/dist:', indexPath);
+    } else if (fs.existsSync(rootPath)) {
+      indexPath = rootPath;
+      console.log('Loading from react-ui/dist:', indexPath);
+    } else if (fs.existsSync(appRootPath)) {
+      indexPath = appRootPath;
+      console.log('Loading from app/react-ui/dist:', indexPath);
+    } else {
+      console.error('React build files not found in any expected location:');
+      console.error('  - Checked:', distPath, '- exists:', fs.existsSync(distPath));
+      console.error('  - Checked:', rootPath, '- exists:', fs.existsSync(rootPath));
+      console.error('  - Checked:', appRootPath, '- exists:', fs.existsSync(appRootPath));
+      console.error('  - __dirname:', __dirname);
+      console.error('  - process.resourcesPath:', process.resourcesPath);
+    }
+    
+    if (indexPath && fs.existsSync(indexPath)) {
       win.loadFile(indexPath).catch(error => {
         console.error('Failed to load file:', error);
         dialog.showErrorBox(
