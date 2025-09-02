@@ -618,25 +618,47 @@ function createTray() {
   });
 }
 
+// Check if we need a second restart to apply the staged update
+function checkForSecondRestartNeeded() {
+  const secondRestartFile = path.join(app.getPath('userData'), 'second-restart-needed.json');
+  return fs.existsSync(secondRestartFile);
+}
+
 app.whenReady().then(async () => {
-  // Only apply staged updates in packaged builds (production), not in development
-  let updateJustApplied = false;
-  if (app.isPackaged) {
-    updateJustApplied = await applyStagedUpdate();
+  // Check if we're in the second restart phase (after initial restart)
+  const needsSecondRestart = checkForSecondRestartNeeded();
+  
+  if (needsSecondRestart) {
+    // We're in the second restart phase - clean up the marker file
+    const secondRestartFile = path.join(app.getPath('userData'), 'second-restart-needed.json');
+    try {
+      fs.unlinkSync(secondRestartFile);
+      console.log('Second restart completed - update fully applied');
+    } catch (err) {
+      console.error('Error removing second restart marker:', err);
+    }
     
-    // If update was just applied, save the update state to show success notification
-    if (updateJustApplied) {
-      const updateState = {
-        success: true,
-        timestamp: Date.now(),
-        version: require('../package.json').version
-      };
+    // Continue with normal app startup
+  } else {
+    // Only apply staged updates in packaged builds (production), not in development
+    let updateJustApplied = false;
+    if (app.isPackaged) {
+      updateJustApplied = await applyStagedUpdate();
       
-      const updateStateFile = path.join(app.getPath('userData'), 'update-state.json');
-      try {
-        fs.writeFileSync(updateStateFile, JSON.stringify(updateState, null, 2));
-      } catch (error) {
-        console.error('Failed to save update state:', error);
+      if (updateJustApplied) {
+        // Mark that we need a second restart and save update info
+        const secondRestartFile = path.join(app.getPath('userData'), 'second-restart-needed.json');
+        const updateInfo = {
+          version: require('../package.json').version,
+          timestamp: Date.now()
+        };
+        fs.writeFileSync(secondRestartFile, JSON.stringify(updateInfo, null, 2));
+        
+        // Restart immediately (first restart)
+        console.log('First restart after update - staging complete');
+        app.relaunch();
+        app.exit(0);
+        return;
       }
     }
   }
@@ -1073,21 +1095,24 @@ async function applyStagedUpdate() {
     try { fs.rmSync(extractPath, { recursive: true, force: true }); } catch (e) {}
     fs.unlinkSync(stagedUpdateFile);
     
-    // Create update state for UI notification
+    // Clean up staged files
+    fs.unlinkSync(stagedUpdateFile);
+    fs.rmSync(extractPath, { recursive: true, force: true });
+    
+    // Create update state for next app start (after restart)
     const updateStateFile = path.join(app.getPath('userData'), 'update-state.json');
     const updateState = {
-      applied: true,
-      version: stagedUpdateInfo.version,
-      timestamp: Date.now()
+      success: true,
+      timestamp: Date.now(),
+      version: stagedUpdateInfo.version
     };
-    fs.writeFileSync(updateStateFile, JSON.stringify(updateState));
+    fs.writeFileSync(updateStateFile, JSON.stringify(updateState, null, 2));
     
-    // Force immediate restart to load new app.asar
-    setTimeout(() => {
-      app.relaunch();
-      app.exit(0);
-    }, 1000);
+    // Force immediate restart to load new app.asar - don't return true, just restart
+    app.relaunch();
+    app.exit(0);
     
+    // This should never be reached
     return true;
     
   } catch (error) {
@@ -1129,6 +1154,28 @@ ipcMain.handle('check-update-state', () => {
 ipcMain.handle('clear-update-progress', () => {
   // This will be called on app startup to ensure clean state
   return true;
+});
+
+// Check if app just completed second restart after update
+ipcMain.handle('check-second-restart-completed', () => {
+  const secondRestartFile = path.join(app.getPath('userData'), 'second-restart-needed.json');
+  
+  // If file doesn't exist, we either haven't updated or we already completed second restart
+  if (!fs.existsSync(secondRestartFile)) {
+    return false;
+  }
+  
+  try {
+    const data = JSON.parse(fs.readFileSync(secondRestartFile, 'utf8'));
+    return {
+      isSecondRestart: true,
+      version: data.version,
+      timestamp: data.timestamp
+    };
+  } catch (err) {
+    console.error('Error reading second restart marker:', err);
+    return false;
+  }
 });
 
 // Apply theme based on setting

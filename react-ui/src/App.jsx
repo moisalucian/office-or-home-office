@@ -6,6 +6,7 @@ import "./styles/layout.css";
 import "./styles.css";
 import UpdateNotification from "./UpdateNotification";
 import PostUpdateNotification from "./PostUpdateNotification";
+import RestartAgainNotification from "./RestartAgainNotification";
 import { 
   checkForUpdates, 
   shouldCheckForUpdates, 
@@ -919,6 +920,9 @@ function App() {
           onManualUpdate={handlePostUpdateManual}
         />
       )}
+
+      {/* Restart Again Notification */}
+      <RestartAgainNotification />
 
       {/* Settings popup */}
       {showSettings && (

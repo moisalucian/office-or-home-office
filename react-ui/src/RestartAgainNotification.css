@@ -1,0 +1,122 @@
+/* Restart Again Notification */
+.restart-again-overlay {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 3000;
+  -webkit-app-region: no-drag;
+}
+
+.restart-again-notification {
+  background: var(--header-bg);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px var(--shadow-color);
+  width: 320px;
+  border: 1px solid var(--border-color);
+  transition: all 0.3s ease;
+  animation: slideInRight 0.3s ease-out;
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.restart-again-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1rem 0.5rem 1rem;
+}
+
+.restart-again-header h3 {
+  margin: 0;
+  color: var(--text-color);
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.restart-again-close {
+  background: none !important;
+  border: none !important;
+  color: #999 !important;
+  cursor: pointer !important;
+  font-size: 1.2rem !important;
+  padding: 0.3rem !important;
+  border-radius: 4px !important;
+  transition: all 0.2s !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-width: 24px !important;
+  min-height: 24px !important;
+  line-height: 1 !important;
+  -webkit-app-region: no-drag !important;
+  user-select: none !important;
+  font-family: Arial, sans-serif !important;
+  pointer-events: auto !important;
+}
+
+.restart-again-close:hover {
+  color: #ff5c5c !important;
+  background: rgba(255, 255, 255, 0.1) !important;
+}
+
+.restart-again-content {
+  padding: 0 1rem 1rem 1rem;
+}
+
+.restart-again-content p {
+  margin: 0 0 0.8rem 0;
+  color: var(--text-color);
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.restart-again-content p:last-of-type {
+  margin-bottom: 1.2rem;
+}
+
+.restart-again-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.restart-again-button {
+  flex: 1;
+  padding: 0.6rem 1rem;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 0.85rem;
+  font-weight: 500;
+  -webkit-app-region: no-drag;
+}
+
+.restart-again-button.primary {
+  background: #4caf50;
+  color: white;
+}
+
+.restart-again-button.primary:hover {
+  background: #45a049;
+  transform: translateY(-1px);
+}
+
+.restart-again-button.secondary {
+  background: var(--button-bg);
+  color: var(--text-color);
+  border: 1px solid var(--border-color);
+}
+
+.restart-again-button.secondary:hover {
+  background: var(--button-hover-bg);
+  border-color: var(--button-hover-border);
+}

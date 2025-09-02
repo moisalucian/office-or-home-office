@@ -42,25 +42,29 @@
 }
 
 .settings-close {
-  background: none;
-  border: none;
-  color: #999;
+  background: none !important;
+  border: none !important;
+  color: #999 !important;
   cursor: pointer !important;
-  font-size: 1.5rem;
-  padding: 0.5rem;
-  border-radius: 4px;
-  transition: all 0.2s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 40px;
-  min-height: 40px;
-  line-height: 1;
-  -webkit-app-region: no-drag;
-  user-select: none;
-  -webkit-user-select: none;
-  font-family: Arial, sans-serif;
-  font-weight: normal;
+  font-size: 1.5rem !important;
+  padding: 0.5rem !important;
+  border-radius: 4px !important;
+  transition: all 0.2s !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-width: 40px !important;
+  min-height: 40px !important;
+  line-height: 1 !important;
+  -webkit-app-region: no-drag !important;
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  font-family: Arial, sans-serif !important;
+  font-weight: normal !important;
+  position: relative !important;
+  z-index: 10 !important;
+  pointer-events: auto !important;
+  outline: none !important;
 }
 
 .settings-close:hover {

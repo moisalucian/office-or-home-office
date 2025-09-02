@@ -26,7 +26,12 @@ function Settings({ isOpen, onClose }) {
           <button 
             className="settings-close" 
             onClick={onClose}
+            onMouseDown={(e) => e.stopPropagation()}
+            onMouseUp={(e) => e.stopPropagation()}
             type="button"
+            tabIndex={0}
+            aria-label="Close settings"
+            style={{ pointerEvents: 'auto', zIndex: 10 }}
           >
             ✕
           </button>
