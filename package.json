@@ -35,13 +35,13 @@
     "appId": "com.office.homeoffice.app",
     "productName": "Office or Home Office",
     "files": [
-      "electron/**",
-      "package.json",
-      {
-        "from": "electron/dist",
-        "to": ".",
-        "filter": ["**/*"]
-      }
+      "electron/main.js",
+      "electron/preload.js",
+      "electron/popup-preload.js", 
+      "electron/popup.html",
+      "electron/icon.ico",
+      "electron/dist/**/*",
+      "package.json"
     ],
     "extraResources": [
       {
