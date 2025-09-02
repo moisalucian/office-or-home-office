@@ -690,16 +690,28 @@ function App() {
     }
   }, []);
 
-  const toggleSidebar = () => {
-    if (isMaximized) {
-      setSidebarOpen(!sidebarOpen);
-    } else {
-      // For normal mode, toggle satellite window
-      const newState = !sidebarOpen;
-      setSidebarOpen(newState);
-      if (window.electronAPI?.toggleSidebarWindow) {
-        window.electronAPI.toggleSidebarWindow(newState);
+  const [isToggling, setIsToggling] = useState(false);
+
+  const toggleSidebar = async () => {
+    if (isToggling) return; // Prevent multiple rapid clicks
+    
+    setIsToggling(true);
+    try {
+      if (isMaximized) {
+        setSidebarOpen(!sidebarOpen);
+      } else {
+        // For normal mode, toggle satellite window
+        const newState = !sidebarOpen;
+        setSidebarOpen(newState);
+        if (window.electronAPI?.toggleSidebarWindow) {
+          await window.electronAPI.toggleSidebarWindow(newState);
+        }
       }
+    } catch (error) {
+      console.error('Error toggling sidebar:', error);
+    } finally {
+      // Add a small delay to prevent rapid clicking issues
+      setTimeout(() => setIsToggling(false), 200);
     }
   };
 

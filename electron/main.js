@@ -17,7 +17,7 @@ let popupWindowRef = null;
 let sidebarWindowRef = null;
 let tray = null;
 let win;
-let windowState = { maximized: false }; // Track window state for tray double-click
+let windowState = { maximized: false, sidebarWasOpen: false }; // Track window state for tray double-click
 
 // Simple settings storage using JSON file
 const settingsPath = path.join(app.getPath('userData'), 'settings.json');
@@ -542,6 +542,9 @@ function createWindow(shouldShow = true, shouldMaximize = false) {
     if (!app.isQuiting) {
       event.preventDefault();
       
+      // Save sidebar state before hiding
+      windowState.sidebarWasOpen = sidebarWindowRef && !sidebarWindowRef.isDestroyed() && sidebarWindowRef.isVisible();
+      
       // Hide sidebar window when main window is hidden
       if (sidebarWindowRef && !sidebarWindowRef.isDestroyed()) {
         sidebarWindowRef.hide();
@@ -600,8 +603,8 @@ function createTray() {
           win.focus();
           if (win.isMinimized()) win.restore();
           
-          // Show sidebar window if it was open before hiding
-          if (sidebarWindowRef && !sidebarWindowRef.isDestroyed() && !sidebarWindowRef.isVisible()) {
+          // Restore sidebar window if it was open before hiding
+          if (windowState.sidebarWasOpen && sidebarWindowRef && !sidebarWindowRef.isDestroyed()) {
             // Only show sidebar if main window is not maximized (sidebar doesn't work in maximized mode)
             if (!win.isMaximized()) {
               sidebarWindowRef.show();
@@ -628,8 +631,8 @@ function createTray() {
       win.focus();
       if (win.isMinimized()) win.restore();
       
-      // Show sidebar window if it was open before hiding
-      if (sidebarWindowRef && !sidebarWindowRef.isDestroyed() && !sidebarWindowRef.isVisible()) {
+      // Restore sidebar window if it was open before hiding
+      if (windowState.sidebarWasOpen && sidebarWindowRef && !sidebarWindowRef.isDestroyed()) {
         // Only show sidebar if main window is not maximized (sidebar doesn't work in maximized mode)
         if (!win.isMaximized()) {
           sidebarWindowRef.show();
@@ -650,10 +653,28 @@ app.whenReady().then(async () => {
   console.log('[Electron] app.isPackaged:', app.isPackaged);
   
   // Only apply staged updates in packaged builds (production), not in development
+  let updateJustApplied = false;
   if (app.isPackaged) {
     console.log('[Electron] Packaged build detected - checking for staged updates...');
-    const updateApplied = await applyStagedUpdate();
-    console.log('[Electron] Staged update application result:', updateApplied);
+    updateJustApplied = await applyStagedUpdate();
+    console.log('[Electron] Staged update application result:', updateJustApplied);
+    
+    // If update was just applied, save the update state to show success notification
+    if (updateJustApplied) {
+      const updateState = {
+        success: true,
+        timestamp: Date.now(),
+        version: require('../package.json').version
+      };
+      
+      const updateStateFile = path.join(app.getPath('userData'), 'update-state.json');
+      try {
+        fs.writeFileSync(updateStateFile, JSON.stringify(updateState, null, 2));
+        console.log('[Electron] Saved update success state for notification');
+      } catch (error) {
+        console.error('Failed to save update state:', error);
+      }
+    }
   } else {
     console.log('[Electron] Development build detected - skipping staged update application');
     console.log('[Electron] Note: Restart testing requires packaged build');
