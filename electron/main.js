@@ -8,6 +8,9 @@ const os = require('os');
 // Update install timeout constant (3 minutes)
 const UPDATE_INSTALL_TIMEOUT = 3 * 60 * 1000; // 3 minutes
 
+// Global download tracking for cancellation
+let currentDownload = null;
+
 const isHiddenLaunch = process.argv.includes('--hidden');
 
 let popupWindowRef = null;
@@ -53,6 +56,7 @@ async function downloadFile(url, dest, win) {
     let downloadError = null;
     let total = 0;
     let downloaded = 0;
+    let cancelled = false;
 
     const request = https.get(url, (response) => {
       if (response.statusCode === 302 || response.statusCode === 301) {
@@ -66,7 +70,25 @@ async function downloadFile(url, dest, win) {
 
       total = parseInt(response.headers['content-length'], 10) || 0;
 
+      // Store download context for cancellation
+      currentDownload = {
+        request,
+        response,
+        file,
+        tempDest,
+        cancel: () => {
+          cancelled = true;
+          request.destroy();
+          response.destroy();
+          file.destroy();
+          try { fs.unlinkSync(tempDest); } catch (e) {}
+          reject(new Error('Download cancelled by user'));
+        }
+      };
+
       response.on('data', (chunk) => {
+        if (cancelled) return;
+        
         downloaded += chunk.length;
         if (win && win.webContents) {
           const downloadedMB = (downloaded / 1024 / 1024).toFixed(1);
@@ -84,12 +106,14 @@ async function downloadFile(url, dest, win) {
 
     file.on('error', (err) => {
       downloadError = err;
+      currentDownload = null; // Clear download tracking
       try { fs.unlinkSync(tempDest); } catch (e) {}
       reject(err);
     });
 
     request.on('error', (err) => {
       downloadError = err;
+      currentDownload = null; // Clear download tracking
       try { fs.unlinkSync(tempDest); } catch (e) {}
       reject(err);
     });
@@ -123,8 +147,10 @@ async function downloadFile(url, dest, win) {
             if (entries.length === 0) throw new Error('Downloaded ZIP file is empty or contains no entries.');
             // Move temp file to final destination
             fs.renameSync(tempDest, dest);
+            currentDownload = null; // Clear download tracking
             resolve();
           } catch (zipVerifyError) {
+            currentDownload = null; // Clear download tracking
             try { fs.unlinkSync(tempDest); } catch (e) {}
             reject(new Error(`Downloaded file verification failed: ${zipVerifyError.message}. The file might be corrupted or incomplete.`));
           }
@@ -515,6 +541,12 @@ function createWindow(shouldShow = true, shouldMaximize = false) {
   win.on('close', (event) => {
     if (!app.isQuiting) {
       event.preventDefault();
+      
+      // Hide sidebar window when main window is hidden
+      if (sidebarWindowRef && !sidebarWindowRef.isDestroyed()) {
+        sidebarWindowRef.hide();
+      }
+      
       win.hide(); // 🔒 hide instead of closing
     } else {
       // If app is actually quitting, clean up sidebar first
@@ -567,6 +599,14 @@ function createTray() {
           win.show();
           win.focus();
           if (win.isMinimized()) win.restore();
+          
+          // Show sidebar window if it was open before hiding
+          if (sidebarWindowRef && !sidebarWindowRef.isDestroyed() && !sidebarWindowRef.isVisible()) {
+            // Only show sidebar if main window is not maximized (sidebar doesn't work in maximized mode)
+            if (!win.isMaximized()) {
+              sidebarWindowRef.show();
+            }
+          }
         }
       }
     },
@@ -588,6 +628,14 @@ function createTray() {
       win.focus();
       if (win.isMinimized()) win.restore();
       
+      // Show sidebar window if it was open before hiding
+      if (sidebarWindowRef && !sidebarWindowRef.isDestroyed() && !sidebarWindowRef.isVisible()) {
+        // Only show sidebar if main window is not maximized (sidebar doesn't work in maximized mode)
+        if (!win.isMaximized()) {
+          sidebarWindowRef.show();
+        }
+      }
+      
       // Only send IPC message if webContents is ready
       if (win.webContents && !win.webContents.isDestroyed()) {
         win.webContents.send('get-settings-for-tray-launch');
@@ -597,9 +645,6 @@ function createTray() {
 }
 
 app.whenReady().then(async () => {
-  console.log('='.repeat(80));
-  console.log('🚀 TEST BUILD v1.0.107+ - THIS SHOULD APPEAR IN PRODUCTION IF CURRENT CODE IS USED');
-  console.log('='.repeat(80));
   console.log('[Electron] App ready - starting initialization...');
   console.log('[Electron] NODE_ENV:', process.env.NODE_ENV);
   console.log('[Electron] app.isPackaged:', app.isPackaged);
@@ -919,6 +964,20 @@ ipcMain.handle('extract-and-install-update', async (_, filePath, version) => {
     }
     console.error('Update install failed:', error);
     throw error;
+  }
+});
+
+// Cancel update download
+ipcMain.handle('cancel-update', () => {
+  console.log('[Electron] Update cancellation requested');
+  
+  if (currentDownload) {
+    console.log('[Electron] Cancelling active download...');
+    currentDownload.cancel();
+    return { success: true, message: 'Download cancelled' };
+  } else {
+    console.log('[Electron] No active download to cancel');
+    return { success: false, message: 'No active download' };
   }
 });
 

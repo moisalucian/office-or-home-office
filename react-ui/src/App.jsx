@@ -595,11 +595,13 @@ function App() {
   };
 
   const handleCancelUpdate = () => {
+    // Cancel download on electron side if available
+    if (window.electronAPI?.cancelUpdate) {
+      window.electronAPI.cancelUpdate();
+    }
+    
     // Reset the update progress and show error
     setUpdateProgress({ phase: null, percent: 0, message: '' });
-    
-    // You can also set an error message if needed
-    // setUpdateError('Update cancelled by user');
     
     // Clear update check result
     setManualUpdateCheck(prev => ({ ...prev, result: null }));
@@ -1141,21 +1143,6 @@ function App() {
               onClick={() => saveStatus('undecided')}
             >
               Not Sure Yet
-            </button>
-          </div>
-          <div className="button-row-container" style={{ display: "flex", justifyContent: "center", marginTop: "10px" }}>
-            <button 
-              className="primary" 
-              style={{ 
-                backgroundColor: "purple", 
-                minWidth: "140px", 
-                height: "40px",
-                padding: "0.6rem 1rem",
-                color: "white"
-              }} 
-              onClick={() => alert('TEST BUTTON clicked! This proves the production build is using current code.')}
-            >
-              TEST BUTTON
             </button>
           </div>
         </div>
