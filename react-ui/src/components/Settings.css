@@ -45,26 +45,32 @@
   background: none;
   border: none;
   color: #999;
-  cursor: pointer;
-  font-size: 1.2rem;
+  cursor: pointer !important;
+  font-size: 1.5rem;
   padding: 0.5rem;
   border-radius: 4px;
   transition: all 0.2s;
   display: flex;
   align-items: center;
   justify-content: center;
-  min-width: 36px;
-  min-height: 36px;
+  min-width: 40px;
+  min-height: 40px;
   line-height: 1;
   -webkit-app-region: no-drag;
   user-select: none;
   -webkit-user-select: none;
+  font-family: Arial, sans-serif;
+  font-weight: normal;
 }
 
 .settings-close:hover {
-  color: #ff5c5c;
-  background: rgba(255, 255, 255, 0.1);
+  color: #ff5c5c !important;
+  background: rgba(255, 255, 255, 0.1) !important;
   transform: scale(1.1);
+}
+
+.settings-close:active {
+  transform: scale(0.9);
 }
 
 .settings-content {

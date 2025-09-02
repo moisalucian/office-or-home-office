@@ -23,7 +23,13 @@ function Settings({ isOpen, onClose }) {
       <div className="settings-popup" onClick={(e) => e.stopPropagation()}>
         <div className="settings-header">
           <h3>⚙️ Settings</h3>
-          <button className="settings-close" onClick={onClose}>❌</button>
+          <button 
+            className="settings-close" 
+            onClick={onClose}
+            type="button"
+          >
+            ✕
+          </button>
         </div>
         <div className="settings-content">
           <div className="setting-item">

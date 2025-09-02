@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import './UpdateNotification.css';
 
 const UpdateNotification = ({ 
@@ -11,25 +11,24 @@ const UpdateNotification = ({
   onRestartLater,
   onCancelUpdate 
 }) => {
+  const lastLoggedPercent = useRef(-1);
 
   useEffect(() => {
-    console.log('[UpdateNotification] Props received:', {
-      updateInfo,
-      updateProgress,
-    });
-    if (updateProgress?.phase === 'downloading') {
-      console.log('[UpdateNotification] Download phase started. Progress:', updateProgress);
+    // Only log significant progress updates (every 10%)
+    if (updateProgress?.phase === 'downloading' && updateProgress?.percent !== undefined) {
+      const currentPercent = Math.floor(updateProgress.percent / 10) * 10;
+      if (currentPercent !== lastLoggedPercent.current && currentPercent >= 0) {
+        console.log(`[Update] Download progress: ${currentPercent}% - ${updateProgress.message}`);
+        lastLoggedPercent.current = currentPercent;
+      }
+    } else if (updateProgress?.phase === 'installing') {
+      console.log('[Update] Installing update...');
+    } else if (updateProgress?.phase === 'ready') {
+      console.log('[Update] Update ready for restart');
+    } else if (updateProgress?.phase === 'error') {
+      console.log('[Update] Error:', updateProgress.message);
     }
-    if (updateProgress?.phase === 'installing') {
-      console.log('[UpdateNotification] Install phase started. Progress:', updateProgress);
-    }
-    if (updateProgress?.phase === 'ready') {
-      console.log('[UpdateNotification] Update ready phase. Progress:', updateProgress);
-    }
-    if (updateProgress?.phase === 'error') {
-      console.log('[UpdateNotification] Update error phase. Progress:', updateProgress);
-    }
-  }, [updateProgress, updateInfo]);
+  }, [updateProgress]);
   const [isVisible, setIsVisible] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
   const [updateError, setUpdateError] = useState(null);

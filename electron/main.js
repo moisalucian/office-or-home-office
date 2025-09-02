@@ -161,11 +161,6 @@ async function downloadFile(url, dest, win) {
 }
 
 async function extractAndInstallUpdate(filePath, winRef, version) {
-  console.log('[Electron] extractAndInstallUpdate function called with:');
-  console.log('  - filePath:', filePath);
-  console.log('  - version:', version);
-  console.log('  - version type:', typeof version);
-  
   return new Promise((resolve, reject) => {
     const extractPath = path.join(os.tmpdir(), 'office-home-office-update');
     // Clean up previous extraction
@@ -190,7 +185,6 @@ async function extractAndInstallUpdate(filePath, winRef, version) {
       });
     } else if (path.extname(filePath) === '.zip') {
       const extract = require('extract-zip');
-      console.log('[Electron] Starting extraction of zip with extract-zip:', filePath);
       if (winRef && winRef.webContents) {
         winRef.webContents.send('update-install-progress', { phase: 'installing', percent: 10, message: 'Extracting update...' });
       }
@@ -206,9 +200,8 @@ async function extractAndInstallUpdate(filePath, winRef, version) {
 
       (async () => {
         try {
-          console.log('[Electron] Starting AdmZip extraction (alternative method for app.asar compatibility)');
           if (winRef && winRef.webContents) {
-            winRef.webContents.send('update-install-progress', { phase: 'installing', percent: 15, message: 'Extracting files with AdmZip...' });
+            winRef.webContents.send('update-install-progress', { phase: 'installing', percent: 15, message: 'Extracting files...' });
           }
           
           // Use AdmZip for better app.asar handling
@@ -233,13 +226,9 @@ async function extractAndInstallUpdate(filePath, winRef, version) {
               
               // Special handling for app.asar - use alternative filename to avoid "Invalid package" error
               if (entry.entryName.includes('app.asar')) {
-                console.log(`[Electron] Special handling for app.asar file (${fileData.length} bytes)`);
-                
                 // For app.asar files, extract to a completely different extension to avoid Node.js package validation
                 const alternativeAsarPath = entryPath.replace('app.asar', 'app.package');
                 fs.writeFileSync(alternativeAsarPath, fileData, { encoding: null });
-                
-                console.log(`[Electron] app.asar extracted as app.package (${fs.statSync(alternativeAsarPath).size} bytes)`);
               } else {
                 // Normal file extraction
                 fs.writeFileSync(entryPath, fileData, { encoding: null });
@@ -257,8 +246,6 @@ async function extractAndInstallUpdate(filePath, winRef, version) {
                     message: `Extracted ${extractedCount}/${entries.length} files...` 
                   });
                 }
-                // Log progress every 1000 files only
-                console.log(`[Electron] Extraction progress: ${extractedCount}/${entries.length} files (${percent}%)`);
               }
             } else {
               // Create directory
@@ -270,7 +257,6 @@ async function extractAndInstallUpdate(filePath, winRef, version) {
           }
           
           clearTimeout(extractionTimeout);
-          console.log(`[Electron] AdmZip extraction completed successfully (${extractedCount} files)`);
           if (winRef && winRef.webContents) {
             winRef.webContents.send('update-install-progress', { phase: 'installing', percent: 40, message: 'Extraction completed' });
           }
@@ -293,8 +279,6 @@ async function extractAndInstallUpdate(filePath, winRef, version) {
 
           // Instead of copying immediately (which fails during runtime),
           // stage the update for next restart
-          console.log('[Electron] Staging update for next restart...');
-          
           if (winRef && winRef.webContents) {
             winRef.webContents.send('update-install-progress', { 
               phase: 'restart_required', 
@@ -303,10 +287,6 @@ async function extractAndInstallUpdate(filePath, winRef, version) {
             });
           }
           
-          console.log('[Electron] About to create staged update info...');
-          console.log('[Electron] Version parameter at this point:', version);
-          console.log('[Electron] Version parameter type:', typeof version);
-          
           // Store the staged update path for startup application
           const stagedUpdateInfo = {
             extractPath: extractPath,
@@ -314,19 +294,10 @@ async function extractAndInstallUpdate(filePath, winRef, version) {
             version: version || 'unknown'
           };
           
-          console.log('[Electron] Creating staged update info with version:', version);
-          console.log('[Electron] Staged update info:', JSON.stringify(stagedUpdateInfo, null, 2));
-          
           // Save staged update info to a file
           const stagedUpdateFile = path.join(app.getPath('userData'), 'staged-update.json');
           fs.writeFileSync(stagedUpdateFile, JSON.stringify(stagedUpdateInfo, null, 2));
           
-          // Verify what was actually written to the file
-          const writtenContent = fs.readFileSync(stagedUpdateFile, 'utf8');
-          console.log('[Electron] Verified content written to staging file:');
-          console.log(writtenContent);
-          
-          console.log('[Electron] Update staged successfully. Restart required to apply.');
           resolve('Update staged successfully');
           return;
         } catch (err) {
@@ -648,16 +619,10 @@ function createTray() {
 }
 
 app.whenReady().then(async () => {
-  console.log('[Electron] App ready - starting initialization...');
-  console.log('[Electron] NODE_ENV:', process.env.NODE_ENV);
-  console.log('[Electron] app.isPackaged:', app.isPackaged);
-  
   // Only apply staged updates in packaged builds (production), not in development
   let updateJustApplied = false;
   if (app.isPackaged) {
-    console.log('[Electron] Packaged build detected - checking for staged updates...');
     updateJustApplied = await applyStagedUpdate();
-    console.log('[Electron] Staged update application result:', updateJustApplied);
     
     // If update was just applied, save the update state to show success notification
     if (updateJustApplied) {
@@ -670,15 +635,10 @@ app.whenReady().then(async () => {
       const updateStateFile = path.join(app.getPath('userData'), 'update-state.json');
       try {
         fs.writeFileSync(updateStateFile, JSON.stringify(updateState, null, 2));
-        console.log('[Electron] Saved update success state for notification');
       } catch (error) {
         console.error('Failed to save update state:', error);
       }
     }
-  } else {
-    console.log('[Electron] Development build detected - skipping staged update application');
-    console.log('[Electron] Note: Restart testing requires packaged build');
-    // Don't clean up staged updates in development so they can be tested with packaged builds
   }
   
   // Get launch settings from storage to determine how to open the app
@@ -1004,10 +964,6 @@ ipcMain.handle('cancel-update', () => {
 
 // Restart the application
 ipcMain.handle('restart-app', () => {
-  console.log('[Electron] Restart requested, relaunching application...');
-  console.log('[Electron] Current process.execPath:', process.execPath);
-  console.log('[Electron] App.isPackaged:', app.isPackaged);
-  
   // Ensure all windows are closed and tray is cleaned up
   BrowserWindow.getAllWindows().forEach(window => {
     if (!window.isDestroyed()) {
@@ -1046,30 +1002,20 @@ ipcMain.handle('mark-update-completed', (event, version) => {
 
 // Apply staged update on startup
 async function applyStagedUpdate() {
-  console.log('[Electron] applyStagedUpdate called - checking for staged update file...');
   const stagedUpdateFile = path.join(app.getPath('userData'), 'staged-update.json');
   
-  console.log('[Electron] Looking for staged update file at:', stagedUpdateFile);
   if (!fs.existsSync(stagedUpdateFile)) {
-    console.log('[Electron] No staged update file found - returning false');
     return false; // No staged update
   }
   
   try {
-    console.log('[Electron] Found staged update, reading file...');
     const stagedUpdateInfo = JSON.parse(fs.readFileSync(stagedUpdateFile, 'utf8'));
-    console.log('[Electron] Staged update info:', JSON.stringify(stagedUpdateInfo, null, 2));
     const extractPath = stagedUpdateInfo.extractPath;
     
-    console.log('[Electron] Checking if extract path exists:', extractPath);
     if (!fs.existsSync(extractPath)) {
-      console.error('[Electron] Staged update path no longer exists:', extractPath);
-      console.log('[Electron] Cleaning up staged update file...');
       fs.unlinkSync(stagedUpdateFile);
       return false;
     }
-    
-    console.log('[Electron] Extract path exists, applying update...');
     
     // Apply the update by copying files
     // In production, we need to get the actual application directory, not the asar path
@@ -1081,11 +1027,6 @@ async function applyStagedUpdate() {
       // In development, use the project root
       appPath = app.getAppPath();
     }
-    
-    console.log('[Electron] Update application paths:');
-    console.log('  - Extract path:', extractPath);
-    console.log('  - App path:', appPath);
-    console.log('  - Is packaged:', app.isPackaged);
     
     const resourcesSrc = path.join(extractPath, 'resources');
     const resourcesDest = path.join(appPath, 'resources');
@@ -1105,9 +1046,8 @@ async function applyStagedUpdate() {
         
         // Copy app.package as app.asar
         fs.copyFileSync(appPackagePath, appAsarPath);
-        console.log('[Electron] app.package -> app.asar updated successfully');
       } catch (error) {
-        console.error('[Electron] Failed to update app.asar:', error);
+        console.error('Failed to update app.asar:', error);
         throw error;
       }
     }
@@ -1140,14 +1080,18 @@ async function applyStagedUpdate() {
       version: stagedUpdateInfo.version,
       timestamp: Date.now()
     };
-    console.log('[Electron] Creating update state file with:', JSON.stringify(updateState, null, 2));
     fs.writeFileSync(updateStateFile, JSON.stringify(updateState));
     
-    console.log('[Electron] Staged update applied successfully');
+    // Force immediate restart to load new app.asar
+    setTimeout(() => {
+      app.relaunch();
+      app.exit(0);
+    }, 1000);
+    
     return true;
     
   } catch (error) {
-    console.error('[Electron] Failed to apply staged update:', error);
+    console.error('Failed to apply staged update:', error);
     // Clean up failed update
     try { fs.unlinkSync(stagedUpdateFile); } catch (e) {}
     return false;
