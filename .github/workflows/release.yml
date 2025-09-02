@@ -32,8 +32,30 @@ jobs:
     - name: Build React app
       run: npm run build-react
       
-    - name: Copy React build to Electron
-      run: npm run copy-react
+    - name: Copy React build to Electron (cross-platform)
+      run: |
+        if (Test-Path "react-ui/dist") {
+          if (Test-Path "electron/dist") {
+            Remove-Item -Recurse -Force "electron/dist"
+          }
+          Copy-Item -Path "react-ui/dist" -Destination "electron/dist" -Recurse -Force
+          Write-Host "✅ React files copied successfully"
+          Get-ChildItem "electron/dist" | ForEach-Object { Write-Host "  - $($_.Name)" }
+        } else {
+          Write-Error "❌ react-ui/dist folder not found!"
+          exit 1
+        }
+      shell: powershell
+      
+    - name: Verify React files are copied
+      run: |
+        if (Test-Path "electron/dist/index.html") {
+          Write-Host "✅ index.html found in electron/dist"
+        } else {
+          Write-Error "❌ index.html NOT found in electron/dist"
+          exit 1
+        }
+      shell: powershell
       
     - name: Build Electron app (without publishing)
       run: npx electron-builder --publish never
