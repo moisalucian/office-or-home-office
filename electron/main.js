@@ -629,13 +629,24 @@ app.whenReady().then(async () => {
   const needsSecondRestart = checkForSecondRestartNeeded();
   
   if (needsSecondRestart) {
-    // We're in the second restart phase - clean up the marker file
+    // We're in the second restart phase - clean up the marker file and create update state
     const secondRestartFile = path.join(app.getPath('userData'), 'second-restart-needed.json');
     try {
+      const updateInfo = JSON.parse(fs.readFileSync(secondRestartFile, 'utf8'));
       fs.unlinkSync(secondRestartFile);
+      
+      // Create update state for the React app to show success message
+      const updateStateFile = path.join(app.getPath('userData'), 'update-state.json');
+      const updateState = {
+        success: true,
+        timestamp: Date.now(),
+        version: updateInfo.version
+      };
+      fs.writeFileSync(updateStateFile, JSON.stringify(updateState, null, 2));
+      
       console.log('Second restart completed - update fully applied');
     } catch (err) {
-      console.error('Error removing second restart marker:', err);
+      console.error('Error processing second restart:', err);
     }
     
     // Continue with normal app startup
@@ -646,14 +657,6 @@ app.whenReady().then(async () => {
       updateJustApplied = await applyStagedUpdate();
       
       if (updateJustApplied) {
-        // Mark that we need a second restart and save update info
-        const secondRestartFile = path.join(app.getPath('userData'), 'second-restart-needed.json');
-        const updateInfo = {
-          version: require('../package.json').version,
-          timestamp: Date.now()
-        };
-        fs.writeFileSync(secondRestartFile, JSON.stringify(updateInfo, null, 2));
-        
         // Restart immediately (first restart)
         console.log('First restart after update - staging complete');
         app.relaunch();
@@ -1095,24 +1098,15 @@ async function applyStagedUpdate() {
     try { fs.rmSync(extractPath, { recursive: true, force: true }); } catch (e) {}
     fs.unlinkSync(stagedUpdateFile);
     
-    // Clean up staged files
-    fs.unlinkSync(stagedUpdateFile);
-    fs.rmSync(extractPath, { recursive: true, force: true });
-    
-    // Create update state for next app start (after restart)
-    const updateStateFile = path.join(app.getPath('userData'), 'update-state.json');
-    const updateState = {
-      success: true,
-      timestamp: Date.now(),
-      version: stagedUpdateInfo.version
+    // Create second restart marker file for two-restart workflow
+    const secondRestartFile = path.join(app.getPath('userData'), 'second-restart-needed.json');
+    const updateInfo = {
+      version: stagedUpdateInfo.version,
+      timestamp: Date.now()
     };
-    fs.writeFileSync(updateStateFile, JSON.stringify(updateState, null, 2));
+    fs.writeFileSync(secondRestartFile, JSON.stringify(updateInfo, null, 2));
     
-    // Force immediate restart to load new app.asar - don't return true, just restart
-    app.relaunch();
-    app.exit(0);
-    
-    // This should never be reached
+    console.log('[Electron] Update staged successfully, second restart needed');
     return true;
     
   } catch (error) {

@@ -16,10 +16,10 @@ function RestartAgainNotification() {
         setRestartInfo(result);
         setIsVisible(true);
         
-        // Auto-hide after 5 seconds
+        // Auto-hide after 8 seconds
         setTimeout(() => {
           setIsVisible(false);
-        }, 5000);
+        }, 8000);
       }
     } catch (error) {
       console.error('Error checking second restart status:', error);
@@ -59,7 +59,7 @@ function RestartAgainNotification() {
         
         <div className="restart-again-content">
           <p>Your app has been updated to version <strong>v{restartInfo.version}</strong>!</p>
-          <p>For the update to take full effect, please restart the app one more time.</p>
+          <p>The update requires <strong>one more restart</strong> to take full effect.</p>
           
           <div className="restart-again-actions">
             <button 

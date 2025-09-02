@@ -23,7 +23,7 @@ import { initializeAuth, waitForAuth } from "./auth";
 // Components
 import WindowControls from "./components/WindowControls";
 import StatusGrid from "./components/StatusGrid";
-// import Settings from "./components/Settings";
+import Settings from "./components/Settings";
 
 // Hooks
 import { useTheme } from "./hooks/useTheme";
@@ -925,156 +925,10 @@ function App() {
       <RestartAgainNotification />
 
       {/* Settings popup */}
-      {showSettings && (
-        <div className="settings-overlay" onClick={() => setShowSettings(false)}>
-          <div className="settings-popup" onClick={(e) => e.stopPropagation()}>
-            <div className="settings-header">
-              <h3>⚙️ Settings</h3>
-              <button className="settings-close" onClick={() => setShowSettings(false)}>❌</button>
-            </div>
-            <div className="settings-content">
-              <div className="setting-item">
-                <div className="setting-label" title="Start the app when Windows starts">
-                  <span className="setting-title">Launch at startup</span>
-                  <label className="toggle-switch">
-                    <input 
-                      type="checkbox" 
-                      checked={launchAtStartup} 
-                      onChange={handleStartupToggle}
-                    />
-                    <span className="toggle-slider"></span>
-                  </label>
-                </div>
-              </div>
-
-              <div className="setting-item">
-                <div className="setting-label" title="Start minimized to system tray">
-                  <span className="setting-title">Launch in tray directly</span>
-                  <label className="toggle-switch">
-                    <input 
-                      type="checkbox" 
-                      checked={launchInTray} 
-                      onChange={handleLaunchInTrayToggle}
-                    />
-                    <span className="toggle-slider"></span>
-                  </label>
-                </div>
-              </div>
-
-              <div className="setting-item">
-                <div className="setting-label" title="How the app opens on startup">
-                  <span className="setting-title">Default launch option</span>
-                  <select 
-                    className="setting-select"
-                    value={defaultLaunchOption} 
-                    onChange={handleDefaultLaunchOptionChange}
-                    title="How the app opens on startup"
-                  >
-                    <option value="window">Window</option>
-                    <option value="maximized">Full screen</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="setting-item">
-                <div className="setting-label" title="App appearance and colors">
-                  <span className="setting-title">Theme</span>
-                  <select 
-                    className="setting-select"
-                    value={themeSetting} 
-                    onChange={handleThemeChange}
-                    title="App appearance and colors"
-                  >
-                    <option value="dark">Dark</option>
-                    <option value="light">Light</option>
-                    <option value="system">System</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="setting-item">
-                <div className="setting-label" title="Sound played when notification popup appears">
-                  <span className="setting-title">Notification sound</span>
-                  <div className="sound-setting-controls">
-                    <select 
-                      className="setting-select"
-                      value={notificationSound} 
-                      onChange={handleNotificationSoundChange}
-                      title="Sound played when notification popup appears"
-                    >
-                      <option value="none">None</option>
-                      <option value="alien-sound">Alien Sound</option>
-                      <option value="bong-chime">Bong Chime</option>
-                      <option value="cartoon-dash">Cartoon Dash</option>
-                      <option value="drip-echo">Drip Echo</option>
-                      <option value="glass-ding">Glass Ding</option>
-                      <option value="light-min">Light Minimal</option>
-                      <option value="notification-chime">Notification Chime</option>
-                      <option value="notification-sound-soft">Soft Notification</option>
-                      <option value="oh-yeah">Oh Yeah</option>
-                      <option value="sci-fi-bubble">Sci-Fi Bubble</option>
-                      <option value="thai-bird">Thai Bird</option>
-                      <option value="three-note-doorbell">Three Note Doorbell</option>
-                      <option value="woohoo">Woohoo</option>
-                    </select>
-                    {notificationSound !== 'none' && (
-                      <button 
-                        className="play-sound-button"
-                        onClick={() => previewNotificationSound()}
-                        title="Preview selected sound"
-                      >
-                        🔊
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* App Updates - moved to last position */}
-              <div className="setting-item">
-                <div className="setting-label" title="Check for app updates">
-                  <span className="setting-title">App Updates</span>
-                  <div className="update-setting-controls">
-                    <button 
-                      className="update-check-button"
-                      onClick={handleManualUpdateCheck}
-                      disabled={manualUpdateCheck.isChecking}
-                      title="Check for new app version"
-                    >
-                      {manualUpdateCheck.isChecking ? (
-                        <>
-                          <span className="loading-spinner">⏳</span>
-                          Checking...
-                        </>
-                      ) : (
-                        <>
-                          🔄 Check for Updates
-                        </>
-                      )}
-                    </button>
-                    {manualUpdateCheck.result && (
-                      <div className="update-check-result">
-                        {manualUpdateCheck.result.hasUpdate ? (
-                          <span className="update-available">✅ Update available!</span>
-                        ) : manualUpdateCheck.result.error ? (
-                          <span className="update-error">❌ Check failed</span>
-                        ) : (
-                          <span className="update-latest">✅ You have the latest version</span>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Version display as last item in settings content */}
-              <div className="settings-version-content">
-                Current Version: v{appVersion}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <Settings 
+        isOpen={showSettings} 
+        onClose={() => setShowSettings(false)}
+      />
       
       <div 
         className={`header-area ${isMaximized && sidebarOpen ? 'sidebar-active' : ''}`}

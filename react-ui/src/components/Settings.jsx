@@ -2,6 +2,8 @@ import { useNotificationSound } from '../hooks/useNotificationSound';
 import { useWindowState } from '../hooks/useWindowState';
 import { useTheme } from '../hooks/useTheme';
 import { NOTIFICATION_SOUNDS, THEME_OPTIONS, LAUNCH_OPTIONS } from '../utils/constants';
+import { useState, useEffect } from 'react';
+import { manualUpdateCheck as performManualUpdateCheck } from '../versionCheck';
 import './Settings.css';
 
 function Settings({ isOpen, onClose }) {
@@ -15,6 +17,47 @@ function Settings({ isOpen, onClose }) {
     handleDefaultLaunchOptionChange
   } = useWindowState();
   const { themeSetting, handleThemeChange } = useTheme();
+
+  // App version and manual update check state
+  const [appVersion, setAppVersion] = useState('1.0.0');
+  const [manualUpdateCheck, setManualUpdateCheck] = useState({
+    isChecking: false,
+    result: null
+  });
+
+  // Get app version on component mount
+  useEffect(() => {
+    const getVersion = async () => {
+      try {
+        if (window.electronAPI?.getAppVersion) {
+          const version = await window.electronAPI.getAppVersion();
+          setAppVersion(version || '1.0.0');
+        }
+      } catch (error) {
+        console.error('Error getting app version:', error);
+        setAppVersion('1.0.0');
+      }
+    };
+    
+    if (isOpen) {
+      getVersion();
+    }
+  }, [isOpen]);
+
+  const handleManualUpdateCheck = async () => {
+    setManualUpdateCheck({ isChecking: true, result: null });
+    
+    try {
+      const result = await performManualUpdateCheck();
+      setManualUpdateCheck({ isChecking: false, result });
+    } catch (error) {
+      console.error('Manual update check failed:', error);
+      setManualUpdateCheck({ 
+        isChecking: false, 
+        result: { hasUpdate: false, error: 'Check failed' } 
+      });
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -123,6 +166,48 @@ function Settings({ isOpen, onClose }) {
                 )}
               </div>
             </div>
+          </div>
+
+          {/* App Updates section */}
+          <div className="setting-item">
+            <div className="setting-label" title="Check for app updates">
+              <span className="setting-title">App Updates</span>
+              <div className="update-setting-controls">
+                <button 
+                  className="update-check-button"
+                  onClick={handleManualUpdateCheck}
+                  disabled={manualUpdateCheck.isChecking}
+                  title="Check for new app version"
+                >
+                  {manualUpdateCheck.isChecking ? (
+                    <>
+                      <span className="loading-spinner">⏳</span>
+                      Checking...
+                    </>
+                  ) : (
+                    <>
+                      🔄 Check for Updates
+                    </>
+                  )}
+                </button>
+                {manualUpdateCheck.result && (
+                  <div className="update-check-result">
+                    {manualUpdateCheck.result.hasUpdate ? (
+                      <span className="update-available">✅ Update available!</span>
+                    ) : manualUpdateCheck.result.error ? (
+                      <span className="update-error">❌ Check failed</span>
+                    ) : (
+                      <span className="update-latest">✅ You have the latest version</span>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Version display */}
+          <div className="settings-version-content">
+            Current Version: v{appVersion}
           </div>
         </div>
       </div>
