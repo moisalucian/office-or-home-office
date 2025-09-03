@@ -709,31 +709,18 @@ app.whenReady().then(async () => {
   // Only apply staged updates in packaged builds (production), not in development
   let updateJustApplied = false;
   if (app.isPackaged) {
-    updateJustApplied = await applyStagedUpdate();
+    // TEMPORARILY DISABLED CUSTOM UPDATE SYSTEM - USING ELECTRON-UPDATER ONLY
+    // updateJustApplied = await applyStagedUpdate();
     
     // If no staged update was applied, check if we need a second restart
-    if (!updateJustApplied) {
-      const needsSecondRestart = await checkPostUpdateRestart();
-      if (needsSecondRestart) {
-        return; // Exit early, we're restarting again
-      }
-    }
+    // if (!updateJustApplied) {
+    //   const needsSecondRestart = await checkPostUpdateRestart();
+    //   if (needsSecondRestart) {
+    //     return; // Exit early, we're restarting again
+    //   }
+    // }
     
-    // If update was just applied, save the update state to show success notification
-    if (updateJustApplied) {
-      const updateState = {
-        success: true,
-        timestamp: Date.now(),
-        version: require('../package.json').version
-      };
-      
-      const updateStateFile = path.join(app.getPath('userData'), 'update-state.json');
-      try {
-        fs.writeFileSync(updateStateFile, JSON.stringify(updateState, null, 2));
-      } catch (error) {
-        console.error('Failed to save update state:', error);
-      }
-    }
+    console.log('[App] Custom update system disabled - using electron-updater only');
   }
   
   // Get launch settings from storage to determine how to open the app
