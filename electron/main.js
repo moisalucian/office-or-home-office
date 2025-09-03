@@ -1033,9 +1033,10 @@ async function applyStagedUpdate() {
     const localesSrc = path.join(extractPath, 'locales');
     const localesDest = path.join(appPath, 'locales');
     
-    // Special handling for app.package -> app.asar
+    // Special handling for app.package -> app.asar with better file lock handling
     const appPackagePath = path.join(resourcesSrc, 'app.package');
     const appAsarPath = path.join(resourcesDest, 'app.asar');
+    const appAsarBackupPath = path.join(resourcesDest, 'app.asar.backup');
     
     if (fs.existsSync(appPackagePath)) {
       try {
@@ -1044,10 +1045,55 @@ async function applyStagedUpdate() {
           fs.mkdirSync(resourcesDest, { recursive: true });
         }
         
-        // Copy app.package as app.asar
+        console.log('[Electron] Replacing app.asar with new version...');
+        
+        // Step 1: Remove any existing backup
+        try {
+          if (fs.existsSync(appAsarBackupPath)) {
+            fs.unlinkSync(appAsarBackupPath);
+          }
+        } catch (e) {
+          console.log('[Electron] Could not remove old backup:', e.message);
+        }
+        
+        // Step 2: Rename current app.asar to backup (this releases the file lock)
+        if (fs.existsSync(appAsarPath)) {
+          try {
+            fs.renameSync(appAsarPath, appAsarBackupPath);
+            console.log('[Electron] Old app.asar renamed to backup');
+          } catch (renameError) {
+            console.error('[Electron] Failed to rename old app.asar:', renameError);
+            // If rename fails, try direct overwrite as fallback
+          }
+        }
+        
+        // Step 3: Copy new app.package as app.asar
         fs.copyFileSync(appPackagePath, appAsarPath);
+        console.log('[Electron] New app.asar copied successfully');
+        
+        // Step 4: Clean up backup file
+        try {
+          if (fs.existsSync(appAsarBackupPath)) {
+            fs.unlinkSync(appAsarBackupPath);
+            console.log('[Electron] Backup app.asar removed');
+          }
+        } catch (e) {
+          console.log('[Electron] Could not remove backup (will be cleaned up next time):', e.message);
+        }
+        
       } catch (error) {
         console.error('Failed to update app.asar:', error);
+        
+        // Attempt to restore backup if copy failed
+        try {
+          if (fs.existsSync(appAsarBackupPath) && !fs.existsSync(appAsarPath)) {
+            fs.renameSync(appAsarBackupPath, appAsarPath);
+            console.log('[Electron] Restored backup app.asar after failed update');
+          }
+        } catch (restoreError) {
+          console.error('[Electron] Failed to restore backup:', restoreError);
+        }
+        
         throw error;
       }
     }
@@ -1082,16 +1128,14 @@ async function applyStagedUpdate() {
     };
     fs.writeFileSync(updateStateFile, JSON.stringify(updateState));
     
-      // Force restart to load new app.asar
-      setTimeout(() => {
-        console.log('[Electron] Closing all windows before relaunch...');
-        BrowserWindow.getAllWindows().forEach(win => win.destroy());
-        console.log('[Electron] Relaunching app in 3 seconds...');
-        app.relaunch();
-        app.exit(0);
-      }, 3000);
-    
-    return true;
+    // Force restart to load new app.asar
+    setTimeout(() => {
+      console.log('[Electron] Closing all windows before relaunch...');
+      BrowserWindow.getAllWindows().forEach(win => win.destroy());
+      console.log('[Electron] Relaunching app in 5 seconds...');
+      app.relaunch();
+      app.exit(0);
+    }, 5000); // Increased to 5 seconds to allow Windows to release file locks    return true;
     
   } catch (error) {
     console.error('Failed to apply staged update:', error);
