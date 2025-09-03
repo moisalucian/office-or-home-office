@@ -60,6 +60,18 @@ async function checkPostUpdateRestart() {
       if (expectedVersionData.version !== currentVersion) {
         console.log('[Update] Version mismatch detected, triggering second restart...');
         
+        // Show a brief notification that second restart is happening
+        try {
+          if (tray && tray.displayBalloon) {
+            tray.displayBalloon({
+              title: 'Update in Progress',
+              content: 'Completing update... App will restart again momentarily.'
+            });
+          }
+        } catch (e) {
+          console.log('[Update] Could not show balloon notification:', e.message);
+        }
+        
         // Clean up the expected version file
         fs.unlinkSync(expectedVersionFile);
         
@@ -659,21 +671,23 @@ function createTray() {
 }
 
 app.whenReady().then(async () => {
+  console.log('[App] Starting app, version:', require('../package.json').version);
+  
   // Only apply staged updates in packaged builds (production), not in development
   let updateJustApplied = false;
   if (app.isPackaged) {
     updateJustApplied = await applyStagedUpdate();
     
-    // If no staged update was applied, check if we need a second restart
-    if (!updateJustApplied) {
-      const needsSecondRestart = await checkPostUpdateRestart();
-      if (needsSecondRestart) {
-        return; // Exit early, we're restarting again
-      }
+    // Always check if we need a second restart after any startup (whether update was applied or not)
+    const needsSecondRestart = await checkPostUpdateRestart();
+    if (needsSecondRestart) {
+      console.log('[App] Second restart needed, exiting early...');
+      return; // Exit early, we're restarting again
     }
     
     // If update was just applied, save the update state to show success notification
     if (updateJustApplied) {
+      console.log('[App] Update was just applied successfully');
       const updateState = {
         success: true,
         timestamp: Date.now(),
