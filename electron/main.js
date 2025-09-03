@@ -44,6 +44,46 @@ function saveSetting(key, value) {
 }
 
 // Auto-update functionality
+
+// Check if we need a second restart after update
+async function checkPostUpdateRestart() {
+  try {
+    const userDataPath = app.getPath('userData');
+    const expectedVersionFile = path.join(userDataPath, 'expected-version.json');
+    
+    if (fs.existsSync(expectedVersionFile)) {
+      const expectedVersionData = JSON.parse(fs.readFileSync(expectedVersionFile, 'utf8'));
+      const currentVersion = require('../package.json').version;
+      
+      console.log(`[Update] Expected version: ${expectedVersionData.version}, Current version: ${currentVersion}`);
+      
+      if (expectedVersionData.version !== currentVersion) {
+        console.log('[Update] Version mismatch detected, triggering second restart...');
+        
+        // Clean up the expected version file
+        fs.unlinkSync(expectedVersionFile);
+        
+        // Trigger immediate restart
+        setTimeout(() => {
+          console.log('[Update] Performing second restart to load correct version...');
+          app.relaunch();
+          app.exit(0);
+        }, 2000);
+        
+        return true; // Indicates we're doing a second restart
+      } else {
+        console.log('[Update] Version verification successful!');
+        // Clean up the expected version file
+        fs.unlinkSync(expectedVersionFile);
+      }
+    }
+  } catch (error) {
+    console.error('[Update] Error during post-update version check:', error);
+  }
+  
+  return false; // No second restart needed
+}
+
 async function downloadFile(url, dest, win) {
   return new Promise((resolve, reject) => {
     // Clean up any previous file
@@ -624,6 +664,14 @@ app.whenReady().then(async () => {
   if (app.isPackaged) {
     updateJustApplied = await applyStagedUpdate();
     
+    // If no staged update was applied, check if we need a second restart
+    if (!updateJustApplied) {
+      const needsSecondRestart = await checkPostUpdateRestart();
+      if (needsSecondRestart) {
+        return; // Exit early, we're restarting again
+      }
+    }
+    
     // If update was just applied, save the update state to show success notification
     if (updateJustApplied) {
       const updateState = {
@@ -1128,6 +1176,15 @@ async function applyStagedUpdate() {
     };
     fs.writeFileSync(updateStateFile, JSON.stringify(updateState));
     
+    // Save expected version for post-restart verification
+    const expectedVersionFile = path.join(app.getPath('userData'), 'expected-version.json');
+    const expectedVersionData = {
+      version: stagedUpdateInfo.version,
+      timestamp: Date.now()
+    };
+    fs.writeFileSync(expectedVersionFile, JSON.stringify(expectedVersionData));
+    console.log(`[Update] Saved expected version: ${stagedUpdateInfo.version}`);
+    
     // Force restart to load new app.asar
     setTimeout(() => {
       console.log('[Electron] Closing all windows before relaunch...');
@@ -1135,7 +1192,9 @@ async function applyStagedUpdate() {
       console.log('[Electron] Relaunching app in 5 seconds...');
       app.relaunch();
       app.exit(0);
-    }, 5000); // Increased to 5 seconds to allow Windows to release file locks    return true;
+    }, 5000); // Increased to 5 seconds to allow Windows to release file locks
+    
+    return true;
     
   } catch (error) {
     console.error('Failed to apply staged update:', error);
