@@ -1082,11 +1082,14 @@ async function applyStagedUpdate() {
     };
     fs.writeFileSync(updateStateFile, JSON.stringify(updateState));
     
-    // Force immediate restart to load new app.asar
-    setTimeout(() => {
-      app.relaunch();
-      app.exit(0);
-    }, 1000);
+      // Force restart to load new app.asar
+      setTimeout(() => {
+        console.log('[Electron] Closing all windows before relaunch...');
+        BrowserWindow.getAllWindows().forEach(win => win.destroy());
+        console.log('[Electron] Relaunching app in 3 seconds...');
+        app.relaunch();
+        app.exit(0);
+      }, 3000);
     
     return true;
     
