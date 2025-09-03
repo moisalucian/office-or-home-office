@@ -1157,25 +1157,6 @@ function App() {
               Not Sure Yet
             </button>
           </div>
-          <div className="button-row-container" style={{ display: "flex", justifyContent: "center", marginTop: "10px" }}>
-            <button 
-              className="primary" 
-              style={{ 
-                backgroundColor: "hotpink", 
-                minWidth: "140px", 
-                height: "40px",
-                padding: "0.6rem 1rem",
-                border: "2px solid #ff1493",
-                fontWeight: "bold"
-              }} 
-              onClick={() => {
-                console.log('TEST BUTTON CLICKED - Version 1.0.144!');
-                alert('TEST Button from v1.0.144 clicked!');
-              }}
-            >
-              TEST BUTTON
-            </button>
-          </div>
         </div>
 
         {notificationSummary && (

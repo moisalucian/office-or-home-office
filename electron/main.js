@@ -1236,10 +1236,57 @@ async function applyStagedUpdate() {
     setTimeout(() => {
       console.log('[Electron] Closing all windows before relaunch...');
       BrowserWindow.getAllWindows().forEach(win => win.destroy());
-      console.log('[Electron] Relaunching app in 5 seconds...');
-      app.relaunch();
-      app.exit(0);
-    }, 5000); // Increased to 5 seconds to allow Windows to release file locks
+      
+      // Create a batch script to restart the app after a delay
+      const { exec } = require('child_process');
+      const restartScript = `
+@echo off
+timeout /t 3 /nobreak >nul
+start "" "${process.execPath}"
+`;
+      
+      const tempScriptPath = path.join(os.tmpdir(), 'restart-app.bat');
+      
+      try {
+        fs.writeFileSync(tempScriptPath, restartScript);
+        console.log('[Electron] Created restart script, executing...');
+        
+        // Execute the restart script and then quit
+        exec(`start "" "${tempScriptPath}"`, (error) => {
+          if (error) {
+            console.error('Failed to execute restart script:', error);
+            // Fallback to manual restart
+            if (tray && tray.displayBalloon) {
+              tray.displayBalloon({
+                title: 'Update Complete',
+                content: 'Please restart the app manually to load the new version.'
+              });
+            }
+          }
+          
+          // Force quit the app completely
+          setTimeout(() => {
+            process.exit(0);
+          }, 1000);
+        });
+        
+      } catch (error) {
+        console.error('Failed to create restart script:', error);
+        console.log('[Electron] Falling back to manual restart...');
+        
+        if (tray && tray.displayBalloon) {
+          tray.displayBalloon({
+            title: 'Update Complete',
+            content: 'Please restart the app manually to load the new version.'
+          });
+        }
+        
+        setTimeout(() => {
+          process.exit(0);
+        }, 2000);
+      }
+      
+    }, 3000);
     
     return true;
     
