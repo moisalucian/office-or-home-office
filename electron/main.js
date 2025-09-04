@@ -963,21 +963,28 @@ ipcMain.handle('cancel-update', () => {
   }
 });
 
-// Restart the application
+// Restart the application with proper file handle cleanup
 ipcMain.handle('restart-app', () => {
-  // Ensure all windows are closed and tray is cleaned up
+  console.log('[Electron] Restart requested - cleaning up before relaunch...');
+  
+  // Step 1: Close all windows immediately
   BrowserWindow.getAllWindows().forEach(window => {
     if (!window.isDestroyed()) {
       window.close();
     }
   });
   
-  // Force quit after a short delay to ensure cleanup
+  // Step 2: Force garbage collection to release file handles
+  if (global.gc) {
+    global.gc();
+  }
+  
+  // Step 3: Wait longer for file operations to complete and handles to be released
   setTimeout(() => {
-    console.log('[Electron] Executing app.relaunch() now...');
-    app.relaunch(); // Remove --updated flag to allow normal startup with staging
+    console.log('[Electron] File handles should be released, executing relaunch...');
+    app.relaunch();
     app.exit(0);
-  }, 100);
+  }, 2000); // Increased delay from 100ms to 2000ms (2 seconds)
 });
 
 // Handle update completion state
@@ -1068,9 +1075,15 @@ async function applyStagedUpdate() {
           }
         }
         
-        // Step 3: Copy new app.package as app.asar
+        // Step 3: Copy new app.package as app.asar with sync operations
         fs.copyFileSync(appPackagePath, appAsarPath);
-        console.log('[Electron] New app.asar copied successfully');
+        
+        // Force filesystem sync to ensure file is written to disk
+        const fd = fs.openSync(appAsarPath, 'r');
+        fs.fsyncSync(fd);
+        fs.closeSync(fd);
+        
+        console.log('[Electron] New app.asar copied and synced successfully');
         
         // Step 4: Clean up backup file
         try {
@@ -1119,6 +1132,14 @@ async function applyStagedUpdate() {
     // Clean up
     try { fs.rmSync(extractPath, { recursive: true, force: true }); } catch (e) {}
     fs.unlinkSync(stagedUpdateFile);
+    
+    // Force garbage collection to release any remaining file handles
+    if (global.gc) {
+      global.gc();
+    }
+    
+    // Wait a moment for all file operations to fully complete
+    await new Promise(resolve => setTimeout(resolve, 1000));
     
     // Create update state for UI notification - mark as successfully applied
     const updateStateFile = path.join(app.getPath('userData'), 'update-state.json');
