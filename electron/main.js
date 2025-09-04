@@ -1095,28 +1095,7 @@ async function applyStagedUpdate() {
       const { exec } = require('child_process');
       const updaterScriptPath = path.join(__dirname, 'updater.js');
       const tempScriptPath = path.join(os.tmpdir(), 'update-and-restart.bat');
-      const batchScript = `
-@echo off
-setlocal
-set EXE_NAME="${path.basename(process.execPath)}"
-set EXE_PATH="${process.execPath}"
-set UPDATER="${updaterScriptPath}"
-set LOG="%TEMP%\\update-log.txt"
-echo [%date% %time%] Waiting for process to exit... >> %LOG%
-:waitloop
-tasklist /FI "IMAGENAME eq %EXE_NAME%" | find /I %EXE_NAME% >nul
-if not errorlevel 1 (
-  timeout /t 1 >nul
-  goto waitloop
-)
-echo [%date% %time%] Process exited. Waiting extra 3 seconds for file locks... >> %LOG%
-timeout /t 3 >nul
-echo [%date% %time%] Running updater.js... >> %LOG%
-node "%UPDATER%" >> %LOG% 2>&1
-echo [%date% %time%] Relaunching app... >> %LOG%
-start "" %EXE_PATH%
-endlocal
-`;
+  const batchScript = `@echo off\r\nsetlocal\r\nset LOGFILE=%TEMP%\\update-log.txt\r\nif not exist "%TEMP%" mkdir "%TEMP%"\r\necho [%date% %time%] Batch script started. >> %LOGFILE%\r\nset EXE_NAME="${path.basename(process.execPath)}"\r\nset EXE_PATH="${process.execPath}"\r\nset UPDATER="${updaterScriptPath}"\r\necho [%date% %time%] Waiting for process to exit... >> %LOGFILE%\r\n:waitloop\r\ntasklist /FI "IMAGENAME eq %EXE_NAME%" | find /I %EXE_NAME% >nul\r\nif not errorlevel 1 (\r\n  timeout /t 1 >nul\r\n  goto waitloop\r\n)\r\necho [%date% %time%] Process exited. Waiting extra 3 seconds for file locks... >> %LOGFILE%\r\ntimeout /t 3 >nul\r\necho [%date% %time%] Running updater.js... >> %LOGFILE%\r\nnode "%UPDATER%" >> %LOGFILE% 2>&1\r\nif errorlevel 1 echo [%date% %time%] ERROR running updater.js >> %LOGFILE%\r\necho [%date% %time%] Relaunching app... >> %LOGFILE%\r\nstart "" %EXE_PATH%\r\nendlocal\r\necho [%date% %time%] Batch script finished. >> %LOGFILE%\r\n`;
       try {
         fs.writeFileSync(tempScriptPath, batchScript);
         console.log('[Update] Created update-and-restart script, executing...');

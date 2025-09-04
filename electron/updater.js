@@ -17,11 +17,19 @@ const os = require('os');
 const logFile = path.join(os.tmpdir(), 'update-log.txt');
 function log(msg) {
   const line = `[${new Date().toISOString()}] ${msg}`;
-  fs.appendFileSync(logFile, line + '\n');
+  try {
+    fs.appendFileSync(logFile, line + '\n');
+  } catch (err) {
+    console.error('Failed to write to update-log.txt:', err);
+  }
   console.log(line);
 }
 
-log('[Updater] External updater started');
+try {
+  log('[Updater] External updater started');
+} catch (err) {
+  console.error('Failed to log updater start:', err);
+}
 
 function copyRecursiveSync(src, dest) {
   const exists = fs.existsSync(src);
