@@ -217,40 +217,8 @@ async function launchApp() {
 
 async function main() {
   console.log('[Updater] Starting update process...');
-  
-  // Wait for the main app to fully exit (check process)
-  const electronProcessName = 'Office or Home Office.exe';
-  let retries = 0;
-  let maxRetries = 10;
-  let processExited = false;
-  while (retries < maxRetries) {
-    try {
-      const { execSync } = require('child_process');
-      const result = execSync(`tasklist /FI "IMAGENAME eq ${electronProcessName}"`, { encoding: 'utf8' });
-      if (!result.includes(electronProcessName)) {
-        processExited = true;
-        break;
-      }
-    } catch (e) {
-      // Ignore errors
-    }
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    retries++;
-  }
-  if (!processExited) {
-    console.log(`[Updater] Warning: Main process may still be running after ${maxRetries} seconds.`);
-  }
-  
-  const updateApplied = await applyStagedUpdate();
-  
-  if (updateApplied) {
-    console.log('[Updater] Update applied, launching updated app...');
-  } else {
-    console.log('[Updater] No update to apply, launching app normally...');
-  }
-  
-  await launchApp();
-  
+  // The batch script now waits for the main process to exit, so we just apply the update
+  await applyStagedUpdate();
   console.log('[Updater] External updater completed');
   process.exit(0);
 }

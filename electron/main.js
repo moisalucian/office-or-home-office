@@ -1185,30 +1185,40 @@ async function applyStagedUpdate() {
     fs.writeFileSync(expectedVersionFile, JSON.stringify(expectedVersionData));
     console.log(`[Update] Saved expected version: ${stagedUpdateInfo.version}`);
     
-    // Force restart to load new app.asar
+    // Instead of relaunching here, launch a batch script that waits for this process to exit, applies the update, and then relaunches the app
     setTimeout(() => {
-      console.log('[Electron] Closing all windows before relaunch...');
+      console.log('[Electron] Closing all windows before update...');
       BrowserWindow.getAllWindows().forEach(win => win.destroy());
-      
-      // Create a batch script to restart the app after a delay
+
       const { exec } = require('child_process');
-      const restartScript = `
+      const updaterScriptPath = path.join(__dirname, 'updater.js');
+      const tempScriptPath = path.join(os.tmpdir(), 'update-and-restart.bat');
+      // The batch script waits for this process to exit, then runs the updater, then relaunches the app
+      const batchScript = `
 @echo off
-timeout /t 3 /nobreak >nul
-start "" "${process.execPath}"
+setlocal
+set EXE_NAME="${path.basename(process.execPath)}"
+set EXE_PATH="${process.execPath}"
+set UPDATER="${updaterScriptPath}"
+REM Wait for the main process to exit
+:waitloop
+tasklist /FI "IMAGENAME eq %EXE_NAME%" | find /I "%EXE_NAME%" >nul
+if not errorlevel 1 (
+  timeout /t 1 >nul
+  goto waitloop
+)
+REM Run the updater script (Node.js must be in PATH)
+node "%UPDATER%"
+REM Relaunch the app
+start "" %EXE_PATH%
+endlocal
 `;
-      
-      const tempScriptPath = path.join(os.tmpdir(), 'restart-app.bat');
-      
       try {
-        fs.writeFileSync(tempScriptPath, restartScript);
-        console.log('[Electron] Created restart script, executing...');
-        
-        // Execute the restart script and then quit
+        fs.writeFileSync(tempScriptPath, batchScript);
+        console.log('[Electron] Created update-and-restart script, executing...');
         exec(`start "" "${tempScriptPath}"`, (error) => {
           if (error) {
-            console.error('Failed to execute restart script:', error);
-            // Fallback to manual restart
+            console.error('Failed to execute update-and-restart script:', error);
             if (tray && tray.displayBalloon) {
               tray.displayBalloon({
                 title: 'Update Complete',
@@ -1216,31 +1226,23 @@ start "" "${process.execPath}"
               });
             }
           }
-          
-          // Force quit the app completely
           setTimeout(() => {
             process.exit(0);
           }, 1000);
         });
-        
       } catch (error) {
-        console.error('Failed to create restart script:', error);
-        console.log('[Electron] Falling back to manual restart...');
-        
+        console.error('Failed to create update-and-restart script:', error);
         if (tray && tray.displayBalloon) {
           tray.displayBalloon({
             title: 'Update Complete',
             content: 'Please restart the app manually to load the new version.'
           });
         }
-        
         setTimeout(() => {
           process.exit(0);
         }, 2000);
       }
-      
     }, 3000);
-    
     return true;
     
   } catch (error) {
