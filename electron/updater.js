@@ -7,12 +7,21 @@
  * It applies staged updates and then launches the updated app.
  */
 
+
 const fs = require('fs');
 const path = require('path');
 const { spawn } = require('child_process');
 const os = require('os');
 
-console.log('[Updater] External updater started');
+// Logging to %TEMP%\update-log.txt
+const logFile = path.join(os.tmpdir(), 'update-log.txt');
+function log(msg) {
+  const line = `[${new Date().toISOString()}] ${msg}`;
+  fs.appendFileSync(logFile, line + '\n');
+  console.log(line);
+}
+
+log('[Updater] External updater started');
 
 function copyRecursiveSync(src, dest) {
   const exists = fs.existsSync(src);
@@ -41,7 +50,7 @@ async function applyStagedUpdate() {
     const stagedUpdateFile = path.join(userDataPath, 'staged-update.json');
     
     if (!fs.existsSync(stagedUpdateFile)) {
-      console.log('[Updater] No staged update found');
+      log('[Updater] No staged update found');
       return false;
     }
     
@@ -49,12 +58,12 @@ async function applyStagedUpdate() {
     const extractPath = stagedUpdateInfo.extractPath;
     
     if (!fs.existsSync(extractPath)) {
-      console.log('[Updater] Staged update path does not exist:', extractPath);
+      log('[Updater] Staged update path does not exist: ' + extractPath);
       fs.unlinkSync(stagedUpdateFile);
       return false;
     }
     
-    console.log('[Updater] Applying staged update for version:', stagedUpdateInfo.version);
+  log('[Updater] Applying staged update for version: ' + stagedUpdateInfo.version);
     
     // Get the application directory
     let appPath;
@@ -66,7 +75,7 @@ async function applyStagedUpdate() {
       appPath = path.resolve(__dirname, '..');
     }
     
-    console.log('[Updater] App path:', appPath);
+  log('[Updater] App path: ' + appPath);
     
     const resourcesSrc = path.join(extractPath, 'resources');
     const resourcesDest = path.join(appPath, 'resources');
@@ -79,7 +88,7 @@ async function applyStagedUpdate() {
     const appAsarBackupPath = path.join(resourcesDest, 'app.asar.backup');
     
     if (fs.existsSync(appPackagePath)) {
-      console.log('[Updater] Updating app.asar...');
+  log('[Updater] Updating app.asar...');
       
       // Ensure destination directory exists
       if (!fs.existsSync(resourcesDest)) {
@@ -92,31 +101,31 @@ async function applyStagedUpdate() {
           fs.unlinkSync(appAsarBackupPath);
         }
       } catch (e) {
-        console.log('[Updater] Could not remove old backup:', e.message);
+  log('[Updater] Could not remove old backup: ' + e.message);
       }
       
       // Rename current app.asar to backup (this releases the file lock)
       if (fs.existsSync(appAsarPath)) {
         try {
           fs.renameSync(appAsarPath, appAsarBackupPath);
-          console.log('[Updater] Old app.asar renamed to backup');
+          log('[Updater] Old app.asar renamed to backup');
         } catch (renameError) {
-          console.error('[Updater] Failed to rename old app.asar:', renameError);
+          log('[Updater] Failed to rename old app.asar: ' + renameError);
         }
       }
       
       // Copy new app.package as app.asar
       fs.copyFileSync(appPackagePath, appAsarPath);
-      console.log('[Updater] New app.asar copied successfully');
+  log('[Updater] New app.asar copied successfully');
       
       // Clean up backup file
       try {
         if (fs.existsSync(appAsarBackupPath)) {
           fs.unlinkSync(appAsarBackupPath);
-          console.log('[Updater] Backup app.asar removed');
+          log('[Updater] Backup app.asar removed');
         }
       } catch (e) {
-        console.log('[Updater] Could not remove backup:', e.message);
+  log('[Updater] Could not remove backup: ' + e.message);
       }
     }
     
@@ -129,24 +138,24 @@ async function applyStagedUpdate() {
           copyRecursiveSync(srcItem, destItem);
         }
       });
-      console.log('[Updater] Resources updated successfully');
+  log('[Updater] Resources updated successfully');
     }
     
     if (fs.existsSync(localesSrc)) {
       copyRecursiveSync(localesSrc, localesDest);
-      console.log('[Updater] Locales updated successfully');
+  log('[Updater] Locales updated successfully');
     }
     
     // Clean up
     try { 
       fs.rmSync(extractPath, { recursive: true, force: true }); 
-      console.log('[Updater] Cleaned up extraction path');
+  log('[Updater] Cleaned up extraction path');
     } catch (e) {
-      console.log('[Updater] Could not clean up extraction path:', e.message);
+  log('[Updater] Could not clean up extraction path: ' + e.message);
     }
     
     fs.unlinkSync(stagedUpdateFile);
-    console.log('[Updater] Removed staged update file');
+  log('[Updater] Removed staged update file');
     
     // Create update state for UI notification
     const updateStateFile = path.join(userDataPath, 'update-state.json');
@@ -157,13 +166,13 @@ async function applyStagedUpdate() {
       timestamp: Date.now()
     };
     fs.writeFileSync(updateStateFile, JSON.stringify(updateState));
-    console.log('[Updater] Created update state file');
+  log('[Updater] Created update state file');
     
-    console.log(`[Updater] Update to version ${stagedUpdateInfo.version} applied successfully`);
+  log(`[Updater] Update to version ${stagedUpdateInfo.version} applied successfully`);
     return true;
     
   } catch (error) {
-    console.error('[Updater] Failed to apply staged update:', error);
+  log('[Updater] Failed to apply staged update: ' + error);
     return false;
   }
 }
@@ -190,7 +199,7 @@ async function launchApp() {
       appExecutable = 'npm';
     }
     
-    console.log('[Updater] Launching app:', appExecutable);
+  log('[Updater] Launching app: ' + appExecutable);
     
     if (process.pkg) {
       // Launch the exe directly
@@ -208,23 +217,23 @@ async function launchApp() {
       });
     }
     
-    console.log('[Updater] App launched successfully');
+  log('[Updater] App launched successfully');
     
   } catch (error) {
-    console.error('[Updater] Failed to launch app:', error);
+  log('[Updater] Failed to launch app: ' + error);
   }
 }
 
 async function main() {
-  console.log('[Updater] Starting update process...');
+  log('[Updater] Starting update process...');
   // The batch script now waits for the main process to exit, so we just apply the update
   await applyStagedUpdate();
-  console.log('[Updater] External updater completed');
+  log('[Updater] External updater completed');
   process.exit(0);
 }
 
 // Run the updater
 main().catch(error => {
-  console.error('[Updater] Fatal error:', error);
+  log('[Updater] Fatal error: ' + error);
   process.exit(1);
 });

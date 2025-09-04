@@ -1101,16 +1101,19 @@ setlocal
 set EXE_NAME="${path.basename(process.execPath)}"
 set EXE_PATH="${process.execPath}"
 set UPDATER="${updaterScriptPath}"
-REM Wait for the main process to exit
+set LOG="%TEMP%\\update-log.txt"
+echo [%date% %time%] Waiting for process to exit... >> %LOG%
 :waitloop
-tasklist /FI "IMAGENAME eq %EXE_NAME%" | find /I "%EXE_NAME%" >nul
+tasklist /FI "IMAGENAME eq %EXE_NAME%" | find /I %EXE_NAME% >nul
 if not errorlevel 1 (
   timeout /t 1 >nul
   goto waitloop
 )
-REM Run the updater script (Node.js must be in PATH)
-node "%UPDATER%"
-REM Relaunch the app
+echo [%date% %time%] Process exited. Waiting extra 3 seconds for file locks... >> %LOG%
+timeout /t 3 >nul
+echo [%date% %time%] Running updater.js... >> %LOG%
+node "%UPDATER%" >> %LOG% 2>&1
+echo [%date% %time%] Relaunching app... >> %LOG%
 start "" %EXE_PATH%
 endlocal
 `;
