@@ -1120,70 +1120,19 @@ async function applyStagedUpdate() {
     try { fs.rmSync(extractPath, { recursive: true, force: true }); } catch (e) {}
     fs.unlinkSync(stagedUpdateFile);
     
-    // Create update state for UI notification
+    // Create update state for UI notification - mark as successfully applied
     const updateStateFile = path.join(app.getPath('userData'), 'update-state.json');
     const updateState = {
       applied: true,
+      success: true,
       version: stagedUpdateInfo.version,
       timestamp: Date.now()
     };
     fs.writeFileSync(updateStateFile, JSON.stringify(updateState));
     
-    // Force restart to load new app.asar
-    setTimeout(() => {
-      console.log('[Electron] Closing all windows before relaunch...');
-      BrowserWindow.getAllWindows().forEach(win => win.destroy());
-      
-      // Create a batch script to restart the app after a delay
-      const { exec } = require('child_process');
-      const restartScript = `
-@echo off
-timeout /t 3 /nobreak >nul
-start "" "${process.execPath}"
-`;
-      
-      const tempScriptPath = path.join(os.tmpdir(), 'restart-app.bat');
-      
-      try {
-        fs.writeFileSync(tempScriptPath, restartScript);
-        console.log('[Electron] Created restart script, executing...');
-        
-        // Execute the restart script and then quit
-        exec(`start "" "${tempScriptPath}"`, (error) => {
-          if (error) {
-            console.error('Failed to execute restart script:', error);
-            // Fallback to manual restart
-            if (tray && tray.displayBalloon) {
-              tray.displayBalloon({
-                title: 'Update Complete',
-                content: 'Please restart the app manually to load the new version.'
-              });
-            }
-          }
-          
-          // Force quit the app completely
-          setTimeout(() => {
-            process.exit(0);
-          }, 1000);
-        });
-        
-      } catch (error) {
-        console.error('Failed to create restart script:', error);
-        console.log('[Electron] Falling back to manual restart...');
-        
-        if (tray && tray.displayBalloon) {
-          tray.displayBalloon({
-            title: 'Update Complete',
-            content: 'Please restart the app manually to load the new version.'
-          });
-        }
-        
-        setTimeout(() => {
-          process.exit(0);
-        }, 2000);
-      }
-      
-    }, 3000);
+    console.log(`[Update] Update to version ${stagedUpdateInfo.version} applied successfully - no second restart needed`);
+    
+    // NO FORCED RESTART - Let the app continue running with success notification
     
     return true;
     
