@@ -1012,76 +1012,65 @@ ipcMain.handle('get-app-version', () => {
   return app.getVersion();
 });
 
-// ✅ Electron-updater IPC handlers
+// Download and install update
 ipcMain.handle('download-and-install-update', async (_, downloadUrl) => {
-  console.log('[Update] Legacy update system called, redirecting to electron-updater');
-  if (app.isPackaged) {
-    try {
-      await autoUpdater.downloadUpdate();
-      return { success: true, message: 'Download started with electron-updater' };
-    } catch (error) {
-      console.error('[Update] Error downloading with electron-updater:', error);
-      throw error;
-    }
-  } else {
-    console.log('[Update] Updates only work in packaged app');
-    throw new Error('Updates only work in packaged app');
+  try {
+    const fileName = path.basename(downloadUrl);
+    const tempPath = path.join(os.tmpdir(), fileName);
+    // Download the update file and send progress to renderer
+    await downloadFile(downloadUrl, tempPath, win);
+    // Return success without showing dialog - let the UI handle the restart prompt
+    return { success: true, filePath: tempPath };
+  } catch (error) {
+    console.error('Update download failed:', error);
+    throw error;
   }
 });
 
-// Extract and install update (legacy compatibility)
+// Extract and install update (called from renderer after download)
 ipcMain.handle('extract-and-install-update', async (_, filePath, version) => {
-  console.log('[Update] Legacy install called, using electron-updater install');
-  if (app.isPackaged) {
-    autoUpdater.quitAndInstall();
+  console.log('[Electron] extract-and-install-update called with filePath:', filePath, 'version:', version);
+  try {
+    await extractAndInstallUpdate(filePath, win, version);
     return { success: true };
-  } else {
-    console.log('[Update] Updates only work in packaged app');
-    throw new Error('Updates only work in packaged app');
+  } catch (error) {
+    if (win && win.webContents) {
+      win.webContents.send('update-install-progress', { phase: 'error', percent: 100, message: error.message });
+    }
+    console.error('Update install failed:', error);
+    throw error;
   }
 });
 
 // Cancel update download
 ipcMain.handle('cancel-update', () => {
-  console.log('[Update] Update cancellation requested - electron-updater does not support cancellation');
-  return { success: false, message: 'electron-updater does not support download cancellation' };
+  console.log('[Electron] Update cancellation requested');
+  
+  if (currentDownload) {
+    console.log('[Electron] Cancelling active download...');
+    currentDownload.cancel();
+    return { success: true, message: 'Download cancelled' };
+  } else {
+    console.log('[Electron] No active download to cancel');
+    return { success: false, message: 'No active download' };
+  }
 });
 
 // Restart the application
 ipcMain.handle('restart-app', () => {
-  console.log('[Update] Restarting app...');
-  app.relaunch();
-  app.exit(0);
-});
-
-// ✅ New Electron-updater IPC handlers
-ipcMain.handle('check-for-updates', () => {
-  if (app.isPackaged) {
-    console.log('[IPC] Manual update check requested from renderer');
-    return autoUpdater.checkForUpdates();
-  } else {
-    console.log('[IPC] Updates only work in packaged app');
-    return Promise.resolve(null);
-  }
-});
-
-ipcMain.handle('download-update', () => {
-  if (app.isPackaged) {
-    console.log('[IPC] Download update requested from renderer');
-    return autoUpdater.downloadUpdate();
-  } else {
-    console.log('[IPC] Updates only work in packaged app');
-    return Promise.resolve(null);
-  }
-});
-
-ipcMain.handle('install-update', () => {
-  if (app.isPackaged) {
-    console.log('[IPC] Install update requested from renderer');
-    autoUpdater.quitAndInstall();
-  } else {
-    console.log('[IPC] Updates only work in packaged app');
-  }
+  // Ensure all windows are closed and tray is cleaned up
+  BrowserWindow.getAllWindows().forEach(window => {
+    if (!window.isDestroyed()) {
+      window.close();
+    }
+  });
+  
+  // Force quit after a short delay to ensure cleanup
+  setTimeout(() => {
+    console.log('[Electron] Executing app.relaunch() now...');
+    app.relaunch(); // Remove --updated flag to allow normal startup with staging
+    app.exit(0);
+  }, 100);
 });
 
 // Handle update completion state

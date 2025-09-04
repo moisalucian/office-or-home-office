@@ -1,6 +1,6 @@
 {
   "name": "office-or-homeoffice",
-  "version": "1.0.149",
+  "version": "1.0.156",
   "description": "Office or Remote status tracking app",
   "main": "electron/main.js",
   "repository": {
@@ -39,6 +39,7 @@
   "build": {
     "appId": "com.office.homeoffice.app",
     "productName": "Office or Home Office",
+    "icon": "build/icon.ico",
     "files": [
       "electron/**",
       "package.json"
@@ -56,11 +57,15 @@
       "target": [
         {
           "target": "portable",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         },
         {
           "target": "nsis",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ],
       "forceCodeSigning": false,

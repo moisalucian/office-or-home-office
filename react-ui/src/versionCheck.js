@@ -44,52 +44,29 @@ export const shouldCheckForUpdates = () => {
 // Enhanced update checking with proper semantic versioning
 export const checkForUpdates = async () => {
   try {
-    const currentVersion = await getCurrentVersion();
-    console.log('Current version:', currentVersion);
-    
-    const response = await fetch(GITHUB_RELEASES_URL);
-    if (!response.ok) {
-      // Fallback to commits API if no releases
-      return await checkForUpdatesFromCommits();
+    // Use electron-updater instead of GitHub API
+    if (window.electronAPI?.checkForUpdates) {
+      console.log('[Update] Using electron-updater to check for updates');
+      const result = await window.electronAPI.checkForUpdates();
+      
+      setLastVersionCheck();
+      return result;
+    } else {
+      console.log('[Update] electronAPI.checkForUpdates not available - likely in development mode');
+      
+      // Fallback for development mode only
+      const currentVersion = await getCurrentVersion();
+      return {
+        hasUpdate: false,
+        currentVersion,
+        latestVersion: currentVersion,
+        releaseNotes: 'Update checking only works in packaged app',
+        isDevelopment: true
+      };
     }
-    
-    const releaseData = await response.json();
-    const latestVersion = releaseData.tag_name.replace(/^v/, ''); // Remove 'v' prefix if present
-    console.log('Latest version:', latestVersion);
-    
-    setLastVersionCheck();
-    
-    // Compare semantic versions - only show if latest is actually newer
-    const hasUpdate = isNewerVersion(latestVersion, currentVersion);
-    console.log('Has update:', hasUpdate);
-    
-    if (!hasUpdate) {
-      return { hasUpdate: false, currentVersion, latestVersion };
-    }
-    
-    // Check if this specific version was dismissed
-    const dismissedVersion = getDismissedVersion();
-    const wasDismissed = dismissedVersion === latestVersion;
-    
-    // Check if update was postponed
-    const postponedVersion = getPostponedVersion();
-    const wasPostponed = postponedVersion === latestVersion;
-    
-    return {
-      hasUpdate,
-      currentVersion,
-      latestVersion,
-      releaseNotes: releaseData.body || 'No release notes available',
-      releaseDate: new Date(releaseData.published_at).toLocaleDateString(),
-      downloadUrl: releaseData.assets.find(asset => 
-        asset.name.includes('win') || asset.name.includes('.exe') || asset.name.includes('.zip')
-      )?.browser_download_url,
-      wasDismissed,
-      wasPostponed
-    };
   } catch (error) {
-    console.error('Version check failed:', error);
-    return { hasUpdate: false, error: error.message };
+    console.error('[Update] Error checking for updates:', error);
+    throw error;
   }
 };
 
@@ -198,70 +175,31 @@ export const shouldShowUpdateNotification = (updateInfo) => {
 
 // Auto-update functionality
 export const manualUpdateCheck = async () => {
-  return await checkForUpdates();
+  if (window.electronAPI?.checkForUpdates) {
+    console.log('[Update] Using electron-updater for manual check');
+    return window.electronAPI.checkForUpdates();
+  } else {
+    console.log('[Update] electronAPI.checkForUpdates not available');
+    return null;
+  }
 };
 
-export const downloadAndInstallUpdate = async (downloadUrl, version) => {
-  console.log('[Update] downloadAndInstallUpdate called with URL:', downloadUrl, 'version:', version);
-  if (!downloadUrl) {
-    console.error('[Update] No download URL provided');
-    throw new Error('No download URL available');
-  }
-  if (window.electronAPI?.downloadAndInstallUpdate && window.electronAPI?.extractAndInstallUpdate) {
-    let result;
+export const downloadAndInstallUpdate = async () => {
+  console.log('[Update] Using electron-updater to download and install update');
+  
+  if (window.electronAPI?.downloadUpdate) {
     try {
-      console.log('[Update] Starting download via electronAPI.downloadAndInstallUpdate');
-      result = await Promise.race([
-        window.electronAPI.downloadAndInstallUpdate(downloadUrl),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('Download timeout - please try again or download manually')), 120000))
-      ]);
+      console.log('[Update] Starting download via electron-updater');
+      const result = await window.electronAPI.downloadUpdate();
       console.log('[Update] Download result:', result);
+      return result;
     } catch (err) {
       console.error('[Update] Download failed:', err);
-      if (window.setUpdateProgress) {
-        window.setUpdateProgress({ phase: 'error', percent: 100, message: String(err) });
-      }
       throw err;
     }
-
-    if (result && result.filePath && window.electronAPI?.extractAndInstallUpdate) {
-      console.log('[Update] Download complete, filePath:', result.filePath);
-      if (window.setUpdateProgress) {
-        window.setUpdateProgress({ phase: 'installing', percent: 0, message: 'Installing update...' });
-      }
-      try {
-        console.log('[Update] About to call electronAPI.extractAndInstallUpdate with:', result.filePath, 'version:', version);
-        const installResult = await Promise.race([
-          window.electronAPI.extractAndInstallUpdate(result.filePath, version),
-          new Promise((_, reject) => setTimeout(() => {
-            console.error('[Update] Install phase did not complete within 3 minutes');
-            reject(new Error('Install phase did not complete within 3 minutes. Please restart the app or update manually.'));
-            if (window.setUpdateProgress) {
-              window.setUpdateProgress({ phase: 'error', percent: 100, message: 'Install phase did not complete. Please restart the app or update manually.' });
-            }
-          }, 3 * 60 * 1000)) // 3 minutes
-        ]);
-        console.log('[Update] Install result:', installResult);
-        setLastVersionCheck();
-        return installResult;
-      } catch (err) {
-        console.error('[Update] Install failed:', err);
-        if (window.setUpdateProgress) {
-          window.setUpdateProgress({ phase: 'error', percent: 100, message: String(err) });
-        }
-        throw err;
-      }
-    } else {
-      const errorMsg = '[Update] Download finished but no file to install or extractAndInstallUpdate missing';
-      console.error(errorMsg);
-      if (window.setUpdateProgress) {
-        window.setUpdateProgress({ phase: 'error', percent: 100, message: errorMsg });
-      }
-      throw new Error(errorMsg);
-    }
   } else {
-    console.error('[Update] electronAPI.downloadAndInstallUpdate or extractAndInstallUpdate not available');
-    window.open(downloadUrl, '_blank');
-    throw new Error('Auto-update not available, opened download page');
+    console.error('[Update] electronAPI.downloadUpdate not available');
+    throw new Error('Update functionality not available');
   }
-}
+};
+

@@ -29,7 +29,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   previewNotificationSound: (sound) => ipcRenderer.send('preview-notification-sound', sound),
   onSoundError: (callback) => ipcRenderer.on('sound-error', (_, message) => callback(message)),
   
-  // Auto-update APIs
+  // Auto-update APIs (Legacy compatibility)
   getAppVersion: () => ipcRenderer.invoke('get-app-version'),
   downloadAndInstallUpdate: (downloadUrl) => ipcRenderer.invoke('download-and-install-update', downloadUrl),
   extractAndInstallUpdate: (filePath, version) => ipcRenderer.invoke('extract-and-install-update', filePath, version),
@@ -39,5 +39,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
   checkUpdateState: () => ipcRenderer.invoke('check-update-state'),
   clearUpdateProgress: () => ipcRenderer.invoke('clear-update-progress'),
   onUpdateDownloadProgress: (callback) => ipcRenderer.on('update-download-progress', (_, progress) => callback(progress)),
-  onUpdateInstallProgress: (callback) => ipcRenderer.on('update-install-progress', (_, progress) => callback(progress))
+  onUpdateInstallProgress: (callback) => ipcRenderer.on('update-install-progress', (_, progress) => callback(progress)),
+  
+  // Electron-updater APIs (NEW)
+  checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
+  downloadUpdate: () => ipcRenderer.invoke('download-update'),
+  installUpdate: () => ipcRenderer.invoke('install-update'),
+  onElectronUpdateAvailable: (callback) => ipcRenderer.on('electron-update-available', (_, info) => callback(info)),
+  onElectronUpdateNotAvailable: (callback) => ipcRenderer.on('electron-update-not-available', (_, info) => callback(info)),
+  onElectronUpdateError: (callback) => ipcRenderer.on('electron-update-error', (_, error) => callback(error)),
+  onElectronUpdateProgress: (callback) => ipcRenderer.on('electron-update-progress', (_, progress) => callback(progress)),
+  onElectronUpdateDownloaded: (callback) => ipcRenderer.on('electron-update-downloaded', (_, info) => callback(info))
 });
