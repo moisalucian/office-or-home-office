@@ -1,5 +1,4 @@
 const { app, BrowserWindow, Tray, Menu, ipcMain, screen, nativeTheme, shell, dialog } = require('electron');
-const { autoUpdater } = require('electron-updater');
 const path = require('path');
 const fs = require('fs');
 const { exec } = require('child_process');
@@ -44,53 +43,7 @@ function saveSetting(key, value) {
   }
 }
 
-// Electron-updater setup (NEW SYSTEM)
-if (app.isPackaged) {
-  // Configure auto-updater
-  autoUpdater.checkForUpdatesAndNotify();
-  
-  autoUpdater.on('checking-for-update', () => {
-    console.log('[AutoUpdater] Checking for update...');
-  });
-
-  autoUpdater.on('update-available', (info) => {
-    console.log('[AutoUpdater] Update available:', info.version);
-  });
-
-  autoUpdater.on('update-not-available', (info) => {
-    console.log('[AutoUpdater] Update not available. Current version:', info.version);
-  });
-
-  autoUpdater.on('error', (err) => {
-    console.error('[AutoUpdater] Error:', err);
-  });
-
-  autoUpdater.on('download-progress', (progressObj) => {
-    const logMessage = `[AutoUpdater] Download speed: ${progressObj.bytesPerSecond} - Downloaded ${progressObj.percent}% (${progressObj.transferred}/${progressObj.total})`;
-    console.log(logMessage);
-  });
-
-  autoUpdater.on('update-downloaded', (info) => {
-    console.log('[AutoUpdater] Update downloaded:', info.version);
-    
-    // Show dialog asking user to restart
-    const dialogOpts = {
-      type: 'info',
-      buttons: ['Restart Now', 'Later'],
-      title: 'Application Update',
-      message: `Version ${info.version} has been downloaded.`,
-      detail: 'Restart the application to apply the update.'
-    };
-
-    dialog.showMessageBox(dialogOpts).then((returnValue) => {
-      if (returnValue.response === 0) {
-        autoUpdater.quitAndInstall();
-      }
-    });
-  });
-}
-
-// Auto-update functionality (OLD SYSTEM - keeping for now)
+// Auto-update functionality (CUSTOM SYSTEM)
 
 // Check if we need a second restart after update
 async function checkPostUpdateRestart() {
