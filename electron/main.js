@@ -946,15 +946,15 @@ ipcMain.handle('cancel-update', () => {
   }
 });
 
-// Restart the application (modified to work with external updater)
+// Restart the application (safe external updater approach)
 ipcMain.handle('restart-app', () => {
   console.log('[Electron] Restart requested');
   
-  // Check if there's a staged update - if so, launch external updater
+  // Check if there's a staged update - only use external updater in production
   const stagedUpdateFile = path.join(app.getPath('userData'), 'staged-update.json');
   
-  if (fs.existsSync(stagedUpdateFile)) {
-    console.log('[Electron] Staged update detected, launching external updater...');
+  if (fs.existsSync(stagedUpdateFile) && app.isPackaged) {
+    console.log('[Electron] Staged update detected in production, launching external updater...');
     
     try {
       const updaterPath = path.join(__dirname, 'updater.js');
@@ -986,8 +986,21 @@ ipcMain.handle('restart-app', () => {
       app.exit(0);
     }
   } else {
-    // Normal restart without update
-    console.log('[Electron] Normal restart (no staged update)');
+    // Normal restart without update, or in development mode
+    if (fs.existsSync(stagedUpdateFile) && !app.isPackaged) {
+      console.log('[Electron] Staged update detected in development mode - cleaning up first');
+      try {
+        const stagedUpdateInfo = JSON.parse(fs.readFileSync(stagedUpdateFile, 'utf8'));
+        if (fs.existsSync(stagedUpdateInfo.extractPath)) {
+          fs.rmSync(stagedUpdateInfo.extractPath, { recursive: true, force: true });
+        }
+        fs.unlinkSync(stagedUpdateFile);
+      } catch (error) {
+        console.error('[Electron] Failed to clean up staged update:', error);
+      }
+    }
+    
+    console.log('[Electron] Normal restart (no staged update or development mode)');
     app.relaunch();
     app.exit(0);
   }
@@ -1014,12 +1027,28 @@ ipcMain.handle('mark-update-completed', (event, version) => {
   }
 });
 
-// Apply staged update on startup (now just launches external updater if needed)
+// Apply staged update on startup (external updater only in production)
 async function applyStagedUpdate() {
   const stagedUpdateFile = path.join(app.getPath('userData'), 'staged-update.json');
   
   if (!fs.existsSync(stagedUpdateFile)) {
     return false; // No staged update
+  }
+  
+  // Only use external updater in production builds
+  if (!app.isPackaged) {
+    console.log('[Electron] Staged update detected in development mode - cleaning up and continuing normally');
+    try {
+      // In development, just clean up the staged update and continue
+      const stagedUpdateInfo = JSON.parse(fs.readFileSync(stagedUpdateFile, 'utf8'));
+      if (fs.existsSync(stagedUpdateInfo.extractPath)) {
+        fs.rmSync(stagedUpdateInfo.extractPath, { recursive: true, force: true });
+      }
+      fs.unlinkSync(stagedUpdateFile);
+    } catch (error) {
+      console.error('[Electron] Failed to clean up staged update in dev mode:', error);
+    }
+    return false;
   }
   
   console.log('[Electron] Staged update detected, launching external updater...');
@@ -1046,7 +1075,16 @@ async function applyStagedUpdate() {
     
   } catch (error) {
     console.error('[Electron] Failed to launch external updater:', error);
-    // Fall back to old behavior if external updater fails
+    // Fall back to cleaning up and continuing
+    try {
+      const stagedUpdateInfo = JSON.parse(fs.readFileSync(stagedUpdateFile, 'utf8'));
+      if (fs.existsSync(stagedUpdateInfo.extractPath)) {
+        fs.rmSync(stagedUpdateInfo.extractPath, { recursive: true, force: true });
+      }
+      fs.unlinkSync(stagedUpdateFile);
+    } catch (cleanupError) {
+      console.error('[Electron] Failed to clean up after external updater failure:', cleanupError);
+    }
     return false;
   }
 }
