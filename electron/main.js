@@ -51,6 +51,8 @@ if (app.isPackaged) {
   
   autoUpdater.on('checking-for-update', () => {
     console.log('[AutoUpdater] Checking for update...');
+    console.log('[AutoUpdater] Current version:', app.getVersion());
+    console.log('[AutoUpdater] Repository:', require('../package.json').repository.url);
   });
 
   autoUpdater.on('update-available', (info) => {
@@ -58,7 +60,8 @@ if (app.isPackaged) {
   });
 
   autoUpdater.on('update-not-available', (info) => {
-    console.log('[AutoUpdater] Update not available. Current version:', info.version);
+    console.log('[AutoUpdater] Update not available. Current version:', app.getVersion());
+    console.log('[AutoUpdater] Latest version found:', info.version);
   });
 
   autoUpdater.on('error', (err) => {
@@ -671,6 +674,19 @@ function createTray() {
         }
       }
     },
+    { type: 'separator' },
+    {
+      label: 'Check for Updates',
+      click: () => {
+        console.log('[Tray] Manual update check requested');
+        if (app.isPackaged) {
+          autoUpdater.checkForUpdatesAndNotify();
+        } else {
+          console.log('[Tray] Updates only work in packaged app');
+        }
+      }
+    },
+    { type: 'separator' },
     {
       label: 'Exit',
       click: () => {
