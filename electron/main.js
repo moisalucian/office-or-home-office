@@ -1007,149 +1007,94 @@ ipcMain.handle('mark-update-completed', (event, version) => {
 // Apply staged update on startup
 async function applyStagedUpdate() {
   const stagedUpdateFile = path.join(app.getPath('userData'), 'staged-update.json');
-  
-  if (!fs.existsSync(stagedUpdateFile)) {
-    return false; // No staged update
-  }
-  
+  const updateStateFile = path.join(app.getPath('userData'), 'update-state.json');
   try {
+    if (!fs.existsSync(stagedUpdateFile)) {
+      console.log('[Update] No staged update file found.');
+      return false;
+    }
     const stagedUpdateInfo = JSON.parse(fs.readFileSync(stagedUpdateFile, 'utf8'));
     const extractPath = stagedUpdateInfo.extractPath;
-    
     if (!fs.existsSync(extractPath)) {
+      console.log('[Update] Extract path missing, cleaning up staged update file.');
       fs.unlinkSync(stagedUpdateFile);
       return false;
     }
-    
     // Apply the update by copying files
-    // In production, we need to get the actual application directory, not the asar path
     let appPath;
     if (app.isPackaged) {
-      // In production, get the directory containing the executable
       appPath = path.dirname(process.execPath);
     } else {
-      // In development, use the project root
       appPath = app.getAppPath();
     }
-    
     const resourcesSrc = path.join(extractPath, 'resources');
     const resourcesDest = path.join(appPath, 'resources');
     const localesSrc = path.join(extractPath, 'locales');
     const localesDest = path.join(appPath, 'locales');
-    
-    // Special handling for app.package -> app.asar with better file lock handling
     const appPackagePath = path.join(resourcesSrc, 'app.package');
     const appAsarPath = path.join(resourcesDest, 'app.asar');
     const appAsarBackupPath = path.join(resourcesDest, 'app.asar.backup');
-    
     if (fs.existsSync(appPackagePath)) {
       try {
-        // Ensure destination directory exists
         if (!fs.existsSync(resourcesDest)) {
           fs.mkdirSync(resourcesDest, { recursive: true });
         }
-        
-        console.log('[Electron] Replacing app.asar with new version...');
-        
-        // Step 1: Remove any existing backup
-        try {
-          if (fs.existsSync(appAsarBackupPath)) {
-            fs.unlinkSync(appAsarBackupPath);
-          }
-        } catch (e) {
-          console.log('[Electron] Could not remove old backup:', e.message);
+        console.log('[Update] Replacing app.asar with new version...');
+        if (fs.existsSync(appAsarBackupPath)) {
+          fs.unlinkSync(appAsarBackupPath);
         }
-        
-        // Step 2: Rename current app.asar to backup (this releases the file lock)
         if (fs.existsSync(appAsarPath)) {
           try {
             fs.renameSync(appAsarPath, appAsarBackupPath);
-            console.log('[Electron] Old app.asar renamed to backup');
+            console.log('[Update] Old app.asar renamed to backup');
           } catch (renameError) {
-            console.error('[Electron] Failed to rename old app.asar:', renameError);
-            // If rename fails, try direct overwrite as fallback
+            console.error('[Update] Failed to rename old app.asar:', renameError);
           }
         }
-        
-        // Step 3: Copy new app.package as app.asar
         fs.copyFileSync(appPackagePath, appAsarPath);
-        console.log('[Electron] New app.asar copied successfully');
-        
-        // Step 4: Clean up backup file
-        try {
-          if (fs.existsSync(appAsarBackupPath)) {
-            fs.unlinkSync(appAsarBackupPath);
-            console.log('[Electron] Backup app.asar removed');
-          }
-        } catch (e) {
-          console.log('[Electron] Could not remove backup (will be cleaned up next time):', e.message);
+        console.log('[Update] New app.asar copied successfully');
+        if (fs.existsSync(appAsarBackupPath)) {
+          fs.unlinkSync(appAsarBackupPath);
+          console.log('[Update] Backup app.asar removed');
         }
-        
       } catch (error) {
-        console.error('Failed to update app.asar:', error);
-        
-        // Attempt to restore backup if copy failed
+        console.error('[Update] Failed to update app.asar:', error);
         try {
           if (fs.existsSync(appAsarBackupPath) && !fs.existsSync(appAsarPath)) {
             fs.renameSync(appAsarBackupPath, appAsarPath);
-            console.log('[Electron] Restored backup app.asar after failed update');
+            console.log('[Update] Restored backup app.asar after failed update');
           }
         } catch (restoreError) {
-          console.error('[Electron] Failed to restore backup:', restoreError);
+          console.error('[Update] Failed to restore backup:', restoreError);
         }
-        
         throw error;
       }
     }
-    
-    // Copy other resources (excluding app.package)
     if (fs.existsSync(resourcesSrc)) {
       fs.readdirSync(resourcesSrc).forEach((item) => {
-        if (item !== 'app.package') { // Skip app.package since we handled it above
+        if (item !== 'app.package') {
           const srcItem = path.join(resourcesSrc, item);
           const destItem = path.join(resourcesDest, item);
           copyRecursiveSync(srcItem, destItem);
         }
       });
-      console.log('[Electron] Resources updated successfully');
+      console.log('[Update] Resources updated successfully');
     }
-    
     if (fs.existsSync(localesSrc)) {
       copyRecursiveSync(localesSrc, localesDest);
-      console.log('[Electron] Locales updated successfully');
+      console.log('[Update] Locales updated successfully');
     }
-    
     // Clean up
-    try { fs.rmSync(extractPath, { recursive: true, force: true }); } catch (e) {}
-    fs.unlinkSync(stagedUpdateFile);
-    
-    // Create update state for UI notification
-    const updateStateFile = path.join(app.getPath('userData'), 'update-state.json');
-    const updateState = {
-      applied: true,
-      version: stagedUpdateInfo.version,
-      timestamp: Date.now()
-    };
-    fs.writeFileSync(updateStateFile, JSON.stringify(updateState));
-    
-    // Save expected version for post-restart verification
-    const expectedVersionFile = path.join(app.getPath('userData'), 'expected-version.json');
-    const expectedVersionData = {
-      version: stagedUpdateInfo.version,
-      timestamp: Date.now()
-    };
-    fs.writeFileSync(expectedVersionFile, JSON.stringify(expectedVersionData));
-    console.log(`[Update] Saved expected version: ${stagedUpdateInfo.version}`);
-    
+    try { fs.rmSync(extractPath, { recursive: true, force: true }); } catch (e) { console.log('[Update] Failed to remove extractPath:', e); }
+    try { fs.unlinkSync(stagedUpdateFile); } catch (e) { console.log('[Update] Failed to remove stagedUpdateFile:', e); }
+    try { fs.unlinkSync(updateStateFile); } catch (e) { console.log('[Update] Failed to remove updateStateFile:', e); }
     // Instead of relaunching here, launch a batch script that waits for this process to exit, applies the update, and then relaunches the app
     setTimeout(() => {
-      console.log('[Electron] Closing all windows before update...');
+      console.log('[Update] Closing all windows before update...');
       BrowserWindow.getAllWindows().forEach(win => win.destroy());
-
       const { exec } = require('child_process');
       const updaterScriptPath = path.join(__dirname, 'updater.js');
       const tempScriptPath = path.join(os.tmpdir(), 'update-and-restart.bat');
-      // The batch script waits for this process to exit, then runs the updater, then relaunches the app
       const batchScript = `
 @echo off
 setlocal
@@ -1171,10 +1116,10 @@ endlocal
 `;
       try {
         fs.writeFileSync(tempScriptPath, batchScript);
-        console.log('[Electron] Created update-and-restart script, executing...');
+        console.log('[Update] Created update-and-restart script, executing...');
         exec(`start "" "${tempScriptPath}"`, (error) => {
           if (error) {
-            console.error('Failed to execute update-and-restart script:', error);
+            console.error('[Update] Failed to execute update-and-restart script:', error);
             if (tray && tray.displayBalloon) {
               tray.displayBalloon({
                 title: 'Update Complete',
@@ -1187,7 +1132,7 @@ endlocal
           }, 1000);
         });
       } catch (error) {
-        console.error('Failed to create update-and-restart script:', error);
+        console.error('[Update] Failed to create update-and-restart script:', error);
         if (tray && tray.displayBalloon) {
           tray.displayBalloon({
             title: 'Update Complete',
@@ -1200,11 +1145,10 @@ endlocal
       }
     }, 3000);
     return true;
-    
   } catch (error) {
-    console.error('Failed to apply staged update:', error);
-    // Clean up failed update
-    try { fs.unlinkSync(stagedUpdateFile); } catch (e) {}
+    console.error('[Update] Failed to apply staged update:', error);
+    try { fs.unlinkSync(stagedUpdateFile); } catch (e) { console.log('[Update] Failed to remove stagedUpdateFile after error:', e); }
+    try { fs.unlinkSync(updateStateFile); } catch (e) { console.log('[Update] Failed to remove updateStateFile after error:', e); }
     return false;
   }
 }
