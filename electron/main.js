@@ -319,23 +319,6 @@ async function extractAndInstallUpdate(filePath, winRef, version) {
   });
 }
 
-function copyRecursiveSync(src, dest) {
-  const exists = fs.existsSync(src);
-  const stats = exists && fs.statSync(src);
-  const isDirectory = exists && stats.isDirectory();
-  
-  if (isDirectory) {
-    if (!fs.existsSync(dest)) {
-      fs.mkdirSync(dest);
-    }
-    fs.readdirSync(src).forEach((childItemName) => {
-      copyRecursiveSync(path.join(src, childItemName), path.join(dest, childItemName));
-    });
-  } else {
-    fs.copyFileSync(src, dest);
-  }
-}
-
 let updateSidebarPosition; // Store reference to the listener function
 
 function createSidebarWindow() {
@@ -963,21 +946,51 @@ ipcMain.handle('cancel-update', () => {
   }
 });
 
-// Restart the application
+// Restart the application (modified to work with external updater)
 ipcMain.handle('restart-app', () => {
-  // Ensure all windows are closed and tray is cleaned up
-  BrowserWindow.getAllWindows().forEach(window => {
-    if (!window.isDestroyed()) {
-      window.close();
-    }
-  });
+  console.log('[Electron] Restart requested');
   
-  // Force quit after a short delay to ensure cleanup
-  setTimeout(() => {
-    console.log('[Electron] Executing app.relaunch() now...');
-    app.relaunch(); // Remove --updated flag to allow normal startup with staging
+  // Check if there's a staged update - if so, launch external updater
+  const stagedUpdateFile = path.join(app.getPath('userData'), 'staged-update.json');
+  
+  if (fs.existsSync(stagedUpdateFile)) {
+    console.log('[Electron] Staged update detected, launching external updater...');
+    
+    try {
+      const updaterPath = path.join(__dirname, 'updater.js');
+      const { spawn } = require('child_process');
+      
+      // Launch the external updater
+      spawn('node', [updaterPath], {
+        detached: true,
+        stdio: 'ignore'
+      });
+      
+      console.log('[Electron] External updater launched, exiting app...');
+      
+      // Close all windows and exit
+      BrowserWindow.getAllWindows().forEach(window => {
+        if (!window.isDestroyed()) {
+          window.close();
+        }
+      });
+      
+      setTimeout(() => {
+        app.quit();
+      }, 500);
+      
+    } catch (error) {
+      console.error('[Electron] Failed to launch external updater:', error);
+      // Fall back to normal restart
+      app.relaunch();
+      app.exit(0);
+    }
+  } else {
+    // Normal restart without update
+    console.log('[Electron] Normal restart (no staged update)');
+    app.relaunch();
     app.exit(0);
-  }, 100);
+  }
 });
 
 // Handle update completion state
@@ -1001,7 +1014,7 @@ ipcMain.handle('mark-update-completed', (event, version) => {
   }
 });
 
-// Apply staged update on startup
+// Apply staged update on startup (now just launches external updater if needed)
 async function applyStagedUpdate() {
   const stagedUpdateFile = path.join(app.getPath('userData'), 'staged-update.json');
   
@@ -1009,137 +1022,31 @@ async function applyStagedUpdate() {
     return false; // No staged update
   }
   
+  console.log('[Electron] Staged update detected, launching external updater...');
+  
   try {
-    const stagedUpdateInfo = JSON.parse(fs.readFileSync(stagedUpdateFile, 'utf8'));
-    const extractPath = stagedUpdateInfo.extractPath;
+    // Launch external updater and quit immediately
+    const updaterPath = path.join(__dirname, 'updater.js');
+    const { spawn } = require('child_process');
     
-    if (!fs.existsSync(extractPath)) {
-      fs.unlinkSync(stagedUpdateFile);
-      return false;
-    }
+    // Launch the external updater
+    spawn('node', [updaterPath], {
+      detached: true,
+      stdio: 'ignore'
+    });
     
-    // Apply the update by copying files
-    // In production, we need to get the actual application directory, not the asar path
-    let appPath;
-    if (app.isPackaged) {
-      // In production, get the directory containing the executable
-      appPath = path.dirname(process.execPath);
-    } else {
-      // In development, use the project root
-      appPath = app.getAppPath();
-    }
+    console.log('[Electron] External updater launched, exiting main app...');
     
-    const resourcesSrc = path.join(extractPath, 'resources');
-    const resourcesDest = path.join(appPath, 'resources');
-    const localesSrc = path.join(extractPath, 'locales');
-    const localesDest = path.join(appPath, 'locales');
+    // Exit immediately - the external updater will handle everything
+    setTimeout(() => {
+      process.exit(0);
+    }, 500);
     
-    // Special handling for app.package -> app.asar with better file lock handling
-    const appPackagePath = path.join(resourcesSrc, 'app.package');
-    const appAsarPath = path.join(resourcesDest, 'app.asar');
-    const appAsarBackupPath = path.join(resourcesDest, 'app.asar.backup');
-    
-    if (fs.existsSync(appPackagePath)) {
-      try {
-        // Ensure destination directory exists
-        if (!fs.existsSync(resourcesDest)) {
-          fs.mkdirSync(resourcesDest, { recursive: true });
-        }
-        
-        console.log('[Electron] Replacing app.asar with new version...');
-        
-        // Step 1: Remove any existing backup
-        try {
-          if (fs.existsSync(appAsarBackupPath)) {
-            fs.unlinkSync(appAsarBackupPath);
-          }
-        } catch (e) {
-          console.log('[Electron] Could not remove old backup:', e.message);
-        }
-        
-        // Step 2: Rename current app.asar to backup (this releases the file lock)
-        if (fs.existsSync(appAsarPath)) {
-          try {
-            fs.renameSync(appAsarPath, appAsarBackupPath);
-            console.log('[Electron] Old app.asar renamed to backup');
-          } catch (renameError) {
-            console.error('[Electron] Failed to rename old app.asar:', renameError);
-            // If rename fails, try direct overwrite as fallback
-          }
-        }
-        
-        // Step 3: Copy new app.package as app.asar
-        fs.copyFileSync(appPackagePath, appAsarPath);
-        console.log('[Electron] New app.asar copied successfully');
-        
-        // Step 4: Clean up backup file
-        try {
-          if (fs.existsSync(appAsarBackupPath)) {
-            fs.unlinkSync(appAsarBackupPath);
-            console.log('[Electron] Backup app.asar removed');
-          }
-        } catch (e) {
-          console.log('[Electron] Could not remove backup (will be cleaned up next time):', e.message);
-        }
-        
-      } catch (error) {
-        console.error('Failed to update app.asar:', error);
-        
-        // Attempt to restore backup if copy failed
-        try {
-          if (fs.existsSync(appAsarBackupPath) && !fs.existsSync(appAsarPath)) {
-            fs.renameSync(appAsarBackupPath, appAsarPath);
-            console.log('[Electron] Restored backup app.asar after failed update');
-          }
-        } catch (restoreError) {
-          console.error('[Electron] Failed to restore backup:', restoreError);
-        }
-        
-        throw error;
-      }
-    }
-    
-    // Copy other resources (excluding app.package)
-    if (fs.existsSync(resourcesSrc)) {
-      fs.readdirSync(resourcesSrc).forEach((item) => {
-        if (item !== 'app.package') { // Skip app.package since we handled it above
-          const srcItem = path.join(resourcesSrc, item);
-          const destItem = path.join(resourcesDest, item);
-          copyRecursiveSync(srcItem, destItem);
-        }
-      });
-      console.log('[Electron] Resources updated successfully');
-    }
-    
-    if (fs.existsSync(localesSrc)) {
-      copyRecursiveSync(localesSrc, localesDest);
-      console.log('[Electron] Locales updated successfully');
-    }
-    
-    // Clean up
-    try { fs.rmSync(extractPath, { recursive: true, force: true }); } catch (e) {}
-    fs.unlinkSync(stagedUpdateFile);
-    
-    // Create update state for UI notification - mark as successfully applied
-    const updateStateFile = path.join(app.getPath('userData'), 'update-state.json');
-    const updateState = {
-      applied: true,
-      success: true,
-      version: stagedUpdateInfo.version,
-      timestamp: Date.now()
-    };
-    fs.writeFileSync(updateStateFile, JSON.stringify(updateState));
-    
-    console.log(`[Update] Update to version ${stagedUpdateInfo.version} applied successfully - no second restart needed`);
-    
-    // NO FORCED RESTART - Let the app continue running with success notification
-    
-    return true;
+    return true; // Indicate we're handling an update
     
   } catch (error) {
-    console.error('Failed to apply staged update:', error);
-    // Clean up failed update
-    try { fs.unlinkSync(stagedUpdateFile); } catch (e) {}
+    console.error('[Electron] Failed to launch external updater:', error);
+    // Fall back to old behavior if external updater fails
     return false;
   }
 }
