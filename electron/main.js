@@ -45,44 +45,6 @@ function saveSetting(key, value) {
 
 // Auto-update functionality (CUSTOM SYSTEM)
 
-// Check if we need a second restart after update
-async function checkPostUpdateRestart() {
-  try {
-    const userDataPath = app.getPath('userData');
-    const expectedVersionFile = path.join(userDataPath, 'expected-version.json');
-    
-    if (fs.existsSync(expectedVersionFile)) {
-      const expectedVersionData = JSON.parse(fs.readFileSync(expectedVersionFile, 'utf8'));
-      const currentVersion = require('../package.json').version;
-      
-      console.log(`[Update] Expected version: ${expectedVersionData.version}, Current version: ${currentVersion}`);
-      
-      if (expectedVersionData.version !== currentVersion) {
-        console.log('[Update] Version mismatch detected, triggering second restart...');
-        
-        // Clean up the expected version file
-        fs.unlinkSync(expectedVersionFile);
-        
-        // Trigger immediate restart
-        setTimeout(() => {
-          console.log('[Update] Performing second restart to load correct version...');
-          app.relaunch();
-          app.exit(0);
-        }, 2000);
-        
-        return true; // Indicates we're doing a second restart
-      } else {
-        console.log('[Update] Version verification successful!');
-        // Clean up the expected version file
-        fs.unlinkSync(expectedVersionFile);
-      }
-    }
-  } catch (error) {
-    console.error('[Update] Error during post-update version check:', error);
-  }
-  
-  return false; // No second restart needed
-}
 
 async function downloadFile(url, dest, win) {
   return new Promise((resolve, reject) => {
@@ -664,13 +626,7 @@ app.whenReady().then(async () => {
   if (app.isPackaged) {
     updateJustApplied = await applyStagedUpdate();
     
-    // If no staged update was applied, check if we need a second restart
-    if (!updateJustApplied) {
-      const needsSecondRestart = await checkPostUpdateRestart();
-      if (needsSecondRestart) {
-        return; // Exit early, we're restarting again
-      }
-    }
+
     
     // If update was just applied, save the update state to show success notification
     if (updateJustApplied) {
