@@ -1181,9 +1181,36 @@ async function applyStagedUpdate() {
       writeLog('Closing all windows before update...');
       BrowserWindow.getAllWindows().forEach(win => win.destroy());
       const { exec } = require('child_process');
-      const updaterScriptPath = path.join(__dirname, 'updater.js');
+      
+      // Use the updater.js from the extracted update instead of the packaged one
+      let updaterScriptPath = path.join(extractPath, 'resources', 'app.package', 'electron', 'updater.js');
+      writeLog(`Using updater script from: ${updaterScriptPath}`);
+      
+      // Verify the updater script exists
+      if (!fs.existsSync(updaterScriptPath)) {
+        writeLog('ERROR: updater.js not found in extracted update, falling back to current version');
+        const fallbackUpdaterPath = path.join(__dirname, 'updater.js');
+        if (fs.existsSync(fallbackUpdaterPath)) {
+          writeLog(`Using fallback updater: ${fallbackUpdaterPath}`);
+          // Copy the current updater.js to temp location
+          const tempUpdaterPath = path.join(os.tmpdir(), 'updater.js');
+          fs.copyFileSync(fallbackUpdaterPath, tempUpdaterPath);
+          writeLog(`Copied updater to temp location: ${tempUpdaterPath}`);
+          updaterScriptPath = tempUpdaterPath;
+        } else {
+          writeLog('ERROR: No updater script found anywhere, cleaning up and aborting');
+          try { 
+            if (fs.existsSync(stagedUpdateFile)) fs.unlinkSync(stagedUpdateFile); 
+            writeLog('Cleaned up staged update file due to missing updater script');
+          } catch (e) { 
+            writeLog('Failed to clean up staged update file: ' + e); 
+          }
+          return false;
+        }
+      }
+      
       const tempScriptPath = path.join(os.tmpdir(), 'update-and-restart.bat');
-      const batchScript = `@echo off\r\nsetlocal\r\nset LOGFILE=%TEMP%\\update-log.txt\r\nif not exist "%TEMP%" mkdir "%TEMP%"\r\necho [%date% %time%] Batch script started. >> %LOGFILE%\r\nset EXE_NAME="${path.basename(process.execPath)}"\r\nset EXE_PATH="${process.execPath}"\r\nset UPDATER="${updaterScriptPath}"\r\necho [%date% %time%] Waiting for process to exit... >> %LOGFILE%\r\n:waitloop\r\ntasklist /FI "IMAGENAME eq %EXE_NAME%" | find /I %EXE_NAME% >nul\r\nif not errorlevel 1 (\r\n  timeout /t 1 >nul\r\n  goto waitloop\r\n)\r\necho [%date% %time%] Process exited. Waiting extra 3 seconds for file locks... >> %LOGFILE%\r\ntimeout /t 3 >nul\r\necho [%date% %time%] Running updater.js... >> %LOGFILE%\r\nnode "%UPDATER%" >> %LOGFILE% 2>&1\r\nif errorlevel 1 echo [%date% %time%] ERROR running updater.js >> %LOGFILE%\r\necho [%date% %time%] Relaunching app... >> %LOGFILE%\r\nstart "" %EXE_PATH%\r\nendlocal\r\necho [%date% %time%] Batch script finished. >> %LOGFILE%\r\n`;
+      const batchScript = `@echo off\r\nsetlocal\r\nset LOGFILE=%TEMP%\\update-log.txt\r\nif not exist "%TEMP%" mkdir "%TEMP%"\r\necho [%date% %time%] Batch script started. >> %LOGFILE%\r\nset "EXE_NAME=${path.basename(process.execPath)}"\r\nset "EXE_PATH=${process.execPath}"\r\nset "UPDATER=${updaterScriptPath}"\r\necho [%date% %time%] Waiting for process to exit... >> %LOGFILE%\r\n:waitloop\r\ntasklist /FI "IMAGENAME eq %EXE_NAME%" | find /I "%EXE_NAME%" >nul\r\nif not errorlevel 1 (\r\n  timeout /t 1 >nul\r\n  goto waitloop\r\n)\r\necho [%date% %time%] Process exited. Waiting extra 3 seconds for file locks... >> %LOGFILE%\r\ntimeout /t 3 >nul\r\necho [%date% %time%] Running updater.js... >> %LOGFILE%\r\nnode "%UPDATER%" >> %LOGFILE% 2>&1\r\nif errorlevel 1 echo [%date% %time%] ERROR running updater.js >> %LOGFILE%\r\necho [%date% %time%] Relaunching app... >> %LOGFILE%\r\nstart "" "%EXE_PATH%"\r\nendlocal\r\necho [%date% %time%] Batch script finished. >> %LOGFILE%\r\n`;
       try {
         writeLog(`Writing batch script to: ${tempScriptPath}`);
         fs.writeFileSync(tempScriptPath, batchScript);
@@ -1191,6 +1218,13 @@ async function applyStagedUpdate() {
         exec(`start "" "${tempScriptPath}"`, (error) => {
           if (error) {
             writeLog('Failed to execute update-and-restart script: ' + error);
+            // Clean up staged update to prevent infinite loop
+            try { 
+              if (fs.existsSync(stagedUpdateFile)) fs.unlinkSync(stagedUpdateFile); 
+              writeLog('Cleaned up staged update file due to batch script failure');
+            } catch (e) { 
+              writeLog('Failed to clean up staged update file: ' + e); 
+            }
             if (tray && tray.displayBalloon) {
               tray.displayBalloon({
                 title: 'Update Complete',
@@ -1207,6 +1241,13 @@ async function applyStagedUpdate() {
         });
       } catch (error) {
         writeLog('Failed to create update-and-restart script: ' + error);
+        // Clean up staged update to prevent infinite loop
+        try { 
+          if (fs.existsSync(stagedUpdateFile)) fs.unlinkSync(stagedUpdateFile); 
+          writeLog('Cleaned up staged update file due to script creation failure');
+        } catch (e) { 
+          writeLog('Failed to clean up staged update file: ' + e); 
+        }
         if (tray && tray.displayBalloon) {
           tray.displayBalloon({
             title: 'Update Complete',
