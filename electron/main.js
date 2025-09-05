@@ -214,13 +214,11 @@ async function extractAndInstallUpdate(filePath, winRef, version) {
       });
     } else if (path.extname(filePath) === '.zip') {
       writeLog('Detected .zip update file');
-      const extract = require('extract-zip');
       if (winRef && winRef.webContents) {
         winRef.webContents.send('update-install-progress', { phase: 'installing', percent: 10, message: 'Extracting update...' });
       }
       
       // Set up timeout
-      writeLog(`Setting up extraction timeout: ${UPDATE_INSTALL_TIMEOUT / 1000} seconds`);
       let extractionTimeout = setTimeout(() => {
         writeLog(`Extraction timed out after ${UPDATE_INSTALL_TIMEOUT / 1000} seconds`);
         if (winRef && winRef.webContents) {
@@ -231,19 +229,18 @@ async function extractAndInstallUpdate(filePath, winRef, version) {
 
       (async () => {
         try {
-          writeLog('Starting zip extraction process');
+          writeLog('Starting zip extraction');
           if (winRef && winRef.webContents) {
             winRef.webContents.send('update-install-progress', { phase: 'installing', percent: 15, message: 'Extracting files...' });
           }
           
           // Use AdmZip for better app.asar handling
-          writeLog('Using AdmZip for extraction');
           const AdmZip = require('adm-zip');
           const zip = new AdmZip(filePath);
           
           // Manual extraction to handle app.asar file properly
           const entries = zip.getEntries();
-          writeLog(`Found ${entries.length} entries in zip file`);
+          writeLog(`Extracting ${entries.length} files`);
           let extractedCount = 0;
           
           for (const entry of entries) {
@@ -291,7 +288,7 @@ async function extractAndInstallUpdate(filePath, winRef, version) {
           }
           
           clearTimeout(extractionTimeout);
-          writeLog('Extraction completed, timeout cleared');
+          writeLog('Extraction completed');
           if (winRef && winRef.webContents) {
             winRef.webContents.send('update-install-progress', { phase: 'installing', percent: 40, message: 'Extraction completed' });
           }
@@ -1346,18 +1343,15 @@ ipcMain.handle('check-update-state', () => {
   const userDataPath = app.getPath('userData');
   const updateStateFile = path.join(userDataPath, 'update-state.json');
   
-  writeLog(`check-update-state called, looking for file: ${updateStateFile}`);
-  
   try {
     if (fs.existsSync(updateStateFile)) {
       const updateState = JSON.parse(fs.readFileSync(updateStateFile, 'utf8'));
-      writeLog(`Found update state file with content: ${JSON.stringify(updateState, null, 2)}`);
+      writeLog(`Found update state: ${JSON.stringify(updateState, null, 2)}`);
       // Clear the state file after reading
       fs.unlinkSync(updateStateFile);
-      writeLog('Update state file deleted after reading');
       return updateState;
     } else {
-      writeLog('No update state file found');
+      // No log needed for normal case when no update state exists
     }
   } catch (error) {
     writeLog('Failed to read update state: ' + error);
