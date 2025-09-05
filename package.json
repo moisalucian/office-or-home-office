@@ -1,6 +1,6 @@
 {
   "name": "office-or-homeoffice",
-  "version": "1.0.175",
+  "version": "1.0.187",
   "description": "Office or Remote status tracking app",
   "main": "electron/main.js",
   "repository": {
@@ -8,9 +8,9 @@
     "url": "https://github.com/moisalucian/office-or-home-office.git"
   },
   "scripts": {
-  "start": "cross-env NODE_ENV=development concurrently -k \"npm run dev --prefix react-ui\" \"npm run electron-dev\"",
-  "electron-dev": "electron .",
-  "version": "1.0.175",
+    "start": "cross-env NODE_ENV=development concurrently -k \"npm run dev --prefix react-ui\" \"npm run electron-dev\"",
+    "electron-dev": "electron .",
+    "version": "1.0.175",
     "build-react": "npm run build --prefix react-ui",
     "copy-react": "xcopy \"react-ui\\dist\" \"electron\\dist\" /E /I /Y",
     "build": "npm run build-react && npm run copy-react && electron-builder"

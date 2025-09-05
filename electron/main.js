@@ -163,22 +163,49 @@ async function downloadFile(url, dest, win) {
 }
 
 async function extractAndInstallUpdate(filePath, winRef, version) {
+  const logFile = path.join(os.tmpdir(), 'update-log.txt');
+  
+  function writeLog(msg) {
+    const line = `[${new Date().toISOString()}] [ExtractInstall] ${msg}`;
+    try {
+      fs.appendFileSync(logFile, line + '\n');
+    } catch (e) {
+      console.error('Failed to write to update-log.txt:', e);
+    }
+    console.log(line);
+  }
+
+  writeLog(`Starting extractAndInstallUpdate with filePath: ${filePath}, version: ${version}`);
+  
   return new Promise((resolve, reject) => {
     const extractPath = path.join(os.tmpdir(), 'office-home-office-update');
+    writeLog(`Extract path: ${extractPath}`);
+    
     // Clean up previous extraction
-    try { if (fs.existsSync(extractPath)) fs.rmSync(extractPath, { recursive: true, force: true }); } catch (e) {}
+    try { 
+      if (fs.existsSync(extractPath)) {
+        writeLog('Cleaning up previous extraction directory');
+        fs.rmSync(extractPath, { recursive: true, force: true }); 
+      }
+    } catch (e) {
+      writeLog('Error cleaning up extraction directory: ' + e);
+    }
 
     if (path.extname(filePath) === '.exe') {
+      writeLog('Detected .exe installer file');
       if (winRef && winRef.webContents) {
         winRef.webContents.send('update-install-progress', { phase: 'installing', percent: 10, message: 'Running installer...' });
       }
+      writeLog(`Executing installer: "${filePath}" /S`);
       exec(`"${filePath}" /S`, (error) => {
         if (error) {
+          writeLog('Installer failed: ' + error.message);
           if (winRef && winRef.webContents) {
             winRef.webContents.send('update-install-progress', { phase: 'error', percent: 100, message: `Installer failed: ${error.message}` });
           }
           reject(error);
         } else {
+          writeLog('Installer completed successfully');
           if (winRef && winRef.webContents) {
             winRef.webContents.send('update-install-progress', { phase: 'installing', percent: 100, message: 'Install complete.' });
           }
@@ -186,14 +213,16 @@ async function extractAndInstallUpdate(filePath, winRef, version) {
         }
       });
     } else if (path.extname(filePath) === '.zip') {
+      writeLog('Detected .zip update file');
       const extract = require('extract-zip');
       if (winRef && winRef.webContents) {
         winRef.webContents.send('update-install-progress', { phase: 'installing', percent: 10, message: 'Extracting update...' });
       }
       
       // Set up timeout
+      writeLog(`Setting up extraction timeout: ${UPDATE_INSTALL_TIMEOUT / 1000} seconds`);
       let extractionTimeout = setTimeout(() => {
-        console.error(`[Electron] Extraction timed out after ${UPDATE_INSTALL_TIMEOUT / 1000} seconds`);
+        writeLog(`Extraction timed out after ${UPDATE_INSTALL_TIMEOUT / 1000} seconds`);
         if (winRef && winRef.webContents) {
           winRef.webContents.send('update-install-progress', { phase: 'error', percent: 20, message: `Extraction timed out after ${UPDATE_INSTALL_TIMEOUT / 1000} seconds.` });
         }
@@ -202,16 +231,19 @@ async function extractAndInstallUpdate(filePath, winRef, version) {
 
       (async () => {
         try {
+          writeLog('Starting zip extraction process');
           if (winRef && winRef.webContents) {
             winRef.webContents.send('update-install-progress', { phase: 'installing', percent: 15, message: 'Extracting files...' });
           }
           
           // Use AdmZip for better app.asar handling
+          writeLog('Using AdmZip for extraction');
           const AdmZip = require('adm-zip');
           const zip = new AdmZip(filePath);
           
           // Manual extraction to handle app.asar file properly
           const entries = zip.getEntries();
+          writeLog(`Found ${entries.length} entries in zip file`);
           let extractedCount = 0;
           
           for (const entry of entries) {
@@ -259,6 +291,7 @@ async function extractAndInstallUpdate(filePath, winRef, version) {
           }
           
           clearTimeout(extractionTimeout);
+          writeLog('Extraction completed, timeout cleared');
           if (winRef && winRef.webContents) {
             winRef.webContents.send('update-install-progress', { phase: 'installing', percent: 40, message: 'Extraction completed' });
           }
@@ -266,21 +299,23 @@ async function extractAndInstallUpdate(filePath, winRef, version) {
           const appAsarPath = path.join(extractPath, 'resources', 'app.asar');
           const appPackagePath = path.join(extractPath, 'resources', 'app.package');
           
+          writeLog(`Checking for app.package at: ${appPackagePath}`);
           if (!fs.existsSync(appPackagePath)) {
-            console.error('app.package missing after extraction:', appPackagePath);
+            writeLog('ERROR: app.package missing after extraction');
             if (winRef && winRef.webContents) {
               winRef.webContents.send('update-install-progress', { phase: 'error', percent: 100, message: `app.package missing after extraction: ${appPackagePath}` });
             }
             reject(new Error(`app.package missing after extraction: ${appPackagePath}`));
             return;
           } else {
-            console.log('app.package found after extraction:', appPackagePath);
+            writeLog('app.package found after extraction successfully');
             // For staging, we'll leave it as app.package and rename during startup
-            console.log('Keeping app.package filename for staged update');
+            writeLog('Keeping app.package filename for staged update');
           }
 
           // Instead of copying immediately (which fails during runtime),
           // stage the update for next restart
+          writeLog('Staging update for next restart');
           if (winRef && winRef.webContents) {
             winRef.webContents.send('update-install-progress', { 
               phase: 'restart_required', 
@@ -298,13 +333,15 @@ async function extractAndInstallUpdate(filePath, winRef, version) {
           
           // Save staged update info to a file
           const stagedUpdateFile = path.join(app.getPath('userData'), 'staged-update.json');
+          writeLog(`Saving staged update info to: ${stagedUpdateFile}`);
           fs.writeFileSync(stagedUpdateFile, JSON.stringify(stagedUpdateInfo, null, 2));
+          writeLog('Staged update info saved successfully');
           
           resolve('Update staged successfully');
           return;
         } catch (err) {
           clearTimeout(extractionTimeout);
-          console.error('[Electron] extract-zip error:', err);
+          writeLog('Extraction failed: ' + err.message);
           if (winRef && winRef.webContents) {
             winRef.webContents.send('update-install-progress', { phase: 'error', percent: 20, message: `Extraction failed: ${err.message}` });
           }
@@ -312,6 +349,7 @@ async function extractAndInstallUpdate(filePath, winRef, version) {
         }
       })();
     } else {
+      writeLog('Unsupported file format: ' + path.extname(filePath));
       if (winRef && winRef.webContents) {
         winRef.webContents.send('update-install-progress', { phase: 'error', percent: 100, message: 'Unsupported file format' });
       }
@@ -621,15 +659,31 @@ function createTray() {
 }
 
 app.whenReady().then(async () => {
+  const logFile = path.join(os.tmpdir(), 'update-log.txt');
+  
+  function writeLog(msg) {
+    const line = `[${new Date().toISOString()}] [MainStartup] ${msg}`;
+    try {
+      fs.appendFileSync(logFile, line + '\n');
+    } catch (e) {
+      console.error('Failed to write to update-log.txt:', e);
+    }
+    console.log(line);
+  }
+
+  writeLog('App startup initiated');
+  
   // Only apply staged updates in packaged builds (production), not in development
   let updateJustApplied = false;
   if (app.isPackaged) {
+    writeLog('App is packaged, checking for staged updates...');
     updateJustApplied = await applyStagedUpdate();
-    
+    writeLog(`Staged update applied: ${updateJustApplied}`);
 
     
     // If update was just applied, save the update state to show success notification
     if (updateJustApplied) {
+      writeLog('Update was applied, saving update state...');
       const updateState = {
         success: true,
         timestamp: Date.now(),
@@ -639,10 +693,13 @@ app.whenReady().then(async () => {
       const updateStateFile = path.join(app.getPath('userData'), 'update-state.json');
       try {
         fs.writeFileSync(updateStateFile, JSON.stringify(updateState, null, 2));
+        writeLog('Update state saved successfully');
       } catch (error) {
-        console.error('Failed to save update state:', error);
+        writeLog('Failed to save update state: ' + error);
       }
     }
+  } else {
+    writeLog('App is in development mode, skipping staged update check');
   }
   
   // Get launch settings from storage to determine how to open the app
@@ -924,30 +981,60 @@ ipcMain.handle('get-app-version', () => {
 
 // Download and install update
 ipcMain.handle('download-and-install-update', async (_, downloadUrl) => {
+  const logFile = path.join(os.tmpdir(), 'update-log.txt');
+  
+  function writeLog(msg) {
+    const line = `[${new Date().toISOString()}] [Download] ${msg}`;
+    try {
+      fs.appendFileSync(logFile, line + '\n');
+    } catch (e) {
+      console.error('Failed to write to update-log.txt:', e);
+    }
+    console.log(line);
+  }
+
   try {
+    writeLog(`Starting download from: ${downloadUrl}`);
     const fileName = path.basename(downloadUrl);
     const tempPath = path.join(os.tmpdir(), fileName);
+    writeLog(`Download destination: ${tempPath}`);
+    
     // Download the update file and send progress to renderer
     await downloadFile(downloadUrl, tempPath, win);
+    writeLog('Download completed successfully');
+    
     // Return success without showing dialog - let the UI handle the restart prompt
     return { success: true, filePath: tempPath };
   } catch (error) {
-    console.error('Update download failed:', error);
+    writeLog('Update download failed: ' + error);
     throw error;
   }
 });
 
 // Extract and install update (called from renderer after download)
 ipcMain.handle('extract-and-install-update', async (_, filePath, version) => {
-  console.log('[Electron] extract-and-install-update called with filePath:', filePath, 'version:', version);
+  const logFile = path.join(os.tmpdir(), 'update-log.txt');
+  
+  function writeLog(msg) {
+    const line = `[${new Date().toISOString()}] [Extract] ${msg}`;
+    try {
+      fs.appendFileSync(logFile, line + '\n');
+    } catch (e) {
+      console.error('Failed to write to update-log.txt:', e);
+    }
+    console.log(line);
+  }
+
+  writeLog(`extract-and-install-update called with filePath: ${filePath}, version: ${version}`);
   try {
     await extractAndInstallUpdate(filePath, win, version);
+    writeLog('Extract and install completed successfully');
     return { success: true };
   } catch (error) {
     if (win && win.webContents) {
       win.webContents.send('update-install-progress', { phase: 'error', percent: 100, message: error.message });
     }
-    console.error('Update install failed:', error);
+    writeLog('Update install failed: ' + error);
     throw error;
   }
 });
@@ -968,7 +1055,22 @@ ipcMain.handle('cancel-update', () => {
 
 // Restart the application
 ipcMain.handle('restart-app', () => {
+  const logFile = path.join(os.tmpdir(), 'update-log.txt');
+  
+  function writeLog(msg) {
+    const line = `[${new Date().toISOString()}] [Restart] ${msg}`;
+    try {
+      fs.appendFileSync(logFile, line + '\n');
+    } catch (e) {
+      console.error('Failed to write to update-log.txt:', e);
+    }
+    console.log(line);
+  }
+
+  writeLog('restart-app called');
+  
   // Ensure all windows are closed and tray is cleaned up
+  writeLog('Closing all windows...');
   BrowserWindow.getAllWindows().forEach(window => {
     if (!window.isDestroyed()) {
       window.close();
@@ -977,19 +1079,36 @@ ipcMain.handle('restart-app', () => {
   
   // Force quit after a short delay to ensure cleanup
   setTimeout(() => {
-    console.log('[Electron] Executing app.relaunch() now...');
+    writeLog('Executing app.relaunch() now...');
     app.relaunch(); // Remove --updated flag to allow normal startup with staging
+    writeLog('app.exit(0) called');
     app.exit(0);
   }, 100);
 });
 
 // Handle update completion state
 ipcMain.handle('mark-update-completed', (event, version) => {
+  const logFile = path.join(os.tmpdir(), 'update-log.txt');
+  
+  function writeLog(msg) {
+    const line = `[${new Date().toISOString()}] [MarkCompleted] ${msg}`;
+    try {
+      fs.appendFileSync(logFile, line + '\n');
+    } catch (e) {
+      console.error('Failed to write to update-log.txt:', e);
+    }
+    console.log(line);
+  }
+
+  writeLog(`mark-update-completed called with version: ${version}`);
+  
   // Store update completion in app data
   const fs = require('fs');
   const path = require('path');
   const userDataPath = app.getPath('userData');
   const updateStateFile = path.join(userDataPath, 'update-state.json');
+  
+  writeLog(`Writing update state to: ${updateStateFile}`);
   
   const updateState = {
     completed: true,
@@ -999,8 +1118,9 @@ ipcMain.handle('mark-update-completed', (event, version) => {
   
   try {
     fs.writeFileSync(updateStateFile, JSON.stringify(updateState, null, 2));
+    writeLog('Update state saved successfully');
   } catch (error) {
-    console.error('Failed to save update state:', error);
+    writeLog('Failed to save update state: ' + error);
   }
 });
 
@@ -1008,15 +1128,30 @@ ipcMain.handle('mark-update-completed', (event, version) => {
 async function applyStagedUpdate() {
   const stagedUpdateFile = path.join(app.getPath('userData'), 'staged-update.json');
   const updateStateFile = path.join(app.getPath('userData'), 'update-state.json');
+  const logFile = path.join(os.tmpdir(), 'update-log.txt');
+  
+  function writeLog(msg) {
+    const line = `[${new Date().toISOString()}] [MainProcess] ${msg}`;
+    try {
+      fs.appendFileSync(logFile, line + '\n');
+    } catch (e) {
+      console.error('Failed to write to update-log.txt:', e);
+    }
+    console.log(line);
+  }
+
   try {
+    writeLog('applyStagedUpdate called');
     if (!fs.existsSync(stagedUpdateFile)) {
-      console.log('[Update] No staged update file found.');
+      writeLog('No staged update file found.');
       return false;
     }
     const stagedUpdateInfo = JSON.parse(fs.readFileSync(stagedUpdateFile, 'utf8'));
     const extractPath = stagedUpdateInfo.extractPath;
+    writeLog(`Found staged update for version ${stagedUpdateInfo.version}, extractPath: ${extractPath}`);
+    
     if (!fs.existsSync(extractPath)) {
-      console.log('[Update] Extract path missing, cleaning up staged update file.');
+      writeLog('Extract path missing, cleaning up staged update file.');
       fs.unlinkSync(stagedUpdateFile);
       return false;
     }
@@ -1027,6 +1162,8 @@ async function applyStagedUpdate() {
     } else {
       appPath = app.getAppPath();
     }
+    writeLog(`App path determined: ${appPath}`);
+    
     const resourcesSrc = path.join(extractPath, 'resources');
     const resourcesDest = path.join(appPath, 'resources');
     const localesSrc = path.join(extractPath, 'locales');
@@ -1034,38 +1171,42 @@ async function applyStagedUpdate() {
     const appPackagePath = path.join(resourcesSrc, 'app.package');
     const appAsarPath = path.join(resourcesDest, 'app.asar');
     const appAsarBackupPath = path.join(resourcesDest, 'app.asar.backup');
+    
+    writeLog(`Resources src: ${resourcesSrc}, dest: ${resourcesDest}`);
+    writeLog(`App package path: ${appPackagePath}, exists: ${fs.existsSync(appPackagePath)}`);
+    
     if (fs.existsSync(appPackagePath)) {
       try {
         if (!fs.existsSync(resourcesDest)) {
           fs.mkdirSync(resourcesDest, { recursive: true });
         }
-        console.log('[Update] Replacing app.asar with new version...');
+        writeLog('Replacing app.asar with new version...');
         if (fs.existsSync(appAsarBackupPath)) {
           fs.unlinkSync(appAsarBackupPath);
         }
         if (fs.existsSync(appAsarPath)) {
           try {
             fs.renameSync(appAsarPath, appAsarBackupPath);
-            console.log('[Update] Old app.asar renamed to backup');
+            writeLog('Old app.asar renamed to backup');
           } catch (renameError) {
-            console.error('[Update] Failed to rename old app.asar:', renameError);
+            writeLog('Failed to rename old app.asar: ' + renameError);
           }
         }
         fs.copyFileSync(appPackagePath, appAsarPath);
-        console.log('[Update] New app.asar copied successfully');
+        writeLog('New app.asar copied successfully');
         if (fs.existsSync(appAsarBackupPath)) {
           fs.unlinkSync(appAsarBackupPath);
-          console.log('[Update] Backup app.asar removed');
+          writeLog('Backup app.asar removed');
         }
       } catch (error) {
-        console.error('[Update] Failed to update app.asar:', error);
+        writeLog('Failed to update app.asar: ' + error);
         try {
           if (fs.existsSync(appAsarBackupPath) && !fs.existsSync(appAsarPath)) {
             fs.renameSync(appAsarBackupPath, appAsarPath);
-            console.log('[Update] Restored backup app.asar after failed update');
+            writeLog('Restored backup app.asar after failed update');
           }
         } catch (restoreError) {
-          console.error('[Update] Failed to restore backup:', restoreError);
+          writeLog('Failed to restore backup: ' + restoreError);
         }
         throw error;
       }
@@ -1078,43 +1219,49 @@ async function applyStagedUpdate() {
           copyRecursiveSync(srcItem, destItem);
         }
       });
-      console.log('[Update] Resources updated successfully');
+      writeLog('Resources updated successfully');
     }
     if (fs.existsSync(localesSrc)) {
       copyRecursiveSync(localesSrc, localesDest);
-      console.log('[Update] Locales updated successfully');
+      writeLog('Locales updated successfully');
     }
     // Clean up
-    try { fs.rmSync(extractPath, { recursive: true, force: true }); } catch (e) { console.log('[Update] Failed to remove extractPath:', e); }
-    try { fs.unlinkSync(stagedUpdateFile); } catch (e) { console.log('[Update] Failed to remove stagedUpdateFile:', e); }
-    try { fs.unlinkSync(updateStateFile); } catch (e) { console.log('[Update] Failed to remove updateStateFile:', e); }
+    try { fs.rmSync(extractPath, { recursive: true, force: true }); } catch (e) { writeLog('Failed to remove extractPath: ' + e); }
+    try { fs.unlinkSync(stagedUpdateFile); } catch (e) { writeLog('Failed to remove stagedUpdateFile: ' + e); }
+    try { fs.unlinkSync(updateStateFile); } catch (e) { writeLog('Failed to remove updateStateFile: ' + e); }
+    
+    writeLog('Starting batch script creation and execution...');
     // Instead of relaunching here, launch a batch script that waits for this process to exit, applies the update, and then relaunches the app
     setTimeout(() => {
-      console.log('[Update] Closing all windows before update...');
+      writeLog('Closing all windows before update...');
       BrowserWindow.getAllWindows().forEach(win => win.destroy());
       const { exec } = require('child_process');
       const updaterScriptPath = path.join(__dirname, 'updater.js');
       const tempScriptPath = path.join(os.tmpdir(), 'update-and-restart.bat');
-  const batchScript = `@echo off\r\nsetlocal\r\nset LOGFILE=%TEMP%\\update-log.txt\r\nif not exist "%TEMP%" mkdir "%TEMP%"\r\necho [%date% %time%] Batch script started. >> %LOGFILE%\r\nset EXE_NAME="${path.basename(process.execPath)}"\r\nset EXE_PATH="${process.execPath}"\r\nset UPDATER="${updaterScriptPath}"\r\necho [%date% %time%] Waiting for process to exit... >> %LOGFILE%\r\n:waitloop\r\ntasklist /FI "IMAGENAME eq %EXE_NAME%" | find /I %EXE_NAME% >nul\r\nif not errorlevel 1 (\r\n  timeout /t 1 >nul\r\n  goto waitloop\r\n)\r\necho [%date% %time%] Process exited. Waiting extra 3 seconds for file locks... >> %LOGFILE%\r\ntimeout /t 3 >nul\r\necho [%date% %time%] Running updater.js... >> %LOGFILE%\r\nnode "%UPDATER%" >> %LOGFILE% 2>&1\r\nif errorlevel 1 echo [%date% %time%] ERROR running updater.js >> %LOGFILE%\r\necho [%date% %time%] Relaunching app... >> %LOGFILE%\r\nstart "" %EXE_PATH%\r\nendlocal\r\necho [%date% %time%] Batch script finished. >> %LOGFILE%\r\n`;
+      const batchScript = `@echo off\r\nsetlocal\r\nset LOGFILE=%TEMP%\\update-log.txt\r\nif not exist "%TEMP%" mkdir "%TEMP%"\r\necho [%date% %time%] Batch script started. >> %LOGFILE%\r\nset EXE_NAME="${path.basename(process.execPath)}"\r\nset EXE_PATH="${process.execPath}"\r\nset UPDATER="${updaterScriptPath}"\r\necho [%date% %time%] Waiting for process to exit... >> %LOGFILE%\r\n:waitloop\r\ntasklist /FI "IMAGENAME eq %EXE_NAME%" | find /I %EXE_NAME% >nul\r\nif not errorlevel 1 (\r\n  timeout /t 1 >nul\r\n  goto waitloop\r\n)\r\necho [%date% %time%] Process exited. Waiting extra 3 seconds for file locks... >> %LOGFILE%\r\ntimeout /t 3 >nul\r\necho [%date% %time%] Running updater.js... >> %LOGFILE%\r\nnode "%UPDATER%" >> %LOGFILE% 2>&1\r\nif errorlevel 1 echo [%date% %time%] ERROR running updater.js >> %LOGFILE%\r\necho [%date% %time%] Relaunching app... >> %LOGFILE%\r\nstart "" %EXE_PATH%\r\nendlocal\r\necho [%date% %time%] Batch script finished. >> %LOGFILE%\r\n`;
       try {
+        writeLog(`Writing batch script to: ${tempScriptPath}`);
         fs.writeFileSync(tempScriptPath, batchScript);
-        console.log('[Update] Created update-and-restart script, executing...');
+        writeLog('Created update-and-restart script, executing...');
         exec(`start "" "${tempScriptPath}"`, (error) => {
           if (error) {
-            console.error('[Update] Failed to execute update-and-restart script:', error);
+            writeLog('Failed to execute update-and-restart script: ' + error);
             if (tray && tray.displayBalloon) {
               tray.displayBalloon({
                 title: 'Update Complete',
                 content: 'Please restart the app manually to load the new version.'
               });
             }
+          } else {
+            writeLog('Batch script launched successfully');
           }
           setTimeout(() => {
+            writeLog('Main process exiting now...');
             process.exit(0);
           }, 1000);
         });
       } catch (error) {
-        console.error('[Update] Failed to create update-and-restart script:', error);
+        writeLog('Failed to create update-and-restart script: ' + error);
         if (tray && tray.displayBalloon) {
           tray.displayBalloon({
             title: 'Update Complete',
@@ -1122,41 +1269,54 @@ async function applyStagedUpdate() {
           });
         }
         setTimeout(() => {
+          writeLog('Main process exiting after error...');
           process.exit(0);
         }, 2000);
       }
     }, 3000);
     return true;
   } catch (error) {
-    console.error('[Update] Failed to apply staged update:', error);
-    try { fs.unlinkSync(stagedUpdateFile); } catch (e) { console.log('[Update] Failed to remove stagedUpdateFile after error:', e); }
-    try { fs.unlinkSync(updateStateFile); } catch (e) { console.log('[Update] Failed to remove updateStateFile after error:', e); }
+    writeLog('Failed to apply staged update: ' + error);
+    try { fs.unlinkSync(stagedUpdateFile); } catch (e) { writeLog('Failed to remove stagedUpdateFile after error: ' + e); }
+    try { fs.unlinkSync(updateStateFile); } catch (e) { writeLog('Failed to remove updateStateFile after error: ' + e); }
     return false;
   }
 }
 
 // Check if app was restarted after update
 ipcMain.handle('check-update-state', () => {
+  const logFile = path.join(os.tmpdir(), 'update-log.txt');
+  
+  function writeLog(msg) {
+    const line = `[${new Date().toISOString()}] [CheckState] ${msg}`;
+    try {
+      fs.appendFileSync(logFile, line + '\n');
+    } catch (e) {
+      console.error('Failed to write to update-log.txt:', e);
+    }
+    console.log(line);
+  }
+
   const fs = require('fs');
   const path = require('path');
   const userDataPath = app.getPath('userData');
   const updateStateFile = path.join(userDataPath, 'update-state.json');
   
-  console.log('[Electron] check-update-state called, looking for file:', updateStateFile);
+  writeLog(`check-update-state called, looking for file: ${updateStateFile}`);
   
   try {
     if (fs.existsSync(updateStateFile)) {
       const updateState = JSON.parse(fs.readFileSync(updateStateFile, 'utf8'));
-      console.log('[Electron] Found update state file with content:', JSON.stringify(updateState, null, 2));
+      writeLog(`Found update state file with content: ${JSON.stringify(updateState, null, 2)}`);
       // Clear the state file after reading
       fs.unlinkSync(updateStateFile);
-      console.log('[Electron] Update state file deleted after reading');
+      writeLog('Update state file deleted after reading');
       return updateState;
     } else {
-      console.log('[Electron] No update state file found');
+      writeLog('No update state file found');
     }
   } catch (error) {
-    console.error('Failed to read update state:', error);
+    writeLog('Failed to read update state: ' + error);
   }
   
   return null;
