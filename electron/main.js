@@ -1069,19 +1069,40 @@ ipcMain.handle('restart-app', () => {
 
   writeLog('restart-app called');
   
-  // Ensure all windows are closed and tray is cleaned up
-  writeLog('Closing all windows...');
-  BrowserWindow.getAllWindows().forEach(window => {
-    if (!window.isDestroyed()) {
-      window.close();
-    }
-  });
-  
-  // Force quit after a short delay to ensure cleanup
-  setTimeout(() => {
-    writeLog('Executing direct app.exit(0) - no relaunch needed as external updater will handle restart');
-    app.exit(0);
-  }, 100);
+  // Check if there's a staged update - if so, trigger the external updater immediately
+  const stagedUpdateFile = path.join(app.getPath('userData'), 'staged-update.json');
+  if (fs.existsSync(stagedUpdateFile)) {
+    writeLog('Staged update detected - triggering external updater system immediately');
+    
+    // Ensure all windows are closed
+    writeLog('Closing all windows...');
+    BrowserWindow.getAllWindows().forEach(window => {
+      if (!window.isDestroyed()) {
+        window.close();
+      }
+    });
+    
+    // Launch external updater immediately instead of waiting for next app startup
+    setTimeout(() => {
+      applyStagedUpdate().then(() => {
+        writeLog('External updater system initiated');
+      }).catch((error) => {
+        writeLog('Failed to initiate external updater: ' + error);
+        // Fallback: just restart normally
+        app.relaunch();
+        app.exit(0);
+      });
+    }, 100);
+  } else {
+    writeLog('No staged update - performing normal restart');
+    // Normal restart without updates
+    setTimeout(() => {
+      writeLog('Executing normal app.relaunch()');
+      app.relaunch();
+      writeLog('app.exit(0) called');
+      app.exit(0);
+    }, 100);
+  }
 });
 
 // Handle update completion state
