@@ -1,6 +1,6 @@
 {
   "name": "office-or-homeoffice",
-  "version": "1.0.206",
+  "version": "1.0.210",
   "description": "Office or Remote status tracking app",
   "main": "electron/main.js",
   "repository": {
@@ -13,6 +13,8 @@
     "version": "1.0.175",
     "build-react": "npm run build --prefix react-ui",
     "copy-react": "xcopy \"react-ui\\dist\" \"electron\\dist\" /E /I /Y",
+    "clean-dist": "powershell -Command \"if (Test-Path 'electron\\dist\\assets') { Get-ChildItem 'electron\\dist\\assets\\index-*.js' -ErrorAction SilentlyContinue | Remove-Item -Force; Get-ChildItem 'electron\\dist\\assets\\index-*.css' -ErrorAction SilentlyContinue | Remove-Item -Force }\"",
+    "prebuild": "npm run clean-dist",
     "build": "npm run build-react && npm run copy-react && electron-builder"
   },
   "keywords": [],
@@ -41,17 +43,21 @@
     "productName": "Office or Home Office",
     "files": [
       "electron/**",
+      "!electron/dist/assets/index-*.js",
+      "!electron/dist/assets/index-*.css",
       "package.json"
     ],
     "extraResources": [
       {
         "from": "electron/sounds",
-        "to": "sounds"
+        "to": "sounds",
+        "filter": ["*.wav"]
       }
     ],
     "directories": {
       "buildResources": "build"
     },
+    "compression": "maximum",
     "win": {
       "target": "portable",
       "forceCodeSigning": false,

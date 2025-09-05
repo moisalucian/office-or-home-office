@@ -265,8 +265,55 @@ async function main() {
   log('[Updater] Starting update process...');
   // The batch script now waits for the main process to exit, so we just apply the update
   await applyStagedUpdate();
+  
+  // Clean up temporary files older than 24 hours
+  await cleanupTempFiles();
+  
   log('[Updater] External updater completed');
   process.exit(0);
+}
+
+async function cleanupTempFiles() {
+  try {
+    log('[Updater] Starting temp file cleanup...');
+    const tempDir = require('os').tmpdir();
+    const files = require('fs').readdirSync(tempDir);
+    
+    const now = Date.now();
+    const oneDayAgo = now - (24 * 60 * 60 * 1000); // 24 hours ago
+    
+    let cleanedCount = 0;
+    
+    for (const file of files) {
+      // Only clean up our specific files
+      if (file.includes('office-home-office-update') || 
+          file.includes('update-and-restart.bat') ||
+          file.includes('updater.js') ||
+          (file.includes('Office-or-Home-Office-v') && file.endsWith('.zip'))) {
+        
+        try {
+          const filePath = require('path').join(tempDir, file);
+          const stats = require('fs').statSync(filePath);
+          
+          if (stats.mtime.getTime() < oneDayAgo) {
+            if (stats.isDirectory()) {
+              require('fs').rmSync(filePath, { recursive: true, force: true });
+            } else {
+              require('fs').unlinkSync(filePath);
+            }
+            cleanedCount++;
+            log(`[Updater] Cleaned up old temp file: ${file}`);
+          }
+        } catch (e) {
+          // Ignore cleanup errors for individual files
+        }
+      }
+    }
+    
+    log(`[Updater] Cleanup complete. Removed ${cleanedCount} old temp files.`);
+  } catch (error) {
+    log('[Updater] Temp cleanup failed (non-critical): ' + error.message);
+  }
 }
 
 // Run the updater
