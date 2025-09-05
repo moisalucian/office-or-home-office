@@ -13,14 +13,14 @@ const path = require('path');
 const { spawn } = require('child_process');
 const os = require('os');
 
-// Logging to %TEMP%\update-log.txt
-const logFile = path.join(os.tmpdir(), 'update-log.txt');
+// Logging to %TEMP%\external-updater-log.txt (separate from main process log)
+const logFile = path.join(os.tmpdir(), 'external-updater-log.txt');
 function log(msg) {
-  const line = `[${new Date().toISOString()}] ${msg}`;
+  const line = `[${new Date().toISOString()}] [Updater] ${msg}`;
   try {
     fs.appendFileSync(logFile, line + '\n');
   } catch (err) {
-    console.error('Failed to write to update-log.txt:', err);
+    console.error('Failed to write to external-updater-log.txt:', err);
   }
   console.log(line);
 }
