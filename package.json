@@ -1,6 +1,6 @@
 {
   "name": "office-or-homeoffice",
-  "version": "1.0.189",
+  "version": "1.0.191",
   "description": "Office or Remote status tracking app",
   "main": "electron/main.js",
   "repository": {

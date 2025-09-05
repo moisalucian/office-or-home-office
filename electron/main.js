@@ -1157,82 +1157,25 @@ async function applyStagedUpdate() {
       fs.unlinkSync(stagedUpdateFile);
       return false;
     }
-    // Apply the update by copying files
-    let appPath;
-    if (app.isPackaged) {
-      appPath = path.dirname(process.execPath);
-    } else {
-      appPath = app.getAppPath();
-    }
-    writeLog(`App path determined: ${appPath}`);
     
-    const resourcesSrc = path.join(extractPath, 'resources');
-    const resourcesDest = path.join(appPath, 'resources');
-    const localesSrc = path.join(extractPath, 'locales');
-    const localesDest = path.join(appPath, 'locales');
-    const appPackagePath = path.join(resourcesSrc, 'app.package');
-    const appAsarPath = path.join(resourcesDest, 'app.asar');
-    const appAsarBackupPath = path.join(resourcesDest, 'app.asar.backup');
+    // Don't try to copy files while app is running - use external updater instead
+    writeLog('Staged update found, will use external updater system');
     
-    writeLog(`Resources src: ${resourcesSrc}, dest: ${resourcesDest}`);
-    writeLog(`App package path: ${appPackagePath}, exists: ${fs.existsSync(appPackagePath)}`);
-    
-    if (fs.existsSync(appPackagePath)) {
-      try {
-        if (!fs.existsSync(resourcesDest)) {
-          fs.mkdirSync(resourcesDest, { recursive: true });
-        }
-        writeLog('Replacing app.asar with new version...');
-        if (fs.existsSync(appAsarBackupPath)) {
-          fs.unlinkSync(appAsarBackupPath);
-        }
-        if (fs.existsSync(appAsarPath)) {
-          try {
-            fs.renameSync(appAsarPath, appAsarBackupPath);
-            writeLog('Old app.asar renamed to backup');
-          } catch (renameError) {
-            writeLog('Failed to rename old app.asar: ' + renameError);
-          }
-        }
-        fs.copyFileSync(appPackagePath, appAsarPath);
-        writeLog('New app.asar copied successfully');
-        if (fs.existsSync(appAsarBackupPath)) {
-          fs.unlinkSync(appAsarBackupPath);
-          writeLog('Backup app.asar removed');
-        }
-      } catch (error) {
-        writeLog('Failed to update app.asar: ' + error);
-        try {
-          if (fs.existsSync(appAsarBackupPath) && !fs.existsSync(appAsarPath)) {
-            fs.renameSync(appAsarBackupPath, appAsarPath);
-            writeLog('Restored backup app.asar after failed update');
-          }
-        } catch (restoreError) {
-          writeLog('Failed to restore backup: ' + restoreError);
-        }
-        throw error;
-      }
-    }
-    if (fs.existsSync(resourcesSrc)) {
-      fs.readdirSync(resourcesSrc).forEach((item) => {
-        if (item !== 'app.package') {
-          const srcItem = path.join(resourcesSrc, item);
-          const destItem = path.join(resourcesDest, item);
-          copyRecursiveSync(srcItem, destItem);
-        }
-      });
-      writeLog('Resources updated successfully');
-    }
-    if (fs.existsSync(localesSrc)) {
-      copyRecursiveSync(localesSrc, localesDest);
-      writeLog('Locales updated successfully');
-    }
-    // Clean up
-    try { fs.rmSync(extractPath, { recursive: true, force: true }); } catch (e) { writeLog('Failed to remove extractPath: ' + e); }
-    try { fs.unlinkSync(stagedUpdateFile); } catch (e) { writeLog('Failed to remove stagedUpdateFile: ' + e); }
-    try { fs.unlinkSync(updateStateFile); } catch (e) { writeLog('Failed to remove updateStateFile: ' + e); }
-    
+    // Launch external updater system instead of copying files directly
     writeLog('Starting batch script creation and execution...');
+    
+    // Create the updater.js script info for the batch script to use
+    const updaterInfo = {
+      extractPath: extractPath,
+      version: stagedUpdateInfo.version,
+      appPath: app.isPackaged ? path.dirname(process.execPath) : app.getAppPath()
+    };
+    
+    // Save updater info for the external script
+    const updaterInfoFile = path.join(app.getPath('userData'), 'updater-info.json');
+    fs.writeFileSync(updaterInfoFile, JSON.stringify(updaterInfo, null, 2));
+    writeLog(`Updater info saved to: ${updaterInfoFile}`);
+    
     // Instead of relaunching here, launch a batch script that waits for this process to exit, applies the update, and then relaunches the app
     setTimeout(() => {
       writeLog('Closing all windows before update...');

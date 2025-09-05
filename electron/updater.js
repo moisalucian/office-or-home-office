@@ -56,34 +56,47 @@ async function applyStagedUpdate() {
                         process.env.HOME + "/.local/share");
     const userDataPath = path.join(appDataPath, 'office-or-homeoffice');
     const stagedUpdateFile = path.join(userDataPath, 'staged-update.json');
+    const updaterInfoFile = path.join(userDataPath, 'updater-info.json');
     
-    if (!fs.existsSync(stagedUpdateFile)) {
-      log('[Updater] No staged update found');
+    let stagedUpdateInfo = null;
+    
+    // Check for updater-info.json first (new format), then staged-update.json (old format)
+    if (fs.existsSync(updaterInfoFile)) {
+      log('[Updater] Reading updater info from updater-info.json');
+      stagedUpdateInfo = JSON.parse(fs.readFileSync(updaterInfoFile, 'utf8'));
+    } else if (fs.existsSync(stagedUpdateFile)) {
+      log('[Updater] Reading staged update info from staged-update.json');
+      stagedUpdateInfo = JSON.parse(fs.readFileSync(stagedUpdateFile, 'utf8'));
+    } else {
+      log('[Updater] No staged update or updater info found');
       return false;
     }
     
-    const stagedUpdateInfo = JSON.parse(fs.readFileSync(stagedUpdateFile, 'utf8'));
     const extractPath = stagedUpdateInfo.extractPath;
     
     if (!fs.existsSync(extractPath)) {
       log('[Updater] Staged update path does not exist: ' + extractPath);
-      fs.unlinkSync(stagedUpdateFile);
+      // Clean up both possible files
+      try { if (fs.existsSync(stagedUpdateFile)) fs.unlinkSync(stagedUpdateFile); } catch (e) {}
+      try { if (fs.existsSync(updaterInfoFile)) fs.unlinkSync(updaterInfoFile); } catch (e) {}
       return false;
     }
     
-  log('[Updater] Applying staged update for version: ' + stagedUpdateInfo.version);
+    log('[Updater] Applying staged update for version: ' + stagedUpdateInfo.version);
     
-    // Get the application directory
-    let appPath;
-    if (process.pkg) {
-      // Running as packaged executable - get directory containing the exe
-      appPath = path.dirname(process.execPath);
-    } else {
-      // Running as Node script - get the project root
-      appPath = path.resolve(__dirname, '..');
+    // Use appPath from updater info if available, otherwise determine it
+    let appPath = stagedUpdateInfo.appPath;
+    if (!appPath) {
+      if (process.pkg) {
+        // Running as packaged executable - get directory containing the exe
+        appPath = path.dirname(process.execPath);
+      } else {
+        // Running as Node script - get the project root
+        appPath = path.resolve(__dirname, '..');
+      }
     }
     
-  log('[Updater] App path: ' + appPath);
+    log('[Updater] App path: ' + appPath);
     
     const resourcesSrc = path.join(extractPath, 'resources');
     const resourcesDest = path.join(appPath, 'resources');
@@ -96,7 +109,7 @@ async function applyStagedUpdate() {
     const appAsarBackupPath = path.join(resourcesDest, 'app.asar.backup');
     
     if (fs.existsSync(appPackagePath)) {
-  log('[Updater] Updating app.asar...');
+    log('[Updater] Updating app.asar...');
       
       // Ensure destination directory exists
       if (!fs.existsSync(resourcesDest)) {
@@ -157,13 +170,29 @@ async function applyStagedUpdate() {
     // Clean up
     try { 
       fs.rmSync(extractPath, { recursive: true, force: true }); 
-  log('[Updater] Cleaned up extraction path');
+      log('[Updater] Cleaned up extraction path');
     } catch (e) {
-  log('[Updater] Could not clean up extraction path: ' + e.message);
+      log('[Updater] Could not clean up extraction path: ' + e.message);
     }
     
-    fs.unlinkSync(stagedUpdateFile);
-  log('[Updater] Removed staged update file');
+    // Clean up both possible update files
+    try { 
+      if (fs.existsSync(stagedUpdateFile)) {
+        fs.unlinkSync(stagedUpdateFile);
+        log('[Updater] Removed staged-update.json file');
+      }
+    } catch (e) {
+      log('[Updater] Could not remove staged-update.json: ' + e.message);
+    }
+    
+    try { 
+      if (fs.existsSync(updaterInfoFile)) {
+        fs.unlinkSync(updaterInfoFile);
+        log('[Updater] Removed updater-info.json file');
+      }
+    } catch (e) {
+      log('[Updater] Could not remove updater-info.json: ' + e.message);
+    }
     
     // Create update state for UI notification
     const updateStateFile = path.join(userDataPath, 'update-state.json');
