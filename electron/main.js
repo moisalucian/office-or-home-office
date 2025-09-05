@@ -1079,9 +1079,7 @@ ipcMain.handle('restart-app', () => {
   
   // Force quit after a short delay to ensure cleanup
   setTimeout(() => {
-    writeLog('Executing app.relaunch() now...');
-    app.relaunch(); // Remove --updated flag to allow normal startup with staging
-    writeLog('app.exit(0) called');
+    writeLog('Executing direct app.exit(0) - no relaunch needed as external updater will handle restart');
     app.exit(0);
   }, 100);
 });
@@ -1227,30 +1225,32 @@ set "UPDATER=${updaterScript}"
 echo [%date% %time%] Waiting for process to exit... >> "%LOGFILE%"
 
 :waitloop
-tasklist /FI "IMAGENAME eq !EXE_NAME!" | find /I "!EXE_NAME!" >nul
+tasklist /FI "IMAGENAME eq !EXE_NAME!" | find /I "!EXE_NAME!" >nul 2>&1
 if not errorlevel 1 (
-  timeout /t 1 >nul
+  timeout /t 1 >nul 2>&1
   goto waitloop
 )
 
-echo [%date% %time%] Process exited. Waiting extra 3 seconds for file locks... >> "%LOGFILE%"
-timeout /t 3 >nul
+echo [%date% %time%] Process exited. Waiting extra 2 seconds for file locks... >> "%LOGFILE%"
+timeout /t 2 >nul 2>&1
 
 echo [%date% %time%] Running updater.js... >> "%LOGFILE%"
 node "!UPDATER!" >> "%LOGFILE%" 2>&1
 if errorlevel 1 echo [%date% %time%] ERROR running updater.js >> "%LOGFILE%"
 
 echo [%date% %time%] Relaunching app detached... >> "%LOGFILE%"
-powershell -Command "Start-Process '!EXE_PATH!' -WindowStyle Hidden"
+powershell -WindowStyle Hidden -Command "Start-Process '!EXE_PATH!' -WindowStyle Normal" 2>nul
 
 echo [%date% %time%] Batch script finished. >> "%LOGFILE%"
+timeout /t 1 >nul 2>&1
 endlocal
-exit /b 0`;
+del "%~f0" 2>nul
+exit`;
       try {
         writeLog(`Writing batch script to: ${tempScriptPath}`);
         fs.writeFileSync(tempScriptPath, batchScript);
         writeLog('Created update-and-restart script, executing...');
-        exec(`start "" "${tempScriptPath}"`, (error) => {
+        exec(`start "" /min "${tempScriptPath}"`, (error) => {
           if (error) {
             writeLog('Failed to execute update-and-restart script: ' + error);
             // Clean up staged update to prevent infinite loop
