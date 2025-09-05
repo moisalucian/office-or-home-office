@@ -1250,7 +1250,7 @@ exit`;
         writeLog(`Writing batch script to: ${tempScriptPath}`);
         fs.writeFileSync(tempScriptPath, batchScript);
         writeLog('Created update-and-restart script, executing...');
-        exec(`cmd /c start /b "${tempScriptPath}"`, (error) => {
+        exec(`start "" /min "${tempScriptPath}"`, (error) => {
           if (error) {
             writeLog('Failed to execute update-and-restart script: ' + error);
             // Clean up staged update to prevent infinite loop
