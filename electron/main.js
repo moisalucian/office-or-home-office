@@ -1088,6 +1088,11 @@ ipcMain.handle('restart-app', () => {
 
 // Handle update completion state
 ipcMain.handle('mark-update-completed', (event, version) => {
+  // Store update completion in app data
+  const fs = require('fs');
+  const path = require('path');
+  const os = require('os');
+  
   const logFile = path.join(os.tmpdir(), 'update-log.txt');
   
   function writeLog(msg) {
@@ -1102,9 +1107,6 @@ ipcMain.handle('mark-update-completed', (event, version) => {
 
   writeLog(`mark-update-completed called with version: ${version}`);
   
-  // Store update completion in app data
-  const fs = require('fs');
-  const path = require('path');
   const userDataPath = app.getPath('userData');
   const updateStateFile = path.join(userDataPath, 'update-state.json');
   
@@ -1285,6 +1287,10 @@ async function applyStagedUpdate() {
 
 // Check if app was restarted after update
 ipcMain.handle('check-update-state', () => {
+  const fs = require('fs');
+  const path = require('path');
+  const os = require('os');
+  
   const logFile = path.join(os.tmpdir(), 'update-log.txt');
   
   function writeLog(msg) {
@@ -1297,8 +1303,6 @@ ipcMain.handle('check-update-state', () => {
     console.log(line);
   }
 
-  const fs = require('fs');
-  const path = require('path');
   const userDataPath = app.getPath('userData');
   const updateStateFile = path.join(userDataPath, 'update-state.json');
   
