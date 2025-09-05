@@ -1240,8 +1240,8 @@ echo [%date% %time%] Running updater.js... >> "%LOGFILE%"
 node "!UPDATER!" >> "%LOGFILE%" 2>&1
 if errorlevel 1 echo [%date% %time%] ERROR running updater.js >> "%LOGFILE%"
 
-echo [%date% %time%] Relaunching app... >> "%LOGFILE%"
-start "" "!EXE_PATH!"
+echo [%date% %time%] Relaunching app detached... >> "%LOGFILE%"
+powershell -Command "Start-Process '!EXE_PATH!' -WindowStyle Hidden"
 
 echo [%date% %time%] Batch script finished. >> "%LOGFILE%"
 endlocal
