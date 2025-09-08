@@ -1000,6 +1000,31 @@ ipcMain.handle('get-app-version', () => {
   return app.getVersion();
 });
 
+// Firebase configuration management
+const firebaseConfigPath = path.join(app.getPath('userData'), 'firebase-config.json');
+
+ipcMain.handle('get-firebase-config', () => {
+  try {
+    if (fs.existsSync(firebaseConfigPath)) {
+      const configData = fs.readFileSync(firebaseConfigPath, 'utf8');
+      return JSON.parse(configData);
+    }
+  } catch (error) {
+    console.error('Error reading Firebase config:', error);
+  }
+  return null;
+});
+
+ipcMain.handle('save-firebase-config', (_, config) => {
+  try {
+    fs.writeFileSync(firebaseConfigPath, JSON.stringify(config, null, 2));
+    return { success: true };
+  } catch (error) {
+    console.error('Error saving Firebase config:', error);
+    return { success: false, error: error.message };
+  }
+});
+
 // Download and install update
 ipcMain.handle('download-and-install-update', async (_, downloadUrl) => {
   const logFile = path.join(os.tmpdir(), 'update-log.txt');
@@ -1473,4 +1498,43 @@ ipcMain.on('refresh-sidebar-activity-logs', () => {
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
+});
+
+// Handle application shutdown events
+app.on('before-quit', (event) => {
+  app.isQuiting = true;
+  
+  // Clean up Firebase connections and listeners
+  if (win && !win.isDestroyed() && win.webContents) {
+    win.webContents.send('app-shutting-down');
+  }
+});
+
+// Handle system shutdown/restart
+app.on('session-end', () => {
+  console.log('System shutdown detected, quitting app immediately');
+  app.isQuiting = true;
+  app.quit();
+});
+
+// Handle Windows session end
+if (process.platform === 'win32') {
+  process.on('message', (data) => {
+    if (data === 'graceful-exit') {
+      app.isQuiting = true;
+      app.quit();
+    }
+  });
+}
+
+// Handle system shutdown properly
+app.on('before-quit', () => {
+  // Set the quitting flag so windows can actually close
+  app.isQuiting = true;
+});
+
+// Handle session end (Windows shutdown/restart)
+app.on('session-end', () => {
+  app.isQuiting = true;
+  app.quit();
 });

@@ -248,10 +248,13 @@ function App() {
 
   useEffect(() => {
     const statusesRef = ref(database, "statuses");
-    onValue(statusesRef, (snapshot) => {
+    const unsubscribe = onValue(statusesRef, (snapshot) => {
       const data = snapshot.val() || {};
       setStatuses(data);
     });
+    
+    // Cleanup function to unsubscribe from Firebase listener
+    return () => unsubscribe();
   }, []);
 
   useEffect(() => {

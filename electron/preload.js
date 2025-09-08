@@ -39,5 +39,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   checkUpdateState: () => ipcRenderer.invoke('check-update-state'),
   clearUpdateProgress: () => ipcRenderer.invoke('clear-update-progress'),
   onUpdateDownloadProgress: (callback) => ipcRenderer.on('update-download-progress', (_, progress) => callback(progress)),
-  onUpdateInstallProgress: (callback) => ipcRenderer.on('update-install-progress', (_, progress) => callback(progress))
+  onUpdateInstallProgress: (callback) => ipcRenderer.on('update-install-progress', (_, progress) => callback(progress)),
+  
+  // Firebase configuration APIs
+  getFirebaseConfig: () => ipcRenderer.invoke('get-firebase-config'),
+  saveFirebaseConfig: (config) => ipcRenderer.invoke('save-firebase-config', config)
 });
