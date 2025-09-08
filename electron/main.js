@@ -523,7 +523,7 @@ function createWindow(shouldShow = true, shouldMaximize = false) {
   win.webContents.once('did-finish-load', () => {
     console.log('Window content finished loading');
     
-    if (shouldShow && !isHiddenLaunch) {
+    if (shouldShow) {
       win.show();
       win.focus();
     }
@@ -736,7 +736,7 @@ app.whenReady().then(async () => {
   // Determine how to create the window based on settings
   // If launched with --hidden flag (from startup), respect the launchInTray setting
   // If launchInTray is false, show the window even when launched with --hidden
-  const shouldShow = isHiddenLaunch ? !launchInTray : !launchInTray;
+  const shouldShow = isHiddenLaunch ? !launchInTray : true;
   const shouldMaximize = defaultLaunchOption === 'maximized';
   
   createWindow(shouldShow, shouldMaximize);
