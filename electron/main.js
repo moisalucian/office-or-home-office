@@ -670,6 +670,20 @@ app.whenReady().then(async () => {
 
   writeLog('App startup initiated');
   
+  // Clean up any old development electron entries from startup if this is a packaged app
+  if (app.isPackaged) {
+    writeLog('Packaged app detected, cleaning up old development startup entries...');
+    try {
+      // This will clean up any previous development entries
+      app.setLoginItemSettings({
+        openAtLogin: false,
+        path: process.execPath
+      });
+    } catch (e) {
+      writeLog('Error cleaning startup entries: ' + e.message);
+    }
+  }
+  
   // Only apply staged updates in packaged builds (production), not in development
   let updateJustApplied = false;
   if (app.isPackaged) {
@@ -710,12 +724,14 @@ app.whenReady().then(async () => {
     saveSetting('startup', true);
   }
   
-  // Apply startup setting to system
-  app.setLoginItemSettings({
-    openAtLogin: startupSetting,
-    path: process.execPath,
-    args: app.isPackaged ? ['--hidden'] : []
-  });
+  // Apply startup setting to system (only for packaged app)
+  if (app.isPackaged) {
+    app.setLoginItemSettings({
+      openAtLogin: startupSetting,
+      path: process.execPath,
+      args: ['--hidden']
+    });
+  }
   
   // Determine how to create the window based on settings
   const shouldShow = !launchInTray && !isHiddenLaunch;
@@ -864,11 +880,17 @@ ipcMain.on('set-startup', (_, shouldLaunchAtStartup) => {
   saveSetting('startup', shouldLaunchAtStartup);
   
   // Apply to system startup
-  app.setLoginItemSettings({
-    openAtLogin: shouldLaunchAtStartup,
-    path: process.execPath,
-    args: app.isPackaged ? ['--hidden'] : []
-  });
+  if (app.isPackaged) {
+    // Only set startup for packaged (built) app, not development
+    app.setLoginItemSettings({
+      openAtLogin: shouldLaunchAtStartup,
+      path: process.execPath,
+      args: ['--hidden']
+    });
+  } else {
+    // In development, just save the setting but don't add to startup
+    console.log('Development mode: startup setting saved but not applied to system');
+  }
 });
 
 // Settings management with electron-store
