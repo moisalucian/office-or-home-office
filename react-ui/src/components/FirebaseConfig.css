@@ -1,3 +1,4 @@
+/* Firebase Config popup - matching Settings.css design */
 .firebase-config-overlay {
   position: fixed;
   top: 0;
@@ -8,134 +9,190 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  z-index: 9999; /* Higher than settings popup */
+  z-index: 2000;
+  -webkit-app-region: no-drag;
 }
 
 .firebase-config-modal {
-  background: var(--bg-primary);
+  background: var(--header-bg);
   border-radius: 12px;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
-  width: 90%;
-  max-width: 600px;
-  max-height: 90vh;
+  box-shadow: 0 8px 32px var(--shadow-color);
+  width: 500px;
+  max-width: 90vw;
+  max-height: 80vh;
   overflow: hidden;
   border: 1px solid var(--border-color);
+  transition: background 0.3s, border-color 0.3s;
+  animation: modalSlideIn 0.3s ease-out;
 }
 
 .firebase-config-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 20px 24px;
+  padding: 1.5rem 1.5rem 1rem 1.5rem;
   border-bottom: 1px solid var(--border-color);
-  background: var(--bg-secondary);
+  background: var(--header-bg);
 }
 
 .firebase-config-header h3 {
   margin: 0;
-  color: var(--text-primary);
-  font-size: 1.5rem;
+  color: var(--text-color);
+  font-size: 1.2rem;
   font-weight: 600;
+  transition: color 0.3s;
 }
 
 .firebase-config-close {
   background: none;
   border: none;
-  font-size: 24px;
   color: var(--text-secondary);
-  cursor: pointer;
-  padding: 4px 8px;
+  cursor: pointer !important;
+  font-size: 1.5rem;
+  padding: 0.5rem;
   border-radius: 4px;
-  transition: all 0.2s ease;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 40px;
+  min-height: 40px;
+  line-height: 1;
+  -webkit-app-region: no-drag;
+  user-select: none;
+  -webkit-user-select: none;
+  font-family: Arial, sans-serif;
+  font-weight: normal;
+  position: relative;
+  z-index: 10;
+  pointer-events: auto;
 }
 
 .firebase-config-close:hover {
-  background: var(--bg-tertiary);
-  color: var(--text-primary);
+  color: #ff5c5c !important;
+  background: rgba(255, 255, 255, 0.1) !important;
+  transform: scale(1.1);
+}
+
+.firebase-config-close:active {
+  transform: scale(0.9);
 }
 
 .firebase-config-content {
-  padding: 24px;
-  max-height: calc(90vh - 120px);
+  padding: 1.5rem;
+  max-height: calc(80vh - 120px);
   overflow-y: auto;
 }
 
+/* Scrollbar styling for content */
+.firebase-config-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.firebase-config-content::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+  border-radius: 4px;
+}
+
+.firebase-config-content::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 4px;
+}
+
+.firebase-config-content::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+}
+
+.config-section {
+  margin-bottom: 1.5rem;
+}
+
 .bulk-config-section {
-  margin-bottom: 20px;
+  margin-bottom: 1.5rem;
   text-align: center;
 }
 
 .bulk-toggle-btn {
-  background: var(--accent-blue);
+  background: #3b82f6;
   color: white;
   border: none;
-  padding: 10px 20px;
+  padding: 0.6rem 1.2rem;
   border-radius: 6px;
   cursor: pointer;
   font-weight: 500;
+  font-size: 0.9rem;
   transition: all 0.2s ease;
+  -webkit-app-region: no-drag;
 }
 
 .bulk-toggle-btn:hover {
-  background: var(--accent-blue-hover);
+  background: #2563eb;
   transform: translateY(-1px);
 }
 
 .bulk-input-section {
-  margin-bottom: 20px;
+  margin-bottom: 1.5rem;
 }
 
 .bulk-input-section label {
   display: block;
-  margin-bottom: 8px;
-  color: var(--text-primary);
+  margin-bottom: 0.5rem;
+  color: var(--text-color);
   font-weight: 500;
+  font-size: 0.95rem;
+  transition: color 0.3s;
 }
 
 .bulk-config-textarea {
   width: 100%;
-  min-height: 200px;
-  padding: 12px;
-  border: 2px solid var(--border-color);
+  min-height: 180px;
+  padding: 0.8rem;
+  border: 1px solid var(--border-color);
   border-radius: 6px;
-  background: var(--bg-primary);
-  color: var(--text-primary);
+  background: var(--input-bg);
+  color: var(--text-color);
   font-family: 'Consolas', 'Monaco', monospace;
-  font-size: 14px;
+  font-size: 13px;
   resize: vertical;
-  transition: border-color 0.2s ease;
+  transition: all 0.2s ease;
+  box-sizing: border-box;
 }
 
 .bulk-config-textarea:focus {
   outline: none;
-  border-color: var(--accent-blue);
+  border-color: #4caf50;
+  box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.2);
+  background: var(--button-hover-bg);
 }
 
 .bulk-config-textarea::placeholder {
-  color: var(--text-tertiary);
-  font-size: 13px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  opacity: 0.7;
 }
 
 .bulk-apply-btn {
-  background: var(--accent-green);
+  background: #22c55e;
   color: white;
   border: none;
-  padding: 10px 20px;
+  padding: 0.6rem 1.2rem;
   border-radius: 6px;
   cursor: pointer;
   font-weight: 500;
-  margin-top: 12px;
+  font-size: 0.9rem;
+  margin-top: 0.8rem;
   transition: all 0.2s ease;
+  -webkit-app-region: no-drag;
 }
 
 .bulk-apply-btn:hover {
-  background: var(--accent-green-hover);
+  background: #16a34a;
   transform: translateY(-1px);
 }
 
 .individual-fields {
   display: grid;
-  gap: 16px;
+  gap: 1rem;
 }
 
 .config-field {
@@ -144,61 +201,67 @@
 }
 
 .config-field label {
-  margin-bottom: 6px;
-  color: var(--text-primary);
+  margin-bottom: 0.4rem;
+  color: var(--text-color);
   font-weight: 500;
-  font-size: 14px;
+  font-size: 0.9rem;
+  transition: color 0.3s;
 }
 
 .config-field input {
-  padding: 12px;
-  border: 2px solid var(--border-color);
+  width: 100%;
+  padding: 0.6rem 0.8rem;
+  border: 1px solid var(--border-color);
   border-radius: 6px;
-  background: var(--bg-primary);
-  color: var(--text-primary);
-  font-size: 14px;
+  background: var(--input-bg);
+  color: var(--text-color);
+  font-size: 0.9rem;
   transition: all 0.2s ease;
+  box-sizing: border-box;
 }
 
 .config-field input:focus {
   outline: none;
-  border-color: var(--accent-blue);
-  background: var(--bg-secondary);
+  border-color: #4caf50;
+  box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.2);
+  background: var(--button-hover-bg);
 }
 
 .config-field input::placeholder {
-  color: var(--text-tertiary);
+  color: var(--text-secondary);
+  opacity: 0.7;
 }
 
 .firebase-config-actions {
   display: flex;
-  gap: 12px;
+  gap: 0.8rem;
   justify-content: flex-end;
-  margin-top: 24px;
-  padding-top: 20px;
+  margin-top: 1.5rem;
+  padding-top: 1rem;
   border-top: 1px solid var(--border-color);
 }
 
 .save-btn {
-  background: var(--accent-green);
+  background: #22c55e;
   color: white;
   border: none;
-  padding: 12px 24px;
+  padding: 0.8rem 1.5rem;
   border-radius: 6px;
   cursor: pointer;
   font-weight: 600;
-  font-size: 15px;
+  font-size: 0.95rem;
   transition: all 0.2s ease;
+  -webkit-app-region: no-drag;
 }
 
 .save-btn.enabled:hover {
-  background: var(--accent-green-hover);
+  background: #16a34a;
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
 }
 
 .save-btn.disabled {
-  background: var(--text-tertiary);
+  background: var(--text-secondary);
   cursor: not-allowed;
   opacity: 0.6;
 }
@@ -206,32 +269,23 @@
 .cancel-btn {
   background: transparent;
   color: var(--text-secondary);
-  border: 2px solid var(--border-color);
-  padding: 12px 24px;
+  border: 1px solid var(--border-color);
+  padding: 0.8rem 1.5rem;
   border-radius: 6px;
   cursor: pointer;
   font-weight: 500;
-  font-size: 15px;
+  font-size: 0.95rem;
   transition: all 0.2s ease;
+  -webkit-app-region: no-drag;
 }
 
 .cancel-btn:hover {
-  background: var(--bg-tertiary);
-  color: var(--text-primary);
+  background: var(--button-hover-bg);
+  color: var(--text-color);
   border-color: var(--text-secondary);
 }
 
-/* Dark theme support */
-:root.dark {
-  --accent-blue-hover: #1d4ed8;
-  --accent-green-hover: #16a34a;
-}
-
 /* Animation for modal appearance */
-.firebase-config-modal {
-  animation: modalSlideIn 0.3s ease-out;
-}
-
 @keyframes modalSlideIn {
   from {
     transform: translateY(-20px);
@@ -251,11 +305,11 @@
   }
   
   .firebase-config-content {
-    padding: 16px;
+    padding: 1rem;
   }
   
   .firebase-config-header {
-    padding: 16px;
+    padding: 1rem;
   }
   
   .firebase-config-actions {
@@ -265,4 +319,27 @@
   .save-btn, .cancel-btn {
     width: 100%;
   }
+}
+
+/* Better focus states for accessibility */
+.bulk-toggle-btn:focus,
+.bulk-apply-btn:focus,
+.save-btn:focus,
+.cancel-btn:focus {
+  outline: 2px solid #4caf50;
+  outline-offset: 2px;
+}
+
+.config-field input:focus {
+  outline: none;
+}
+
+/* Ensure proper text selection */
+.config-field label,
+.bulk-input-section label {
+  user-select: text;
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+  cursor: text;
 }

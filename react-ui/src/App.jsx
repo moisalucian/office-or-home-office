@@ -8,8 +8,6 @@ import "./components/Settings.css";
 import UpdateNotification from "./UpdateNotification";
 import PostUpdateNotification from "./PostUpdateNotification";
 import FirebaseConfig from "./components/FirebaseConfig";
-import FirebaseConfigDebug from "./components/FirebaseConfigDebug";
-import FirebaseConfigSimple from "./components/FirebaseConfigSimple";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { 
   checkForUpdates, 
@@ -112,6 +110,7 @@ function App() {
   const [firebaseConfigured, setFirebaseConfigured] = useState(false);
   const [firebaseError, setFirebaseError] = useState(null);
   const [firebaseLoading, setFirebaseLoading] = useState(true);
+  const [currentFirebaseConfig, setCurrentFirebaseConfig] = useState({});
   
   // Use custom hooks
   const { theme, themeSetting, handleThemeChange } = useTheme();
@@ -790,8 +789,21 @@ function App() {
     console.log('=== handleFirebaseConfigSave END ===');
   };
 
-  const openFirebaseConfig = () => {
+  const openFirebaseConfig = async () => {
     console.log('=== openFirebaseConfig START ===');
+    
+    // Load current config before showing dialog
+    try {
+      if (window.electronAPI?.getFirebaseConfig) {
+        const currentConfig = await window.electronAPI.getFirebaseConfig();
+        console.log('Current config loaded:', currentConfig);
+        setCurrentFirebaseConfig(currentConfig || {});
+      }
+    } catch (error) {
+      console.error('Error loading current config:', error);
+      setCurrentFirebaseConfig({});
+    }
+    
     console.log('Before setting showFirebaseConfig...');
     setShowFirebaseConfig(true);
     console.log('After setting showFirebaseConfig...');
@@ -987,12 +999,21 @@ function App() {
           )}
           <button 
             className="primary" 
-            onClick={() => setShowFirebaseConfig(true)}
+            onClick={openFirebaseConfig}
             style={{ marginTop: '20px' }}
           >
             Configure Firebase
           </button>
         </div>
+        
+        {/* Firebase Configuration Dialog */}
+        {showFirebaseConfig && (
+          <FirebaseConfig
+            onConfigSaved={handleFirebaseConfigSave}
+            onClose={() => setShowFirebaseConfig(false)}
+            currentConfig={currentFirebaseConfig}
+          />
+        )}
       </div>
     );
   }
@@ -1247,13 +1268,10 @@ function App() {
                   <span className="setting-title">Firebase Configuration</span>
                   <button 
                     className="firebase-config-button"
-                    onClick={() => {
-                      console.log('Opening simplified Firebase config dialog...');
-                      setShowFirebaseConfig(true);
-                    }}
+                    onClick={openFirebaseConfig}
                     title="Edit Firebase database configuration"
                   >
-                    🔧 Edit Config (Simple)
+                    🔧 Edit Config
                   </button>
                 </div>
               </div>
@@ -1438,11 +1456,12 @@ function App() {
         </div>
       </div>
       
-      {/* Firebase Configuration Dialog - TESTING SIMPLE VERSION */}
+      {/* Firebase Configuration Dialog */}
       {showFirebaseConfig && (
-        <FirebaseConfigSimple
+        <FirebaseConfig
           onConfigSaved={handleFirebaseConfigSave}
           onClose={() => setShowFirebaseConfig(false)}
+          currentConfig={currentFirebaseConfig}
         />
       )}
     </div>

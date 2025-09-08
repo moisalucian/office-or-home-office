@@ -16,6 +16,45 @@ const FirebaseConfig = ({ onConfigSaved, onClose, currentConfig = {} }) => {
   const [bulkConfig, setBulkConfig] = useState('');
   const [showBulkInput, setShowBulkInput] = useState(false);
 
+  // Update config when currentConfig prop changes
+  useEffect(() => {
+    if (currentConfig && Object.keys(currentConfig).length > 0) {
+      setConfig({
+        apiKey: currentConfig.apiKey || '',
+        authDomain: currentConfig.authDomain || '',
+        databaseURL: currentConfig.databaseURL || '',
+        projectId: currentConfig.projectId || '',
+        storageBucket: currentConfig.storageBucket || '',
+        messagingSenderId: currentConfig.messagingSenderId || '',
+        appId: currentConfig.appId || '',
+        measurementId: currentConfig.measurementId || ''
+      });
+    }
+  }, [currentConfig]);
+
+  // Generate bulk config text from current config
+  const generateBulkConfig = () => {
+    const bulkLines = [];
+    if (config.apiKey) bulkLines.push(`VITE_FIREBASE_API_KEY=${config.apiKey}`);
+    if (config.authDomain) bulkLines.push(`VITE_FIREBASE_AUTH_DOMAIN=${config.authDomain}`);
+    if (config.databaseURL) bulkLines.push(`VITE_FIREBASE_DATABASE_URL=${config.databaseURL}`);
+    if (config.projectId) bulkLines.push(`VITE_FIREBASE_PROJECT_ID=${config.projectId}`);
+    if (config.storageBucket) bulkLines.push(`VITE_FIREBASE_STORAGE_BUCKET=${config.storageBucket}`);
+    if (config.messagingSenderId) bulkLines.push(`VITE_FIREBASE_MESSAGING_SENDER_ID=${config.messagingSenderId}`);
+    if (config.appId) bulkLines.push(`VITE_FIREBASE_APP_ID=${config.appId}`);
+    if (config.measurementId) bulkLines.push(`VITE_FIREBASE_MEASUREMENT_ID=${config.measurementId}`);
+    return bulkLines.join('\n');
+  };
+
+  // Toggle between bulk and individual views
+  const toggleBulkInput = () => {
+    if (!showBulkInput) {
+      // Switching to bulk view - populate with current config
+      setBulkConfig(generateBulkConfig());
+    }
+    setShowBulkInput(!showBulkInput);
+  };
+
   const handleInputChange = (field, value) => {
     setConfig(prev => ({
       ...prev,
@@ -105,9 +144,9 @@ const FirebaseConfig = ({ onConfigSaved, onClose, currentConfig = {} }) => {
             <div className="bulk-config-section">
               <button 
                 className="bulk-toggle-btn"
-                onClick={() => setShowBulkInput(!showBulkInput)}
+                onClick={toggleBulkInput}
               >
-                {showBulkInput ? 'Switch to Individual Fields' : 'Paste All Configuration'}
+                {showBulkInput ? 'Switch to Individual Fields' : 'Switch to Bulk Paste Fields'}
               </button>
             </div>
 
