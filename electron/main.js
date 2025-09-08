@@ -734,7 +734,9 @@ app.whenReady().then(async () => {
   }
   
   // Determine how to create the window based on settings
-  const shouldShow = !launchInTray && !isHiddenLaunch;
+  // If launched with --hidden flag (from startup), respect the launchInTray setting
+  // If launchInTray is false, show the window even when launched with --hidden
+  const shouldShow = isHiddenLaunch ? !launchInTray : !launchInTray;
   const shouldMaximize = defaultLaunchOption === 'maximized';
   
   createWindow(shouldShow, shouldMaximize);
