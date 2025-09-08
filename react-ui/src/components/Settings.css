@@ -226,3 +226,28 @@
 .toggle-switch input:checked + .toggle-slider:before {
   transform: translateX(26px);
 }
+
+/* Firebase configuration button */
+.firebase-config-button {
+  background: var(--accent-blue);
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.firebase-config-button:hover {
+  background: var(--accent-blue-hover);
+  transform: translateY(-1px);
+}
+
+.firebase-config-button:active {
+  transform: translateY(0);
+}

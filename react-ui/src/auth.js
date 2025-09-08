@@ -1,5 +1,5 @@
 import { signInAnonymously, onAuthStateChanged } from 'firebase/auth';
-import { auth } from './firebase.js';
+import { getFirebaseAuth, isFirebaseInitialized } from './firebase.js';
 
 // Global authentication state
 let isAuthenticated = false;
@@ -11,6 +11,13 @@ export const initializeAuth = () => {
   if (authPromise) {
     return authPromise;
   }
+
+  // Check if Firebase is initialized
+  if (!isFirebaseInitialized()) {
+    return Promise.reject(new Error('Firebase not initialized'));
+  }
+
+  const auth = getFirebaseAuth();
 
   authPromise = new Promise((resolve, reject) => {
     // Check if user is already signed in
@@ -49,6 +56,10 @@ export const getAuthStatus = () => {
 
 // Get current user
 export const getCurrentUser = () => {
+  if (!isFirebaseInitialized()) {
+    return null;
+  }
+  const auth = getFirebaseAuth();
   return auth.currentUser;
 };
 

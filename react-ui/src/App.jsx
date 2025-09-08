@@ -1,11 +1,16 @@
 import { useEffect, useState, useCallback, useRef } from "react";
-import { database } from "./firebase";
+import { database, initializeFirebase, isFirebaseInitialized, saveFirebaseConfig, getFirebaseConfig } from "./firebase";
 import { ref, set, onValue, remove, get } from "firebase/database";
 import "./styles/theme.css";
 import "./styles/layout.css";
 import "./styles.css";
+import "./components/Settings.css";
 import UpdateNotification from "./UpdateNotification";
 import PostUpdateNotification from "./PostUpdateNotification";
+import FirebaseConfig from "./components/FirebaseConfig";
+import FirebaseConfigDebug from "./components/FirebaseConfigDebug";
+import FirebaseConfigSimple from "./components/FirebaseConfigSimple";
+import ErrorBoundary from "./components/ErrorBoundary";
 import { 
   checkForUpdates, 
   shouldCheckForUpdates, 
@@ -102,6 +107,12 @@ function App() {
     message: ''
   });
   
+  // Firebase configuration state
+  const [showFirebaseConfig, setShowFirebaseConfig] = useState(false);
+  const [firebaseConfigured, setFirebaseConfigured] = useState(false);
+  const [firebaseError, setFirebaseError] = useState(null);
+  const [firebaseLoading, setFirebaseLoading] = useState(true);
+  
   // Use custom hooks
   const { theme, themeSetting, handleThemeChange } = useTheme();
   const { notificationSound, handleNotificationSoundChange, previewNotificationSound } = useNotificationSound();
@@ -149,6 +160,41 @@ function App() {
       }
     };
     getVersion();
+  }, []);
+
+  // Initialize Firebase configuration
+  useEffect(() => {
+    const initFirebase = async () => {
+      try {
+        setFirebaseLoading(true);
+        
+        // Check if Firebase is already initialized (from env variables)
+        if (isFirebaseInitialized()) {
+          setFirebaseConfigured(true);
+          setFirebaseLoading(false);
+          console.log('Firebase already initialized');
+          return;
+        }
+
+        // Try to initialize from stored config
+        await initializeFirebase();
+        setFirebaseConfigured(true);
+        setFirebaseLoading(false);
+        console.log('Firebase initialized from stored config');
+      } catch (error) {
+        console.error('Firebase initialization failed:', error);
+        if (error.message === 'FIREBASE_CONFIG_MISSING') {
+          setFirebaseError('Firebase configuration required');
+          setShowFirebaseConfig(true);
+        } else {
+          setFirebaseError(error.message);
+        }
+        setFirebaseConfigured(false);
+        setFirebaseLoading(false);
+      }
+    };
+
+    initFirebase();
   }, []);
 
   // Load activity logs when sidebar opens or app starts
@@ -247,6 +293,11 @@ function App() {
   }, []);
 
   useEffect(() => {
+    // Only set up Firebase listener if Firebase is configured
+    if (!firebaseConfigured || !database) {
+      return;
+    }
+
     const statusesRef = ref(database, "statuses");
     const unsubscribe = onValue(statusesRef, (snapshot) => {
       const data = snapshot.val() || {};
@@ -255,7 +306,7 @@ function App() {
     
     // Cleanup function to unsubscribe from Firebase listener
     return () => unsubscribe();
-  }, []);
+  }, [firebaseConfigured]);
 
   useEffect(() => {
     if (name) {
@@ -326,6 +377,12 @@ function App() {
     const handlePopup = async (status) => {
       const currentName = nameRef.current; // Get current name from ref
       if (!currentName || !currentName.trim()) return; // Ensure name exists and is not empty
+      
+      // Check if Firebase is configured
+      if (!firebaseConfigured || !database) {
+        console.error('Firebase not configured, cannot save status');
+        return;
+      }
       
       // Convert boolean values to string for backward compatibility
       let normalizedStatus = status;
@@ -677,6 +734,70 @@ function App() {
     window.open('https://github.com/moisalucian/office-or-home-office/releases/latest', '_blank');
   };
 
+  // Firebase configuration handlers
+  const handleFirebaseConfigSave = async (config) => {
+    console.log('=== handleFirebaseConfigSave START ===');
+    console.log('Config received:', config);
+    
+    try {
+      // Close dialog immediately to prevent re-renders
+      console.log('Closing Firebase config dialog...');
+      setShowFirebaseConfig(false);
+      
+      // Just save the config, don't try to reinitialize Firebase immediately
+      console.log('Calling saveFirebaseConfig...');
+      
+      if (window.electronAPI && window.electronAPI.saveFirebaseConfig) {
+        const result = await window.electronAPI.saveFirebaseConfig(config);
+        console.log('saveFirebaseConfig result:', result);
+        
+        if (result.success) {
+          console.log('Firebase config saved successfully');
+          setFirebaseError('Configuration saved! Please restart the app to apply changes.');
+          
+          // Show a simple success message instead of complex reinitializatoin
+          setTimeout(() => {
+            if (window.confirm('Firebase configuration saved successfully! Would you like to restart the app now to apply the changes?')) {
+              if (window.electronAPI?.restartApp) {
+                window.electronAPI.restartApp();
+              } else {
+                window.location.reload();
+              }
+            }
+          }, 500);
+          
+        } else {
+          console.error('Failed to save Firebase configuration:', result.error);
+          setFirebaseError(`Failed to save Firebase configuration: ${result.error || 'Unknown error'}`);
+          setShowFirebaseConfig(true);
+        }
+      } else {
+        console.error('electronAPI.saveFirebaseConfig not available');
+        setFirebaseError('Cannot save configuration - Electron API not available');
+        setShowFirebaseConfig(true);
+      }
+      
+    } catch (error) {
+      console.error('=== Error in handleFirebaseConfigSave ===');
+      console.error('Error details:', error);
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
+      
+      setFirebaseError(`Failed to save Firebase configuration: ${error.message}`);
+      setShowFirebaseConfig(true);
+    }
+    
+    console.log('=== handleFirebaseConfigSave END ===');
+  };
+
+  const openFirebaseConfig = () => {
+    console.log('=== openFirebaseConfig START ===');
+    console.log('Before setting showFirebaseConfig...');
+    setShowFirebaseConfig(true);
+    console.log('After setting showFirebaseConfig...');
+    console.log('=== openFirebaseConfig END ===');
+  };
+
   // Settings and theme integration useEffect
   useEffect(() => {
     if (window.electronAPI) {
@@ -817,6 +938,60 @@ function App() {
       <div className="sidebar-window">
         <div className="sidebar-content">
           <ActivityLogContent />
+        </div>
+      </div>
+    );
+  }
+
+  // Show loading screen while Firebase is initializing
+  if (firebaseLoading) {
+    return (
+      <div className={`container ${isMaximized ? 'maximized' : ''}`}>
+        <WindowControls />
+        <div style={{ 
+          display: 'flex', 
+          flexDirection: 'column', 
+          alignItems: 'center', 
+          justifyContent: 'center', 
+          height: '100vh',
+          padding: '20px',
+          textAlign: 'center'
+        }}>
+          <h2>Loading...</h2>
+          <p>Initializing Firebase connection...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show Firebase configuration dialog if not configured
+  if (!firebaseConfigured) {
+    return (
+      <div className={`container ${isMaximized ? 'maximized' : ''}`}>
+        <WindowControls />
+        <div style={{ 
+          display: 'flex', 
+          flexDirection: 'column', 
+          alignItems: 'center', 
+          justifyContent: 'center', 
+          height: '100vh',
+          padding: '20px',
+          textAlign: 'center'
+        }}>
+          <h2>Welcome to Office or Home Office</h2>
+          <p>To get started, please configure your Firebase connection.</p>
+          {firebaseError && (
+            <p style={{ color: 'var(--text-error)', margin: '10px 0' }}>
+              {firebaseError}
+            </p>
+          )}
+          <button 
+            className="primary" 
+            onClick={() => setShowFirebaseConfig(true)}
+            style={{ marginTop: '20px' }}
+          >
+            Configure Firebase
+          </button>
         </div>
       </div>
     );
@@ -1066,6 +1241,23 @@ function App() {
                 </div>
               </div>
 
+              {/* Firebase Configuration */}
+              <div className="setting-item">
+                <div className="setting-label" title="Configure Firebase database connection">
+                  <span className="setting-title">Firebase Configuration</span>
+                  <button 
+                    className="firebase-config-button"
+                    onClick={() => {
+                      console.log('Opening simplified Firebase config dialog...');
+                      setShowFirebaseConfig(true);
+                    }}
+                    title="Edit Firebase database configuration"
+                  >
+                    🔧 Edit Config (Simple)
+                  </button>
+                </div>
+              </div>
+
               {/* Version display as last item in settings content */}
               <div className="settings-version-content">
                 Current Version: v{appVersion}
@@ -1245,6 +1437,14 @@ function App() {
           v{appVersion}
         </div>
       </div>
+      
+      {/* Firebase Configuration Dialog - TESTING SIMPLE VERSION */}
+      {showFirebaseConfig && (
+        <FirebaseConfigSimple
+          onConfigSaved={handleFirebaseConfigSave}
+          onClose={() => setShowFirebaseConfig(false)}
+        />
+      )}
     </div>
   );
 }
