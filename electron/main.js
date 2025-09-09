@@ -1309,7 +1309,7 @@ node "!UPDATER!" >> "%LOGFILE%" 2>&1
 if errorlevel 1 echo [%date% %time%] ERROR running updater.js >> "%LOGFILE%"
 
 echo [%date% %time%] Relaunching app detached... >> "%LOGFILE%"
-start /B "" "!EXE_PATH!" --show-after-update
+start "" "!EXE_PATH!" --show-after-update
 
 echo [%date% %time%] Batch script finished. >> "%LOGFILE%"
 timeout /t 1 >nul 2>&1
@@ -1320,7 +1320,7 @@ exit`;
         writeLog(`Writing batch script to: ${tempScriptPath}`);
         fs.writeFileSync(tempScriptPath, batchScript);
         writeLog('Created update-and-restart script, executing...');
-        exec(`start "" /min "${tempScriptPath}"`, (error) => {
+        exec(`cmd /c start /b "" "${tempScriptPath}"`, (error) => {
           if (error) {
             writeLog('Failed to execute update-and-restart script: ' + error);
             // Clean up staged update to prevent infinite loop
