@@ -1280,6 +1280,10 @@ async function applyStagedUpdate() {
       const exePath = process.execPath;
       const updaterScript = updaterScriptPath;
       
+      // Get the path to node.exe that comes with Electron
+      const electronNodePath = process.execPath.replace(/\.exe$/, '').replace(/Office or Home Office$/, 'node.exe');
+      const nodePath = fs.existsSync(electronNodePath) ? electronNodePath : 'node';
+      
       const batchScript = `@echo off
 setlocal enabledelayedexpansion
 set "LOGFILE=%TEMP%\\update-log.txt"
@@ -1289,6 +1293,7 @@ echo [%date% %time%] Batch script started. >> "%LOGFILE%"
 set "EXE_NAME=${exeName}"
 set "EXE_PATH=${exePath}"
 set "UPDATER=${updaterScript}"
+set "NODE_PATH=${nodePath}"
 
 echo [%date% %time%] Waiting for process to exit... >> "%LOGFILE%"
 
@@ -1303,7 +1308,7 @@ echo [%date% %time%] Process exited. Waiting extra 2 seconds for file locks... >
 timeout /t 2 >nul 2>&1
 
 echo [%date% %time%] Running updater.js... >> "%LOGFILE%"
-node "!UPDATER!" >> "%LOGFILE%" 2>&1
+"!NODE_PATH!" "!UPDATER!" >> "%LOGFILE%" 2>&1
 if errorlevel 1 echo [%date% %time%] ERROR running updater.js >> "%LOGFILE%"
 
 echo [%date% %time%] Relaunching app detached... >> "%LOGFILE%"
