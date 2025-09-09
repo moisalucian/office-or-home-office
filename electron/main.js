@@ -12,6 +12,7 @@ const UPDATE_INSTALL_TIMEOUT = 3 * 60 * 1000; // 3 minutes
 let currentDownload = null;
 
 const isHiddenLaunch = process.argv.includes('--hidden');
+const isShowAfterUpdate = process.argv.includes('--show-after-update');
 
 let popupWindowRef = null;
 let sidebarWindowRef = null;
@@ -737,7 +738,8 @@ app.whenReady().then(async () => {
   // Determine how to create the window based on settings
   // If launched with --hidden flag (from startup), respect the launchInTray setting
   // If launchInTray is false, show the window even when launched with --hidden
-  const shouldShow = isHiddenLaunch ? !launchInTray : true;
+  // If --show-after-update flag is present, always show the window (after updates)
+  const shouldShow = isShowAfterUpdate ? true : (isHiddenLaunch ? !launchInTray : true);
   const shouldMaximize = defaultLaunchOption === 'maximized';
   
   createWindow(shouldShow, shouldMaximize);
@@ -1307,7 +1309,7 @@ node "!UPDATER!" >> "%LOGFILE%" 2>&1
 if errorlevel 1 echo [%date% %time%] ERROR running updater.js >> "%LOGFILE%"
 
 echo [%date% %time%] Relaunching app detached... >> "%LOGFILE%"
-start "" "!EXE_PATH!"
+start "" "!EXE_PATH!" --show-after-update
 
 echo [%date% %time%] Batch script finished. >> "%LOGFILE%"
 timeout /t 1 >nul 2>&1
