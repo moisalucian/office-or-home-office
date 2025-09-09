@@ -1193,84 +1193,6 @@ ipcMain.handle('mark-update-completed', (event, version) => {
 });
 
 // Apply staged update on startup
-// Direct update application function (used before restart)
-async function applyUpdateDirect(extractPath, updateInfo) {
-  writeLog('Applying update directly in main process...');
-  
-  const resourcesSrc = path.join(extractPath, 'resources');
-  const appPath = app.isPackaged ? path.dirname(process.execPath) : app.getAppPath();
-  const resourcesDest = path.join(appPath, 'resources');
-  
-  // Special handling for app.package -> app.asar
-  const appPackagePath = path.join(resourcesSrc, 'app.package');
-  const appAsarPath = path.join(resourcesDest, 'app.asar');
-  const appAsarBackupPath = path.join(resourcesDest, 'app.asar.backup');
-  
-  if (fs.existsSync(appPackagePath)) {
-    writeLog('Updating app.asar...');
-    
-    // Ensure destination directory exists
-    if (!fs.existsSync(resourcesDest)) {
-      fs.mkdirSync(resourcesDest, { recursive: true });
-    }
-    
-    // Remove any existing backup
-    try {
-      if (fs.existsSync(appAsarBackupPath)) {
-        fs.unlinkSync(appAsarBackupPath);
-      }
-    } catch (e) {
-      writeLog('Could not remove old backup: ' + e.message);
-    }
-    
-    // Rename current app.asar to backup (this releases the file lock)
-    if (fs.existsSync(appAsarPath)) {
-      try {
-        fs.renameSync(appAsarPath, appAsarBackupPath);
-        writeLog('Old app.asar renamed to backup');
-      } catch (renameError) {
-        writeLog('Failed to rename old app.asar: ' + renameError);
-      }
-    }
-    
-    // Copy new app.package as app.asar
-    fs.copyFileSync(appPackagePath, appAsarPath);
-    writeLog('New app.asar copied successfully');
-    
-    // Clean up backup file
-    try {
-      if (fs.existsSync(appAsarBackupPath)) {
-        fs.unlinkSync(appAsarBackupPath);
-        writeLog('Backup app.asar removed');
-      }
-    } catch (e) {
-      writeLog('Could not remove backup: ' + e.message);
-    }
-  }
-  
-  // Clean up extraction path
-  try { 
-    fs.rmSync(extractPath, { recursive: true, force: true }); 
-    writeLog('Cleaned up extraction path');
-  } catch (e) {
-    writeLog('Could not clean up extraction path: ' + e.message);
-  }
-  
-  // Create update state for UI notification
-  const userDataPath = app.getPath('userData');
-  const updateStateFile = path.join(userDataPath, 'update-state.json');
-  const updateState = {
-    applied: true,
-    success: true,
-    version: updateInfo.version,
-    timestamp: Date.now()
-  };
-  fs.writeFileSync(updateStateFile, JSON.stringify(updateState));
-  writeLog('Created update state file');
-  
-  writeLog(`Update to version ${updateInfo.version} applied successfully`);
-}
-
 async function applyStagedUpdate() {
   const stagedUpdateFile = path.join(app.getPath('userData'), 'staged-update.json');
   const updateStateFile = path.join(app.getPath('userData'), 'update-state.json');
@@ -1302,19 +1224,10 @@ async function applyStagedUpdate() {
       return false;
     }
     
-    // Don't try to copy files while app is running - apply update then relaunch
-    writeLog('Staged update found, applying update before restart');
+    // Don't try to copy files while app is running - let the external updater handle it
+    writeLog('Staged update found, creating restart script');
     
-    try {
-      // Apply the update directly in the main process
-      await applyUpdateDirect(extractPath, stagedUpdateInfo);
-      writeLog('Update applied successfully, creating restart script');
-    } catch (error) {
-      writeLog('Failed to apply update directly: ' + error);
-      return false;
-    }
-    
-    // Launch simple restart script (update already applied)
+    // Launch restart script that will use updater.js to apply the update
     writeLog('Starting restart script creation and execution...');
     
     // Create the updater.js script info for the batch script to use
@@ -1365,8 +1278,8 @@ async function applyStagedUpdate() {
       const tempScriptPath = path.join(os.tmpdir(), 'update-and-restart.bat');
       const exeName = path.basename(process.execPath);
       const exePath = process.execPath;
+      const updaterScript = updaterScriptPath;
       
-      // Simplified batch script - just wait and relaunch, no Node.js execution
       const batchScript = `@echo off
 setlocal enabledelayedexpansion
 set "LOGFILE=%TEMP%\\update-log.txt"
@@ -1375,6 +1288,7 @@ echo [%date% %time%] Batch script started. >> "%LOGFILE%"
 
 set "EXE_NAME=${exeName}"
 set "EXE_PATH=${exePath}"
+set "UPDATER=${updaterScript}"
 
 echo [%date% %time%] Waiting for process to exit... >> "%LOGFILE%"
 
@@ -1388,7 +1302,9 @@ if not errorlevel 1 (
 echo [%date% %time%] Process exited. Waiting extra 2 seconds for file locks... >> "%LOGFILE%"
 timeout /t 2 >nul 2>&1
 
-echo [%date% %time%] Update already applied by main process. Relaunching app... >> "%LOGFILE%"
+echo [%date% %time%] Running updater.js... >> "%LOGFILE%"
+node "!UPDATER!" >> "%LOGFILE%" 2>&1
+if errorlevel 1 echo [%date% %time%] ERROR running updater.js >> "%LOGFILE%"
 
 echo [%date% %time%] Relaunching app detached... >> "%LOGFILE%"
 start "" "!EXE_PATH!"
