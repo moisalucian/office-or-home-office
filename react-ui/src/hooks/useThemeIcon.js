@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { THEME_OPTIONS } from '../utils/constants';
 
 export const useThemeIcon = (theme, themeSetting) => {
-  const [iconPath, setIconPath] = useState('/icon-black.ico');
+  const [iconPath, setIconPath] = useState('./icon-black.ico');
 
   useEffect(() => {
     const determineIconPath = () => {
@@ -16,10 +16,11 @@ export const useThemeIcon = (theme, themeSetting) => {
       }
       
       // Return appropriate icon based on theme
+      // Use relative paths that work both in development and production
       if (effectiveTheme === THEME_OPTIONS.LIGHT) {
-        return '/icon-black.ico'; // Dark icon for light theme
+        return './icon-black.ico'; // Dark icon for light theme
       } else {
-        return '/icon-white.ico'; // White icon for dark theme
+        return './icon-white.ico'; // White icon for dark theme
       }
     };
 

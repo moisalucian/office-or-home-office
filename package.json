@@ -13,7 +13,8 @@
     "version": "1.0.175",
     "build-react": "npm run build --prefix react-ui",
     "copy-react": "xcopy \"react-ui\\dist\" \"electron\\dist\" /E /I /Y",
-    "build": "npm run build-react && npm run copy-react && electron-builder"
+    "copy-icons": "copy \"build\\icon-black.ico\" \"electron\\dist\\icon-black.ico\" && copy \"build\\icon-white.ico\" \"electron\\dist\\icon-white.ico\"",
+    "build": "npm run build-react && npm run copy-react && npm run copy-icons && electron-builder"
   },
   "keywords": [],
   "author": "Your Name",

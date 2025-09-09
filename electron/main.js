@@ -470,7 +470,7 @@ function createWindow(shouldShow = true, shouldMaximize = false) {
     resizable: true,
     autoHideMenuBar: true,
     roundedCorners: true, // Enable rounded corners on the window itself
-    icon: path.join(__dirname, '..', 'build', 'icon-white.ico'), // Set window icon (white icon for better visibility)
+    icon: path.join(__dirname, 'icon-white.ico'), // Set window icon (white icon for better visibility)
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
@@ -601,7 +601,7 @@ function createWindow(shouldShow = true, shouldMaximize = false) {
 }
 
 function createTray() {
-  tray = new Tray(path.join(__dirname, '..', 'build', 'icon-white.ico')); // Use white icon for better tray visibility
+  tray = new Tray(path.join(__dirname, 'icon-white.ico')); // Use white icon for better tray visibility
 
   const contextMenu = Menu.buildFromTemplate([
     {
