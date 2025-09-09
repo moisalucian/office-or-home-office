@@ -21,12 +21,12 @@
 
 - ✅ **Team Coordination**: See who's coming to the office tomorrow at a glance
 - 🔔 **Smart Notifications**: Customizable reminders at your preferred times
-- � **Real-time Sync**: Firebase integration for instant team updates
+- 🔥 **Real-time Sync**: Firebase integration for instant team updates
 - ⚙️ **Startup Options**: Launch at startup with customizable tray behavior
 - 🖥️ **System Tray**: Runs quietly in the background
-- � **Auto-Updates**: Automatic update notifications and installation
+- 🔄 **Auto-Updates**: Automatic update notifications and installation
 - 🎨 **Themes**: Dark/Light/System theme support
-- 🔊 **Notification Sounds**: Multiple sound options for alerts
+- 🔊 **Notification Sounds**: Multiple sound options for alerts (default: Three Note Doorbell)
 
 ---
 
@@ -40,20 +40,27 @@ See [**SETUP.md**](SETUP.md) - "For Developers" section for complete development
 
 ## 🚀 How It Works
 
-1. **Set Your Status**: Choose from Office, Home, Away, Lunch, Meeting, or Vacation
-2. **Team Visibility**: All team members see real-time status updates
-3. **Smart Reminders**: Get notified to update your status at your preferred times
-4. **Activity History**: Track team presence patterns over time
+1. **First Launch**: Configure Firebase connection through the built-in setup wizard
+2. **Set Your Status**: Choose from Office, Home, Away, Lunch, Meeting, or Vacation
+3. **Team Visibility**: All team members see real-time status updates
+4. **Smart Reminders**: Get notified to update your status at your preferred times (default: Three Note Doorbell sound)
+5. **Activity History**: Track team presence patterns over time
 
 ---
 
-## � Configuration
+## 🔧 Configuration
 
-The app uses Firebase Realtime Database for team synchronization. On first launch, you'll be prompted to configure your Firebase connection. Team admins can share configuration details with team members for easy setup.
+The app uses Firebase Realtime Database for team synchronization. On first launch, you'll see a Firebase configuration dialog where you can enter your team's Firebase settings. The configuration is stored securely in your app's user data directory.
+
+**Key Features:**
+- **Smart Configuration UI**: Easy-to-use dialog with change tracking
+- **No Manual File Editing**: All configuration is handled through the interface
+- **Secure Storage**: Configuration stored in your system's user data directory
+- **Team Sharing**: Team admins can easily share configuration details with team members
 
 ---
 
-## � Documentation
+## 📚 Documentation
 
 - [**SETUP.md**](SETUP.md) - Complete setup instructions for users and developers
 - [**MIGRATION.md**](MIGRATION.md) - Migration guide for existing users
@@ -71,70 +78,4 @@ The app uses Firebase Realtime Database for team synchronization. On first launc
 
 ## 📄 License
 
-This project is open source. See the LICENSE file for details.r Home Office
-
-**Office or Home Office** is a lightweight desktop app built with Electron and React, designed to help teams coordinate who will be working from the office or remotely.
-
-## ✨ Features
-
-- ✅ Easily indicate **if you're coming to the office tomorrow** via a popup notification.
-- 🔔 Set **push notification reminders** at custom times and days of the week.
-- 💾 Your response is saved to **Firebase**, so teammates can see who’s coming in each day.
-- ⚙️ Optional **launch at startup**, toggleable via a checkbox in the interface.
-- 🖥️ Runs in the **system tray**, quietly in the background.
-
-## 🛠️ Setup
-
-Follow these steps to set up and build the app:
-
-1. **Configure environment variables:**
-   ```bash
-   # Under react-ui folder ename the .env.example file to .env
-   mv .env.example .env
-   ```
-
-2. **Set up Firebase configuration:**
-   ```js
-   // File: react-ui/src/firebase.js
-   // Replace with your own Firebase config object
-   const firebaseConfig = {
-     apiKey: "YOUR_API_KEY",
-     authDomain: "YOUR_DOMAIN",
-     projectId: "YOUR_PROJECT_ID",
-     storageBucket: "YOUR_BUCKET",
-     messagingSenderId: "YOUR_SENDER_ID",
-     appId: "YOUR_APP_ID"
-   };
-   ```
-
-3. **Configure Firebase Authentication and Security Rules:**
-   
-   **a) Enable Anonymous Authentication:**
-   - Go to Firebase Console → Authentication → Sign-in method
-   - Enable "Anonymous" authentication
-   
-   **b) Update Database Security Rules:**
-   - Go to Firebase Console → Realtime Database → Rules
-   - Replace the rules with:
-   ```json
-   {
-     "rules": {
-       ".read": "auth != null",
-       ".write": "auth != null"
-     }
-   }
-   ```
-   - Click "Publish" to save the rules
-
-3. **Install dependencies:**
-   ```bash
-   npm install
-   ```
-
-4. **Build the application:**
-   ```bash
-   npm run build
-   ```
-
-5. **Find your executable:**
-   After building, you'll find `Office or Home Office.exe` in the `dist/win-packed/` directory.
+This project is open source. See the LICENSE file for details.

@@ -15,7 +15,7 @@
 
 .settings-popup {
   background: var(--header-bg);
-  border-radius: 12px;
+  border-radius: 16px;
   box-shadow: 0 8px 32px var(--shadow-color);
   width: 400px;
   max-width: 90vw;

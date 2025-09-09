@@ -13,11 +13,11 @@ The app requires a Firebase Realtime Database to sync status between team member
 #### Option A: Team Member Setup (Recommended)
 If your team already has a Firebase project set up:
 1. Get the Firebase configuration from your team admin (see format below)
-2. Run the app - it will automatically show a configuration dialog on first startup
-3. Paste the configuration provided by your team admin
+2. Run the app - it will automatically show a Firebase configuration dialog on first startup
+3. Enter the configuration details provided by your team admin
 4. Click "Save Configuration"
 
-**Firebase Configuration Format:**
+**Firebase Configuration Details Your Team Admin Should Provide:**
 ```
 VITE_FIREBASE_API_KEY=your_api_key_here
 VITE_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com  
@@ -46,7 +46,16 @@ VITE_FIREBASE_APP_ID=1:123456789:web:abcdefghijklmnop
 2. Scroll down to "Your apps" section
 3. Click "Add app" → Web app (</>) 
 4. Give it a name (e.g., "Office Status App")
-5. Copy the config values and share them with your team in the format shown above
+5. Copy the config values and share them with your team in this format:
+   ```
+   VITE_FIREBASE_API_KEY=your_api_key_here
+   VITE_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com  
+   VITE_FIREBASE_DATABASE_URL=https://your-project-default-rtdb.firebaseio.com
+   VITE_FIREBASE_PROJECT_ID=your-project-id
+   VITE_FIREBASE_STORAGE_BUCKET=your-project.appspot.com
+   VITE_FIREBASE_MESSAGING_SENDER_ID=123456789
+   VITE_FIREBASE_APP_ID=1:123456789:web:abcdefghijklmnop
+   ```
 
 ### 3. Security Rules (Important for Team Admins!)
 For team usage, update your Firebase Realtime Database rules:
@@ -66,9 +75,9 @@ For team usage, update your Firebase Realtime Database rules:
 
 ### 4. Changing Configuration Later
 - Open the app and go to Settings (gear icon)
-- Click "Firebase Configuration" 
-- Edit your configuration as needed
-- Click "Save Configuration"
+- Click "Edit Firebase Configuration" 
+- Update your configuration as needed
+- Click "Save Configuration" (only enabled when changes are detected)
 
 ---
 
@@ -90,18 +99,9 @@ npm install
 
 ### 2. Firebase Setup
 1. Create a Firebase project (see user instructions above)
-2. Copy `react-ui/.env.example` to `react-ui/.env`
-3. Fill in your Firebase configuration in `react-ui/.env`:
-
-```bash
-VITE_FIREBASE_API_KEY=your_api_key_here
-VITE_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
-VITE_FIREBASE_DATABASE_URL=https://your-project-default-rtdb.firebaseio.com
-VITE_FIREBASE_PROJECT_ID=your-project-id
-VITE_FIREBASE_STORAGE_BUCKET=your-project.appspot.com
-VITE_FIREBASE_MESSAGING_SENDER_ID=123456789
-VITE_FIREBASE_APP_ID=1:123456789:web:abcdefghijklmnop
-```
+2. The app will prompt you to configure Firebase on first launch
+3. Enter your Firebase configuration details in the dialog
+> **Note**: The app no longer uses `.env` files. All Firebase configuration is handled through the UI and stored securely in the app's user data directory.
 
 ### 3. Development
 ```bash
@@ -144,9 +144,10 @@ The app uses this simple structure:
 ## Troubleshooting
 
 ### App won't start / Firebase errors
-- Check your Firebase configuration in the `.env` file
+- Check your Firebase configuration by going to Settings → "Edit Firebase Configuration"
 - Verify your Firebase project has Realtime Database enabled
 - Make sure your database rules allow read/write access
+- If the app shows a Firebase configuration dialog on startup, your configuration needs to be set up
 
 ### Build issues
 - Make sure you have Node.js 18+ installed

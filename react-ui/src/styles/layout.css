@@ -7,13 +7,14 @@ html, body {
   overflow: hidden;
   color: var(--text-color);
   transition: color 0.3s;
+  border-radius: 16px !important;
 }
 
 .container {
   width: 100vw;
   height: 100vh;
   background-color: var(--container-bg);
-  border-radius: var(--container-border-radius, 16px) !important;
+  border-radius: 16px !important;
   padding: 2rem;
   filter: drop-shadow(0 4px 16px var(--shadow-color));
   position: relative;
@@ -21,7 +22,7 @@ html, body {
   flex-direction: column;
   overflow: hidden;
   box-sizing: border-box;
-  transition: border-radius 0.3s ease, padding 0.3s ease, background-color 0.3s, color 0.3s;
+  transition: padding 0.3s ease, background-color 0.3s, color 0.3s;
   color: var(--text-color);
   -webkit-app-region: drag;
 }
@@ -29,6 +30,7 @@ html, body {
 .container:not(.maximized) {
   padding-left: 8rem;
   padding-right: 6rem;
+  border-radius: 16px !important; /* Ensure 16px radius in windowed mode */
 }
 
 .container.maximized {
@@ -41,6 +43,11 @@ html, body {
   width: 100vw;
   margin: 0;
   -webkit-app-region: no-drag;
+}
+
+/* Remove body border radius when maximized */
+body.maximized {
+  border-radius: 0 !important;
 }
 
 .container.maximized .header-area {

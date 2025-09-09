@@ -2,11 +2,11 @@ import { useState, useEffect } from 'react';
 import { loadSetting, saveSetting } from '../utils/storageUtils';
 
 export const useNotificationSound = () => {
-  const [notificationSound, setNotificationSound] = useState('none');
+  const [notificationSound, setNotificationSound] = useState('three-note-doorbell');
 
   useEffect(() => {
     // Load saved notification sound setting
-    const savedNotificationSound = loadSetting("notificationSound", "none");
+    const savedNotificationSound = loadSetting("notificationSound", "three-note-doorbell");
     setNotificationSound(savedNotificationSound);
 
     // Listen for sound errors

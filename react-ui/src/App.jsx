@@ -29,6 +29,7 @@ import StatusGrid from "./components/StatusGrid";
 
 // Hooks
 import { useTheme } from "./hooks/useTheme";
+import { useThemeIcon } from "./hooks/useThemeIcon";
 import { useWindowState } from "./hooks/useWindowState";
 import { useNotificationSound } from "./hooks/useNotificationSound";
 
@@ -114,6 +115,7 @@ function App() {
   
   // Use custom hooks
   const { theme, themeSetting, handleThemeChange } = useTheme();
+  const iconPath = useThemeIcon(theme, themeSetting);
   const { notificationSound, handleNotificationSoundChange, previewNotificationSound } = useNotificationSound();
   const { 
     isMaximized, 
@@ -161,6 +163,23 @@ function App() {
     getVersion();
   }, []);
 
+  // Update body class based on maximized state
+  useEffect(() => {
+    if (isMaximized) {
+      document.body.classList.add('maximized');
+      document.body.style.borderRadius = '0px';
+    } else {
+      document.body.classList.remove('maximized');
+      document.body.style.borderRadius = '16px';
+      
+      // Ensure container also has the correct border radius
+      const container = document.querySelector('.container');
+      if (container) {
+        container.style.borderRadius = '16px';
+      }
+    }
+  }, [isMaximized]);
+
   // Initialize Firebase configuration
   useEffect(() => {
     const initFirebase = async () => {
@@ -199,17 +218,44 @@ function App() {
   // Load activity logs when sidebar opens or app starts
   useEffect(() => {
     if (sidebarOpen) {
-      loadActivityLogs();
+      // Always load fresh data when sidebar opens to avoid empty state
+      const loadFreshLogs = async () => {
+        try {
+          const logs = await getActivityLogs();
+          setActivityLogs(logs);
+          setActivityLogsCache(logs);
+          setLastCacheTime(Date.now());
+        } catch (error) {
+          console.error('Error loading activity logs:', error);
+        }
+      };
+      loadFreshLogs();
     }
-  }, [sidebarOpen, loadActivityLogs]);
+  }, [sidebarOpen]);
   
-  // Preload activity logs on app start for faster satellite window
+  // Preload activity logs on app start for faster access
   useEffect(() => {
     const preloadLogs = async () => {
-      await loadActivityLogs();
+      try {
+        await loadActivityLogs();
+      } catch (error) {
+        console.error('Error preloading activity logs:', error);
+      }
     };
     preloadLogs();
   }, [loadActivityLogs]);
+
+  // Refresh logs when switching between maximized/windowed modes
+  useEffect(() => {
+    if (sidebarOpen) {
+      // Small delay to ensure window state has settled
+      const refreshTimer = setTimeout(() => {
+        loadActivityLogs();
+      }, 100);
+      
+      return () => clearTimeout(refreshTimer);
+    }
+  }, [isMaximized, sidebarOpen, loadActivityLogs]);
 
   // Check if this is the sidebar window
   const isSidebarWindow = window.location.hash === '#sidebar';
@@ -828,7 +874,7 @@ function App() {
 
   const [isToggling, setIsToggling] = useState(false);
 
-  const toggleSidebar = async () => {
+  const toggleSidebar = useCallback(async () => {
     if (isToggling) return; // Prevent multiple rapid clicks
     
     setIsToggling(true);
@@ -846,10 +892,10 @@ function App() {
     } catch (error) {
       console.error('Error toggling sidebar:', error);
     } finally {
-      // Add a small delay to prevent rapid clicking issues
-      setTimeout(() => setIsToggling(false), 200);
+      // Shorter delay to reduce flickering
+      setTimeout(() => setIsToggling(false), 100);
     }
-  };
+  }, [isToggling, isMaximized, sidebarOpen]);
 
   // Cleanup effect for sidebar resize
   useEffect(() => {
@@ -904,21 +950,47 @@ function App() {
     // Load activity logs when satellite window opens
     useEffect(() => {
       const loadData = async () => {
-        // Show window immediately, load data in background
-        setIsLoading(false); // Show content immediately
-        await loadActivityLogs();
+        try {
+          // Show window immediately, load data in background
+          setIsLoading(false);
+          
+          // Ensure Firebase is initialized first
+          if (!isFirebaseInitialized()) {
+            // Try to initialize Firebase for sidebar window
+            const config = await getFirebaseConfig();
+            if (config && Object.keys(config).length > 0) {
+              await initializeFirebase(config);
+            }
+          }
+          
+          // Load activity logs with fresh data
+          const logs = await getActivityLogs();
+          setActivityLogs(logs);
+          setActivityLogsCache(logs);
+          setLastCacheTime(Date.now());
+        } catch (error) {
+          console.error('Error loading activity logs in sidebar window:', error);
+        }
       };
+      
       loadData();
       
       // Listen for refresh events from main window
       const handleRefresh = async () => {
-        await loadActivityLogs();
+        try {
+          const logs = await getActivityLogs();
+          setActivityLogs(logs);
+          setActivityLogsCache(logs);
+          setLastCacheTime(Date.now());
+        } catch (error) {
+          console.error('Error refreshing activity logs:', error);
+        }
       };
       
       if (window.electronAPI?.onRefreshActivityLogs) {
         window.electronAPI.onRefreshActivityLogs(handleRefresh);
       }
-    }, [loadActivityLogs]);
+    }, []);
 
     // Initialize theme for sidebar window
     useEffect(() => {
@@ -991,6 +1063,7 @@ function App() {
             padding: '20px',
             textAlign: 'center'
           }}>
+            <img src={iconPath} alt="Office or Home Office" className="app-icon welcome-icon" />
             <h2>Welcome to Office or Home Office</h2>
             <p>To get started, please configure your Firebase connection.</p>
             {firebaseError && (
@@ -1296,6 +1369,7 @@ function App() {
         }}
       >
         <h1 className="title-draggable">
+          <img src={iconPath} alt="Office or Home Office" className="app-icon" />
           <span className="title-text">Office or Home Office</span>
         </h1>
       </div>

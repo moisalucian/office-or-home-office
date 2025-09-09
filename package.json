@@ -37,6 +37,7 @@
   "build": {
     "appId": "com.office.homeoffice.app",
     "productName": "Office or Home Office",
+    "icon": "build/icon.ico",
     "files": [
       "electron/**",
       "package.json"

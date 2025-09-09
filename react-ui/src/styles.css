@@ -73,7 +73,7 @@ html, body {
   width: 100vw; /* Fill entire viewport width */
   height: 100vh;
   background-color: var(--container-bg);
-  border-radius: var(--container-border-radius, 16px) !important;
+  border-radius: 16px !important;
   padding: 2rem;
   filter: drop-shadow(0 4px 16px var(--shadow-color));
   position: relative;
@@ -81,7 +81,7 @@ html, body {
   flex-direction: column;
   overflow: hidden;
   box-sizing: border-box;
-  transition: border-radius 0.3s ease, padding 0.3s ease, background-color 0.3s, color 0.3s;
+  transition: padding 0.3s ease, background-color 0.3s, color 0.3s;
   color: var(--text-color); /* Use CSS variable for text color */
   -webkit-app-region: drag; /* Make entire container draggable */
 }
@@ -90,6 +90,7 @@ html, body {
 .container:not(.maximized) {
   padding-left: 6rem; /* Same as right padding for balance */
   padding-right: 6rem; /* Keep consistent */
+  border-radius: 16px !important; /* Ensure 16px radius in windowed mode */
 }
 
 .container.maximized {
@@ -219,7 +220,9 @@ h1 {
 .title-draggable,
 .status-title-draggable {
   -webkit-app-region: drag;
-  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: default;
   padding: 0 2rem;
   margin: 0 0 1rem 0;
@@ -235,6 +238,38 @@ h1 {
 
 .status-title-draggable {
   margin-bottom: 1rem;
+}
+
+/* App icon styling - default for windowed mode */
+.app-icon {
+  width: 140px;
+  height: 140px;
+  margin-right: 12px;
+  vertical-align: middle;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+  flex-shrink: 0; /* Prevent icon from shrinking */
+  transition: width 0.3s ease, height 0.3s ease;
+}
+
+/* App icon sizing for maximized mode */
+.container.maximized .app-icon {
+  width: 200px;
+  height: 200px;
+  margin-right: 16px;
+}
+
+/* Welcome screen icon - larger */
+.welcome-icon {
+  width: 140px;
+  height: 140px;
+  margin-right: 16px;
+  margin-bottom: 8px;
+}
+
+/* Welcome screen icon sizing for maximized mode */
+.container.maximized .welcome-icon {
+  width: 200px;
+  height: 200px;
 }
 
 /* Selectable text inside titles */
@@ -843,7 +878,7 @@ button.danger:hover {
 
 /* App version display */
 .app-version {
-  position: fixed;
+  position: absolute;
   bottom: 10px;
   left: 10px;
   font-size: 0.75rem;
@@ -854,6 +889,12 @@ button.danger:hover {
   border: 1px solid var(--control-border);
   z-index: 1000;
   font-family: 'Courier New', monospace;
+  transition: left 0.3s ease;
+}
+
+/* Move version with sidebar in maximized mode */
+.container.maximized .app-version {
+  left: calc(10px + var(--content-margin-left, 0px));
 }
 
 /* Settings version display */

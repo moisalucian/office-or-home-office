@@ -9,26 +9,27 @@ const FirebaseConfig = ({ onConfigSaved, onClose, currentConfig = {} }) => {
     projectId: currentConfig.projectId || '',
     storageBucket: currentConfig.storageBucket || '',
     messagingSenderId: currentConfig.messagingSenderId || '',
-    appId: currentConfig.appId || '',
-    measurementId: currentConfig.measurementId || ''
+    appId: currentConfig.appId || ''
   });
 
+  const [originalConfig, setOriginalConfig] = useState({});
   const [bulkConfig, setBulkConfig] = useState('');
   const [showBulkInput, setShowBulkInput] = useState(false);
 
   // Update config when currentConfig prop changes
   useEffect(() => {
     if (currentConfig && Object.keys(currentConfig).length > 0) {
-      setConfig({
+      const newConfig = {
         apiKey: currentConfig.apiKey || '',
         authDomain: currentConfig.authDomain || '',
         databaseURL: currentConfig.databaseURL || '',
         projectId: currentConfig.projectId || '',
         storageBucket: currentConfig.storageBucket || '',
         messagingSenderId: currentConfig.messagingSenderId || '',
-        appId: currentConfig.appId || '',
-        measurementId: currentConfig.measurementId || ''
-      });
+        appId: currentConfig.appId || ''
+      };
+      setConfig(newConfig);
+      setOriginalConfig(newConfig); // Store original for comparison
     }
   }, [currentConfig]);
 
@@ -42,7 +43,6 @@ const FirebaseConfig = ({ onConfigSaved, onClose, currentConfig = {} }) => {
     if (config.storageBucket) bulkLines.push(`VITE_FIREBASE_STORAGE_BUCKET=${config.storageBucket}`);
     if (config.messagingSenderId) bulkLines.push(`VITE_FIREBASE_MESSAGING_SENDER_ID=${config.messagingSenderId}`);
     if (config.appId) bulkLines.push(`VITE_FIREBASE_APP_ID=${config.appId}`);
-    if (config.measurementId) bulkLines.push(`VITE_FIREBASE_MEASUREMENT_ID=${config.measurementId}`);
     return bulkLines.join('\n');
   };
 
@@ -96,9 +96,6 @@ const FirebaseConfig = ({ onConfigSaved, onClose, currentConfig = {} }) => {
             case 'APP_ID':
               newConfig.appId = cleanValue;
               break;
-            case 'MEASUREMENT_ID':
-              newConfig.measurementId = cleanValue;
-              break;
           }
         }
       });
@@ -129,13 +126,30 @@ const FirebaseConfig = ({ onConfigSaved, onClose, currentConfig = {} }) => {
     return required.every(field => config[field].trim());
   };
 
+  const hasConfigChanged = () => {
+    if (!originalConfig || Object.keys(originalConfig).length === 0) {
+      // If no original config, consider it changed if valid config exists
+      return isConfigValid();
+    }
+    
+    // Compare each field
+    const configFields = ['apiKey', 'authDomain', 'databaseURL', 'projectId', 'storageBucket', 'messagingSenderId', 'appId'];
+    return configFields.some(field => 
+      (config[field] || '').trim() !== (originalConfig[field] || '').trim()
+    );
+  };
+
+  const canSave = () => {
+    return isConfigValid() && hasConfigChanged();
+  };
+
   return (
     <div className="firebase-config-overlay">
       <div className="firebase-config-modal">
         <div className="firebase-config-header">
           <h3>Firebase Configuration</h3>
           {onClose && (
-            <button className="firebase-config-close" onClick={onClose}>×</button>
+            <button className="firebase-config-close" onClick={onClose}>❌</button>
           )}
         </div>
 
@@ -146,7 +160,7 @@ const FirebaseConfig = ({ onConfigSaved, onClose, currentConfig = {} }) => {
                 className="bulk-toggle-btn"
                 onClick={toggleBulkInput}
               >
-                {showBulkInput ? 'Switch to Individual Fields' : 'Switch to Bulk Paste Fields'}
+                {showBulkInput ? 'Switch to Individual Fields' : 'Switch to Bulk Fields'}
               </button>
             </div>
 
@@ -162,8 +176,7 @@ VITE_FIREBASE_DATABASE_URL=https://your-project-default-rtdb.firebaseio.com
 VITE_FIREBASE_PROJECT_ID=your-project-id
 VITE_FIREBASE_STORAGE_BUCKET=your-project.appspot.com
 VITE_FIREBASE_MESSAGING_SENDER_ID=123456789
-VITE_FIREBASE_APP_ID=1:123456789:web:abcdefghijklmnop
-VITE_FIREBASE_MEASUREMENT_ID=G-XXXXXXXXXX`}
+VITE_FIREBASE_APP_ID=1:123456789:web:abcdefghijklmnop`}
                   rows={8}
                   className="bulk-config-textarea"
                 />
@@ -242,16 +255,6 @@ VITE_FIREBASE_MEASUREMENT_ID=G-XXXXXXXXXX`}
                     placeholder="1:123456789:web:abcdefghijklmnop"
                   />
                 </div>
-
-                <div className="config-field">
-                  <label>Measurement ID (optional)</label>
-                  <input
-                    type="text"
-                    value={config.measurementId}
-                    onChange={(e) => handleInputChange('measurementId', e.target.value)}
-                    placeholder="G-XXXXXXXXXX"
-                  />
-                </div>
               </div>
             )}
           </div>
@@ -259,8 +262,8 @@ VITE_FIREBASE_MEASUREMENT_ID=G-XXXXXXXXXX`}
           <div className="firebase-config-actions">
             <button 
               onClick={handleSave}
-              className={`save-btn ${isConfigValid() ? 'enabled' : 'disabled'}`}
-              disabled={!isConfigValid()}
+              className={`save-btn ${canSave() ? 'enabled' : 'disabled'}`}
+              disabled={!canSave()}
             >
               Save Configuration
             </button>
