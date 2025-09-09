@@ -979,34 +979,36 @@ function App() {
   // Show Firebase configuration dialog if not configured
   if (!firebaseConfigured) {
     return (
-      <div className={`container ${isMaximized ? 'maximized' : ''}`}>
-        <WindowControls />
-        <div style={{ 
-          display: 'flex', 
-          flexDirection: 'column', 
-          alignItems: 'center', 
-          justifyContent: 'center', 
-          height: '100vh',
-          padding: '20px',
-          textAlign: 'center'
-        }}>
-          <h2>Welcome to Office or Home Office</h2>
-          <p>To get started, please configure your Firebase connection.</p>
-          {firebaseError && (
-            <p style={{ color: 'var(--text-error)', margin: '10px 0' }}>
-              {firebaseError}
-            </p>
-          )}
-          <button 
-            className="primary" 
-            onClick={openFirebaseConfig}
-            style={{ marginTop: '20px' }}
-          >
-            Configure Firebase
-          </button>
+      <>
+        <div className={`container ${isMaximized ? 'maximized' : ''}`}>
+          <WindowControls />
+          <div style={{ 
+            display: 'flex', 
+            flexDirection: 'column', 
+            alignItems: 'center', 
+            justifyContent: 'center', 
+            height: '100vh',
+            padding: '20px',
+            textAlign: 'center'
+          }}>
+            <h2>Welcome to Office or Home Office</h2>
+            <p>To get started, please configure your Firebase connection.</p>
+            {firebaseError && (
+              <p style={{ color: 'var(--text-error)', margin: '10px 0' }}>
+                {firebaseError}
+              </p>
+            )}
+            <button 
+              className="primary" 
+              onClick={openFirebaseConfig}
+              style={{ marginTop: '20px' }}
+            >
+              Configure Firebase
+            </button>
+          </div>
         </div>
         
-        {/* Firebase Configuration Dialog */}
+        {/* Firebase Configuration Dialog - Always available */}
         {showFirebaseConfig && (
           <FirebaseConfig
             onConfigSaved={handleFirebaseConfigSave}
@@ -1014,12 +1016,13 @@ function App() {
             currentConfig={currentFirebaseConfig}
           />
         )}
-      </div>
+      </>
     );
   }
 
   return (
-    <div className={`container ${isMaximized ? 'maximized' : ''}`}>
+    <>
+      <div className={`container ${isMaximized ? 'maximized' : ''}`}>
       <WindowControls />
       {/* Sidebar toggle arrow */}
       <button 
@@ -1456,7 +1459,7 @@ function App() {
         </div>
       </div>
       
-      {/* Firebase Configuration Dialog */}
+      {/* Firebase Configuration Dialog - OUTSIDE all conditionals for production builds */}
       {showFirebaseConfig && (
         <FirebaseConfig
           onConfigSaved={handleFirebaseConfigSave}
@@ -1464,7 +1467,8 @@ function App() {
           currentConfig={currentFirebaseConfig}
         />
       )}
-    </div>
+      </div>
+    </>
   );
 }
 
