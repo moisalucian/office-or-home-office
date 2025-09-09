@@ -1309,7 +1309,7 @@ node "!UPDATER!" >> "%LOGFILE%" 2>&1
 if errorlevel 1 echo [%date% %time%] ERROR running updater.js >> "%LOGFILE%"
 
 echo [%date% %time%] Relaunching app detached... >> "%LOGFILE%"
-start "" "!EXE_PATH!" --show-after-update
+start /B "" "!EXE_PATH!" --show-after-update
 
 echo [%date% %time%] Batch script finished. >> "%LOGFILE%"
 timeout /t 1 >nul 2>&1
