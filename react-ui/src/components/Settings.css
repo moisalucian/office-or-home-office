@@ -233,18 +233,20 @@
 
 /* Firebase configuration button */
 .firebase-config-button {
-  background: var(--control-button-bg);
-  color: var(--control-button-text);
-  border: 1px solid var(--border-color);
-  padding: 8px 16px;
+  background: var(--settings-button-bg);
+  color: var(--text-primary);
+  border: 1px solid var(--control-border);
   border-radius: 6px;
+  padding: 0.6rem 1rem;
+  font-size: 0.85rem;
   cursor: pointer;
-  font-size: 14px;
-  font-weight: 500;
   transition: all 0.2s ease;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 0.5rem;
+  min-width: 140px;
+  justify-content: center;
+  font-weight: 500;
 }
 
 .firebase-config-button:hover {

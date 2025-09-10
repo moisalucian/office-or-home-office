@@ -3,10 +3,10 @@
   bottom: 20px;
   right: 20px;
   z-index: 9999;
-  background: linear-gradient(135deg, #2d2d2d 0%, #1a1a1a 100%);
-  border: 1px solid #444;
+  background: var(--notification-bg, linear-gradient(135deg, #2d2d2d 0%, #1a1a1a 100%));
+  border: 1px solid var(--border-color, #444);
   border-radius: 12px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.8);
+  box-shadow: 0 8px 32px var(--shadow-color, rgba(0, 0, 0, 0.8));
   backdrop-filter: blur(10px);
   width: 380px;
   animation: slideInUp 0.3s ease-out;
@@ -26,7 +26,7 @@
 .update-notification-content {
   padding: 1.5rem;
   position: relative;
-  color: #ffffff;
+  color: var(--notification-text, #ffffff);
 }
 
 .update-close-btn {
@@ -35,7 +35,7 @@
   right: 10px;
   background: none;
   border: none;
-  color: #999;
+  color: var(--secondary-text, #999);
   cursor: pointer;
   font-size: 0.9rem;
   padding: 0.2rem;
@@ -45,11 +45,11 @@
 
 .update-close-btn:hover {
   color: #ff5c5c;
-  background-color: rgba(255, 255, 255, 0.1);
+  background-color: var(--control-button-hover-bg, rgba(255, 255, 255, 0.1));
 }
 
 .update-close-btn:disabled {
-  color: #666;
+  color: var(--disabled-text, #666);
   cursor: not-allowed;
 }
 
@@ -73,7 +73,7 @@
   margin: 0.5rem 0;
   font-size: 0.9rem;
   line-height: 1.4;
-  color: #cccccc;
+  color: var(--secondary-text, #cccccc);
 }
 
 .version-details {
@@ -92,8 +92,8 @@
 }
 
 .version-badge.current {
-  background-color: #555;
-  color: #ffffff;
+  background-color: var(--secondary-bg, #555);
+  color: var(--notification-text, #ffffff);
 }
 
 .version-badge.latest {
@@ -102,7 +102,7 @@
 }
 
 .release-date {
-  color: #888 !important;
+  color: var(--muted-text, #888) !important;
   font-size: 0.8rem !important;
   margin: 0.5rem 0 !important;
 }
@@ -118,13 +118,13 @@
 }
 
 .release-notes-content {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid #444;
+  background: var(--control-button-hover-bg, rgba(255, 255, 255, 0.05));
+  border: 1px solid var(--border-color, #444);
   border-radius: 6px;
   padding: 0.8rem;
   font-size: 0.85rem;
   line-height: 1.4;
-  color: #ddd;
+  color: var(--secondary-text, #ddd);
   max-height: 120px;
   overflow-y: auto;
   white-space: pre-line;
@@ -132,7 +132,7 @@
 
 .commit-message {
   font-style: italic;
-  color: #aaaaaa !important;
+  color: var(--muted-text, #aaaaaa) !important;
   font-size: 0.85rem !important;
   margin-top: 0.8rem !important;
   border-left: 3px solid #4caf50;
@@ -165,10 +165,10 @@
 .progress-bar {
   flex: 1;
   height: 20px;
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--control-button-hover-bg, rgba(255, 255, 255, 0.1));
   border-radius: 10px;
   overflow: hidden;
-  border: 1px solid #555;
+  border: 1px solid var(--border-color, #555);
 }
 
 .progress-bar-fill {
@@ -211,7 +211,7 @@
 
 .progress-message {
   margin: 0.5rem 0 0 0 !important;
-  color: #cccccc !important;
+  color: var(--secondary-text, #cccccc) !important;
   font-size: 0.85rem !important;
   text-align: center;
   font-style: italic;
@@ -281,25 +281,25 @@
 }
 
 .update-btn.secondary {
-  background: #555;
-  color: #ffffff;
-  border: 1px solid #666;
+  background: var(--control-button-bg, #555);
+  color: var(--control-button-text, #ffffff);
+  border: 1px solid var(--border-color, #666);
 }
 
 .update-btn.secondary:hover:not(:disabled) {
-  background: #666;
+  background: var(--control-button-hover-bg, #666);
   transform: translateY(-1px);
 }
 
 .update-btn.tertiary {
   background: transparent;
-  color: #ccc;
-  border: 1px solid #666;
+  color: var(--secondary-text, #ccc);
+  border: 1px solid var(--border-color, #666);
 }
 
 .update-btn.tertiary:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.05);
-  border-color: #888;
+  background: var(--control-button-hover-bg, rgba(255, 255, 255, 0.05));
+  border-color: var(--border-hover-color, #888);
 }
 
 .loading-spinner {
@@ -336,7 +336,7 @@
 .cancel-update-btn {
   background: none;
   border: none;
-  color: #999;
+  color: var(--secondary-text, #999);
   cursor: pointer;
   font-size: 0.9rem;
   padding: 0.3rem;
@@ -347,7 +347,7 @@
 
 .cancel-update-btn:hover {
   color: #ff5c5c;
-  background-color: rgba(255, 255, 255, 0.1);
+  background-color: var(--control-button-hover-bg, rgba(255, 255, 255, 0.1));
 }
 
 /* Responsive design */

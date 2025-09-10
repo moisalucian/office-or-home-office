@@ -163,6 +163,23 @@ function App() {
     getVersion();
   }, []);
 
+  // Restore "Launch in tray" setting after app update (runs once on startup)
+  useEffect(() => {
+    const restoreLaunchInTrayAfterUpdate = () => {
+      const shouldRestore = localStorage.getItem('restoreLaunchInTray');
+      if (shouldRestore === 'true') {
+        console.log('[App] Restoring "Launch in tray" setting after update');
+        // Clear the flag first
+        localStorage.removeItem('restoreLaunchInTray');
+        // Restore the setting with a small delay to ensure the app is fully initialized
+        setTimeout(() => {
+          handleLaunchInTrayToggle({ target: { checked: true } });
+        }, 1000);
+      }
+    };
+    restoreLaunchInTrayAfterUpdate();
+  }, [handleLaunchInTrayToggle]);
+
   // Update body class based on maximized state
   useEffect(() => {
     if (isMaximized) {
@@ -715,9 +732,11 @@ function App() {
   const handleUpdateNow = async (updateInfo) => {
     console.log('[App] handleUpdateNow called with:', updateInfo);
     
-    // First, disable "Launch in tray directly" if it's enabled to prevent update loop issues
+    // Store the current "Launch in tray" setting to restore it after update
     if (launchInTray) {
-      console.log('[App] Disabling "Launch in tray directly" before update to prevent conflicts');
+      console.log('[App] Storing "Launch in tray" setting and temporarily disabling to prevent update conflicts');
+      // Store the setting in localStorage to persist across app restarts
+      localStorage.setItem('restoreLaunchInTray', 'true');
       handleLaunchInTrayToggle({ target: { checked: false } });
     }
     
@@ -1308,6 +1327,20 @@ function App() {
                 </div>
               </div>
 
+              {/* Firebase Configuration */}
+              <div className="setting-item">
+                <div className="setting-label" title="Configure Firebase database connection">
+                  <span className="setting-title">Firebase Configuration</span>
+                  <button 
+                    className="firebase-config-button"
+                    onClick={openFirebaseConfig}
+                    title="Edit Firebase database configuration"
+                  >
+                    🔧 Edit Config
+                  </button>
+                </div>
+              </div>
+
               {/* App Updates - moved to last position */}
               <div className="setting-item">
                 <div className="setting-label" title="Check for app updates">
@@ -1342,20 +1375,6 @@ function App() {
                       </div>
                     )}
                   </div>
-                </div>
-              </div>
-
-              {/* Firebase Configuration */}
-              <div className="setting-item">
-                <div className="setting-label" title="Configure Firebase database connection">
-                  <span className="setting-title">Firebase Configuration</span>
-                  <button 
-                    className="firebase-config-button"
-                    onClick={openFirebaseConfig}
-                    title="Edit Firebase database configuration"
-                  >
-                    🔧 Edit Config
-                  </button>
                 </div>
               </div>
 

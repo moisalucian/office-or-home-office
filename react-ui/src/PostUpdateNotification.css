@@ -3,13 +3,13 @@
   top: 20px;
   right: 20px;
   width: 400px;
-  background: rgba(30, 30, 30, 0.98);
+  background: var(--notification-bg, rgba(30, 30, 30, 0.98));
   backdrop-filter: blur(20px);
-  border: 1px solid #555;
+  border: 1px solid var(--border-color, #555);
   border-radius: 12px;
-  color: white;
+  color: var(--notification-text, white);
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 8px 32px var(--shadow-color, rgba(0, 0, 0, 0.3));
   z-index: 10000;
   animation: slideInFromRight 0.3s ease-out;
 }
@@ -44,7 +44,7 @@
   right: 12px;
   background: none;
   border: none;
-  color: #ccc;
+  color: var(--secondary-text, #ccc);
   font-size: 24px;
   cursor: pointer;
   padding: 4px 8px;
@@ -54,8 +54,8 @@
 }
 
 .close-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: white;
+  background: var(--control-button-hover-bg, rgba(255, 255, 255, 0.1));
+  color: var(--notification-text, white);
 }
 
 .post-update-header {
@@ -84,7 +84,7 @@
 
 .post-update-info p {
   margin: 0 0 0.5rem 0;
-  color: #e0e0e0;
+  color: var(--secondary-text, #e0e0e0);
   font-size: 0.9rem;
 }
 
@@ -155,14 +155,14 @@
 
 .post-update-btn.tertiary {
   background: transparent;
-  color: #ccc;
-  border: 1px solid #555;
+  color: var(--secondary-text, #ccc);
+  border: 1px solid var(--border-color, #555);
 }
 
 .post-update-btn.tertiary:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.1);
-  color: white;
-  border-color: #777;
+  background: var(--control-button-hover-bg, rgba(255, 255, 255, 0.1));
+  color: var(--notification-text, white);
+  border-color: var(--border-hover-color, #777);
 }
 
 /* Responsive design */
