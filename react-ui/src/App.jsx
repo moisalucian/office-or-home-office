@@ -714,6 +714,13 @@ function App() {
 
   const handleUpdateNow = async (updateInfo) => {
     console.log('[App] handleUpdateNow called with:', updateInfo);
+    
+    // First, disable "Launch in tray directly" if it's enabled to prevent update loop issues
+    if (launchInTray) {
+      console.log('[App] Disabling "Launch in tray directly" before update to prevent conflicts');
+      handleLaunchInTrayToggle({ target: { checked: false } });
+    }
+    
     try {
       // Check if we have a download URL
       if (updateInfo.downloadUrl) {
