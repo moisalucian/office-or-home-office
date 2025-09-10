@@ -1368,7 +1368,7 @@ function App() {
           '--header-width': isMaximized ? (sidebarOpen ? `calc(100% - ${sidebarWidth}px)` : '100%') : '100%'
         }}
       >
-        <h1 className="title-draggable">
+        <h1 className={`title-draggable ${showSettings ? 'settings-open' : ''}`}>
           <img src={iconPath} alt="Office or Home Office" className="app-icon" />
           <span className="title-text">Office or Home Office</span>
         </h1>

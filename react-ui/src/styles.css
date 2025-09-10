@@ -236,6 +236,12 @@ h1 {
   -webkit-app-region: no-drag;
 }
 
+/* Disable drag for titles when Settings modal is open */
+.title-draggable.settings-open,
+.status-title-draggable.settings-open {
+  -webkit-app-region: no-drag;
+}
+
 .status-title-draggable {
   margin-bottom: 1rem;
 }

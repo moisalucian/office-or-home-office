@@ -11,6 +11,7 @@
   align-items: center;
   z-index: 2000;
   -webkit-app-region: no-drag;
+  pointer-events: auto;
 }
 
 .settings-popup {
@@ -20,20 +21,24 @@
   width: 400px;
   max-width: 90vw;
   max-height: 80vh;
-  overflow-y: auto;
   border: 1px solid var(--border-color);
   transition: background 0.3s, border-color 0.3s;
+  z-index: 9000;
+  overflow: visible;
+  -webkit-app-region: no-drag;
+  pointer-events: auto;
 }
 
 .settings-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1.5rem 1.5rem 1rem 1.5rem;
+  padding: 1.2rem 1.5rem 1.2rem 1.5rem;
+  min-height: 48px;
   border-bottom: 1px solid #444;
   z-index: 20;
   position: relative;
-  pointer-events: auto;
+  overflow: visible;
 }
 
 .settings-header h3 {
@@ -48,7 +53,7 @@
   background: none;
   border: none;
   color: #999;
-  cursor: pointer !important;
+  cursor: pointer;
   font-size: 1.5rem;
   padding: 0.5rem;
   border-radius: 4px;
@@ -56,23 +61,19 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  min-width: 40px;
-  min-height: 40px;
+  min-width: 32px;
+  min-height: 32px;
   line-height: 1;
   -webkit-app-region: no-drag;
   user-select: none;
   -webkit-user-select: none;
   font-family: Arial, sans-serif;
-  font-weight: normal;
-  position: relative;
-  z-index: 30;
-  pointer-events: auto;
+  font-weight: 400;
 }
 
 .settings-close:hover {
-  color: #ff5c5c !important;
-  background: rgba(255, 255, 255, 0.1) !important;
-  transform: scale(1.1);
+  color: #ff5c5c;
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .settings-close:active {
@@ -253,4 +254,19 @@
 
 .firebase-config-button:active {
   transform: translateY(0);
+}
+
+/* Ensure Settings modal and all its children override any draggable regions */
+.settings-overlay,
+.settings-overlay *,
+.settings-popup,
+.settings-popup *,
+.settings-header,
+.settings-header *,
+.settings-content,
+.settings-content *,
+.settings-close,
+.settings-close * {
+  -webkit-app-region: no-drag !important;
+  pointer-events: auto !important;
 }
