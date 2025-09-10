@@ -31,6 +31,9 @@
   align-items: center;
   padding: 1.5rem 1.5rem 1rem 1.5rem;
   border-bottom: 1px solid #444;
+  z-index: 20;
+  position: relative;
+  pointer-events: auto;
 }
 
 .settings-header h3 {
@@ -62,7 +65,7 @@
   font-family: Arial, sans-serif;
   font-weight: normal;
   position: relative;
-  z-index: 10;
+  z-index: 30;
   pointer-events: auto;
 }
 
