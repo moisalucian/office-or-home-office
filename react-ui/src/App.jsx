@@ -55,6 +55,7 @@ function App() {
   const [isNameSaved, setIsNameSaved] = useState(false);
   const [statusMessage, setStatusMessage] = useState('');
   const [statusColor, setStatusColor] = useState('');
+  const [statusMessageTimeout, setStatusMessageTimeout] = useState(null);
   const [notifications, setNotifications] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const [notificationSummary, setNotificationSummary] = useState('');
@@ -63,6 +64,27 @@ function App() {
   const [postUpdateState, setPostUpdateState] = useState(null);
   const [showPostUpdateNotification, setShowPostUpdateNotification] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Helper function to set status message with automatic timeout
+  const setStatusMessageWithTimeout = (message, color, timeout = 5000) => {
+    // Clear any existing timeout
+    if (statusMessageTimeout) {
+      clearTimeout(statusMessageTimeout);
+    }
+    
+    setStatusMessage(message);
+    setStatusColor(color);
+    
+    // Set new timeout to clear the message
+    const newTimeout = setTimeout(() => {
+      setStatusMessage('');
+      setStatusColor('');
+      setStatusMessageTimeout(null);
+    }, timeout);
+    
+    setStatusMessageTimeout(newTimeout);
+  };
+
   // Listen for download progress events from Electron
   useEffect(() => {
     if (window.electronAPI?.onUpdateDownloadProgress) {
@@ -489,8 +511,7 @@ function App() {
             color = 'gray';
         }
         
-        setStatusMessage(message);
-        setStatusColor(color);
+        setStatusMessageWithTimeout(message, color);
 
         // Log this change to activity log
         await logStatusChange(currentName, normalizedStatus, tomorrow);
@@ -508,8 +529,7 @@ function App() {
         
       } catch (error) {
         console.error("Error saving from popup:", error);
-        setStatusMessage("An error occurred while saving status from notification.");
-        setStatusColor('red');
+        setStatusMessageWithTimeout("An error occurred while saving status from notification.", 'red');
       }
     };
 
@@ -642,8 +662,7 @@ function App() {
           color = 'gray';
       }
       
-      setStatusMessage(message);
-      setStatusColor(color);
+      setStatusMessageWithTimeout(message, color);
       
       // Log this change to activity log
       await logStatusChange(name, status, tomorrow);
@@ -661,8 +680,7 @@ function App() {
       
     } catch (error) {
       console.error("Error saving:", error);
-      setStatusMessage("An error occurred while saving status.");
-      setStatusColor('gray');
+      setStatusMessageWithTimeout("An error occurred while saving status.", 'red');
     }
   };
 
@@ -684,13 +702,13 @@ function App() {
           const newUserRef = ref(database, `statuses/${name}`);
           await set(newUserRef, oldData);
           await remove(oldUserRef);
-          setStatusMessage(`${name} took over status from ${oldName}.`);
+          setStatusMessageWithTimeout(`${name} took over status from ${oldName}.`, 'green');
           setStatusColor('blue');
         }
         updateNotificationSettingsName(oldName, name);
       } catch (err) {
         console.error("Error transferring status:", err);
-        setStatusMessage("An error occurred while transferring the old status.");
+        setStatusMessageWithTimeout("An error occurred while transferring the old status.", 'red');
         setStatusColor('gray');
       }
     }
@@ -1146,6 +1164,15 @@ function App() {
       </>
     );
   }
+
+  // Cleanup status message timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (statusMessageTimeout) {
+        clearTimeout(statusMessageTimeout);
+      }
+    };
+  }, [statusMessageTimeout]);
 
   return (
     <>
