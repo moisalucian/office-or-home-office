@@ -10,6 +10,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   setStartup: (enabled) => ipcRenderer.send('set-startup', enabled),
   onWindowStateChanged: (callback) => ipcRenderer.on('window-state-changed', (_, state) => callback(state)),
   resizeWindow: (width, height) => ipcRenderer.send('resize-window', width, height),
+  onWindowResize: (callback) => ipcRenderer.on('window-resized', () => callback()),
+  removeWindowResizeListener: (callback) => ipcRenderer.removeListener('window-resized', callback),
   toggleSidebarWindow: (show) => ipcRenderer.send('toggle-sidebar-window', show),
   onSidebarWindowClosed: (callback) => ipcRenderer.on('sidebar-window-closed', () => callback()),
   refreshSidebarActivityLogs: () => ipcRenderer.send('refresh-sidebar-activity-logs'),

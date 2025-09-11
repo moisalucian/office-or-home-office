@@ -599,6 +599,14 @@ function createWindow(shouldShow = true, shouldMaximize = false) {
       win.webContents.send('window-state-changed', { maximized: false });
     }
   });
+
+  // Listen for manual window resizing
+  win.on('resize', () => {
+    // Only notify if window is not maximized (we want to detect manual resizing)
+    if (!win.isMaximized() && win && !win.isDestroyed() && win.webContents) {
+      win.webContents.send('window-resized');
+    }
+  });
 }
 
 function createTray() {

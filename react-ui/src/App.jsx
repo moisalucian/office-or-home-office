@@ -64,6 +64,7 @@ function App() {
   const [postUpdateState, setPostUpdateState] = useState(null);
   const [showPostUpdateNotification, setShowPostUpdateNotification] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [userManuallyResized, setUserManuallyResized] = useState(false);
 
   // Helper function to set status message with automatic timeout (using useRef for stability)
   const setStatusMessageWithTimeout = useCallback((message, color, timeout = 5000) => {
@@ -147,6 +148,32 @@ function App() {
     handleLaunchInTrayToggle,
     handleDefaultLaunchOptionChange
   } = useWindowState();
+
+  // Track manual window resizing and reset when maximized state changes
+  useEffect(() => {
+    // Reset manual resize flag when toggling maximize/windowed mode
+    setUserManuallyResized(false);
+  }, [isMaximized]);
+
+  // Detect manual window resizing
+  useEffect(() => {
+    if (!window.electronAPI?.onWindowResize) return;
+
+    const handleResize = () => {
+      // Only mark as manually resized if not maximized
+      if (!isMaximized) {
+        setUserManuallyResized(true);
+      }
+    };
+
+    window.electronAPI.onWindowResize(handleResize);
+    
+    return () => {
+      if (window.electronAPI?.removeWindowResizeListener) {
+        window.electronAPI.removeWindowResizeListener(handleResize);
+      }
+    };
+  }, [isMaximized]);
 
   // Calculate dates (moved to avoid duplication)
   const tomorrow = getTomorrowDate();
@@ -341,12 +368,13 @@ function App() {
   }, [statuses, tomorrow]);
 
   useEffect(() => {
-    if (window.electronAPI?.resizeWindow && !isMaximized) {
+    // Only auto-resize if user hasn't manually resized and window is not maximized
+    if (window.electronAPI?.resizeWindow && !isMaximized && !userManuallyResized) {
       const optimalHeight = calculateOptimalHeightCallback();
-      console.log('Resizing window to:', 940, optimalHeight);
+      console.log('Auto-resizing window to:', 940, optimalHeight);
       window.electronAPI.resizeWindow(940, optimalHeight);
     }
-  }, [statuses, isMaximized, calculateOptimalHeightCallback]);
+  }, [statuses, isMaximized, calculateOptimalHeightCallback, userManuallyResized]);
 
   useEffect(() => {
     const savedName = loadSetting("username");
