@@ -236,6 +236,12 @@ h1 {
   -webkit-app-region: no-drag;
 }
 
+/* Also disable drag for titles inside content area to allow scrolling */
+.content-area .title-draggable,
+.content-area .status-title-draggable {
+  -webkit-app-region: no-drag;
+}
+
 /* Disable drag for titles when Settings modal is open */
 .title-draggable.settings-open,
 .status-title-draggable.settings-open {
@@ -434,6 +440,7 @@ button.danger:hover {
   transition: margin-left 0.3s ease-out, width 0.3s ease-out;
   margin-left: var(--content-margin-left, 0px);
   width: var(--content-width, 100%);
+  -webkit-app-region: no-drag; /* Ensure mouse events work for scrolling */
 }
 
 .content-area::-webkit-scrollbar {
@@ -452,6 +459,11 @@ button.danger:hover {
 
 .content-area::-webkit-scrollbar-thumb:hover {
   background: var(--scrollbar-thumb-hover);
+}
+
+/* Ensure all content inside can be scrolled */
+.content-area * {
+  -webkit-app-region: no-drag;
 }
 
 .header-area {

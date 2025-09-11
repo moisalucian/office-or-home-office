@@ -672,6 +672,18 @@ app.whenReady().then(async () => {
 
   writeLog('App startup initiated');
   
+  // Initialize periodic cleanup for temporary and update files
+  try {
+    const { schedulePeriodicCleanup } = require('../clear-update-files.js');
+    
+    // Schedule safe periodic cleanup every 6 hours
+    // This runs in the background and won't interfere with updates
+    schedulePeriodicCleanup();
+    writeLog('Safe periodic cleanup scheduled successfully');
+  } catch (e) {
+    writeLog('Failed to initialize cleanup: ' + e.message);
+  }
+  
   // Clean up any old development electron entries from startup if this is a packaged app
   if (app.isPackaged) {
     writeLog('Packaged app detected, cleaning up old development startup entries...');

@@ -438,7 +438,10 @@ function App() {
 
     const handlePopup = async (status) => {
       const currentName = nameRef.current; // Get current name from ref
-      if (!currentName || !currentName.trim()) return; // Ensure name exists and is not empty
+      
+      if (!currentName || !currentName.trim()) {
+        return; // Ensure name exists and is not empty
+      }
       
       // Check if Firebase is configured
       if (!firebaseConfigured || !database) {
@@ -462,6 +465,33 @@ function App() {
           updatedAt: getHumanReadableTimestamp()
         });
 
+        // Update UI with status message (same as main app)
+        const dayText = nextWorkDay.toLowerCase() === 'monday' ? 'Monday' : 'Tomorrow';
+        
+        let message = '';
+        let color = '';
+        
+        switch (normalizedStatus) {
+          case 'yes':
+            message = `${currentName}, you confirmed that you're working from the office ${dayText}.`;
+            color = 'green';
+            break;
+          case 'no':
+            message = `${currentName}, you confirmed that you're working from the home office ${dayText}.`;
+            color = 'red';
+            break;
+          case 'undecided':
+            message = `${currentName}, you marked that you're not sure yet where you'll work ${dayText}.`;
+            color = 'orange';
+            break;
+          default:
+            message = "Status saved.";
+            color = 'gray';
+        }
+        
+        setStatusMessage(message);
+        setStatusColor(color);
+
         // Log this change to activity log
         await logStatusChange(currentName, normalizedStatus, tomorrow);
         
@@ -478,31 +508,29 @@ function App() {
         
       } catch (error) {
         console.error("Error saving from popup:", error);
+        setStatusMessage("An error occurred while saving status from notification.");
+        setStatusColor('red');
       }
     };
 
+    console.log('Registering popup handler');
     window.electronAPI.onPopupStatus(handlePopup);
+    
     return () => {
-      window.electronAPI.removePopupStatus?.(handlePopup);
-    };
-  }, []); // Remove name dependency to prevent multiple handlers
-
-  useEffect(() => {
-    if (!window.electronAPI?.onWindowStateChanged) return;
-
-    const handleWindowStateChange = (state) => {
-      setIsMaximized(state.maximized);
-      
-      // Close sidebar window if switching to maximized mode
-      if (state.maximized && sidebarOpen && !isMaximized) {
-        if (window.electronAPI?.toggleSidebarWindow) {
-          window.electronAPI.toggleSidebarWindow(false);
-        }
+      if (window.electronAPI?.removeAllPopupStatusListeners) {
+        window.electronAPI.removeAllPopupStatusListeners();
       }
     };
+  }, [firebaseConfigured, database]); // Add dependencies to ensure handler has access to Firebase
 
-    window.electronAPI.onWindowStateChanged(handleWindowStateChange);
-  }, [sidebarOpen, isMaximized]);
+  // Close sidebar window when switching to maximized mode
+  useEffect(() => {
+    if (isMaximized && sidebarOpen) {
+      if (window.electronAPI?.toggleSidebarWindow) {
+        window.electronAPI.toggleSidebarWindow(false);
+      }
+    }
+  }, [isMaximized, sidebarOpen]);
 
   // Listen for sidebar window being closed externally
   useEffect(() => {
@@ -1129,7 +1157,7 @@ function App() {
         onClick={toggleSidebar}
         title="Toggle Activity Log"
       >
-        {isMaximized ? (sidebarOpen ? '◀' : '▶') : '◀'}
+        {sidebarOpen ? '▶' : '◀'}
       </button>
 
       {/* Settings icon */}

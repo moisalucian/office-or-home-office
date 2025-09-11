@@ -3,6 +3,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('electronAPI', {
   sendNotificationPopup: () => ipcRenderer.send('show-notification-popup'),
   onPopupStatus: (callback) => ipcRenderer.on('popup-status', (_, status) => callback(status)),
+  removeAllPopupStatusListeners: () => ipcRenderer.removeAllListeners('popup-status'),
   minimize: () => ipcRenderer.send('minimize-window'),
   maximize: () => ipcRenderer.send('maximize-window'),
   close: () => ipcRenderer.send('close-window'),
