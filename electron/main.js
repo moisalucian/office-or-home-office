@@ -388,9 +388,9 @@ function createSidebarWindow() {
   const mainBounds = win.getBounds();
   
   sidebarWindowRef = new BrowserWindow({
-    width: 450,
+    width: 580, // Increased from 450 to 580 to ensure all 7 columns fit properly
     height: mainBounds.height,
-    x: mainBounds.x - 455, // Adjusted gap to 5px from main window (450 + 5)
+    x: mainBounds.x - 585, // Adjusted gap to 5px from main window (580 + 5)
     y: mainBounds.y,
     frame: false,
     transparent: true,
@@ -398,11 +398,13 @@ function createSidebarWindow() {
     alwaysOnTop: false,
     skipTaskbar: true,
     parent: win, // Make it a child of main window
-    show: false, // Start hidden for instant showing later
+    show: false, // Start hidden - will be shown by ready-to-show event
+    backgroundColor: '#1a1a1a', // Set background color to match theme for faster rendering
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
       preload: path.join(__dirname, 'preload.js'),
+      backgroundThrottling: false, // Prevent throttling when not visible
     },
   });
 
@@ -420,6 +422,17 @@ function createSidebarWindow() {
     }
   }
 
+  // Show sidebar only when content is ready to prevent delay and appearance mismatch
+  sidebarWindowRef.once('ready-to-show', () => {
+    // Add a small delay to ensure theming is applied properly
+    setTimeout(() => {
+      // Only show if we still need to show it (user might have closed it while loading)
+      if (sidebarWindowRef && !sidebarWindowRef.isDestroyed()) {
+        sidebarWindowRef.show();
+      }
+    }, 100); // Small delay to ensure proper theme application
+  });
+
   // Remove previous listeners if they exist
   if (updateSidebarPosition) {
     win.removeListener('move', updateSidebarPosition);
@@ -431,9 +444,9 @@ function createSidebarWindow() {
     if (sidebarWindowRef && !sidebarWindowRef.isDestroyed() && win && !win.isDestroyed()) {
       const mainBounds = win.getBounds();
       sidebarWindowRef.setBounds({
-        x: mainBounds.x - 455, // Keep 5px gap on the LEFT side (450 + 5)
+        x: mainBounds.x - 585, // Updated to match new width: 580 + 5px gap
         y: mainBounds.y,
-        width: 450,
+        width: 580, // Updated to match new width
         height: mainBounds.height
       });
     }
@@ -765,11 +778,8 @@ app.whenReady().then(async () => {
   createWindow(shouldShow, shouldMaximize);
   createTray();
   
-  // Pre-create satellite window for instant showing
-  // Wait a bit for main window to be ready
-  setTimeout(() => {
-    createSidebarWindow();
-  }, 500);
+  // Don't pre-create sidebar window - create only when user requests it
+  // This ensures activity log is closed by default
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
@@ -1491,11 +1501,9 @@ ipcMain.on('toggle-sidebar-window', (_, show) => {
   if (show) {
     // Create if doesn't exist, otherwise just show
     if (!sidebarWindowRef || sidebarWindowRef.isDestroyed()) {
-      createSidebarWindow();
-    }
-    
-    if (sidebarWindowRef && !sidebarWindowRef.isDestroyed()) {
-      // Update position before showing
+      createSidebarWindow(); // ready-to-show event will handle showing
+    } else if (sidebarWindowRef && !sidebarWindowRef.isDestroyed()) {
+      // Update position before showing existing window
       const mainBounds = win.getBounds();
       sidebarWindowRef.setBounds({
         x: mainBounds.x - 455,
@@ -1503,11 +1511,23 @@ ipcMain.on('toggle-sidebar-window', (_, show) => {
         width: 450,
         height: mainBounds.height
       });
-      sidebarWindowRef.show();
+      sidebarWindowRef.show(); // Existing window can be shown immediately
     }
   } else {
     if (sidebarWindowRef && !sidebarWindowRef.isDestroyed()) {
       sidebarWindowRef.hide(); // Hide instead of closing
+    }
+  }
+});
+
+// Handle sidebar toggle for windowed mode
+ipcMain.on('handle-popup', (_, shouldShow) => {
+  if (shouldShow) {
+    createSidebarWindow();
+  } else {
+    if (sidebarWindowRef && !sidebarWindowRef.isDestroyed()) {
+      sidebarWindowRef.close();
+      sidebarWindowRef = null;
     }
   }
 });

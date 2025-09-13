@@ -8,11 +8,12 @@ const getCurrentDateKey = () => {
 };
 
 // Helper function to get working days (Monday-Friday) going back from today
-const getWorkingDays = (count = 5) => {
+const getWorkingDays = (count = 7) => {
   const days = [];
   const today = new Date();
   let current = new Date(today);
   
+  // Always include today if it's a working day, otherwise start from the most recent working day
   while (days.length < count) {
     // Only add weekdays (Monday = 1, Friday = 5)
     if (current.getDay() >= 1 && current.getDay() <= 5) {
@@ -21,22 +22,29 @@ const getWorkingDays = (count = 5) => {
     current.setDate(current.getDate() - 1);
   }
   
-  return days.reverse(); // Most recent last
+  return days.reverse(); // Most recent last (chronological order)
 };
 
 // Helper function to format status for display
 const formatStatusMessage = (user, status, targetDate) => {
-  const targetDay = new Date(targetDate).toLocaleDateString('en-US', { weekday: 'long' });
+  const targetDay = new Date(targetDate);
+  
+  // Skip weekends when formatting - if target is weekend, find next working day
+  while (targetDay.getDay() === 0 || targetDay.getDay() === 6) {
+    targetDay.setDate(targetDay.getDate() + 1);
+  }
+  
+  const dayName = targetDay.toLocaleDateString('en-US', { weekday: 'long' });
   
   switch (status) {
     case 'yes':
-      return `${user} confirmed working from the office ${targetDay}.`;
+      return `${user} confirmed working from the office ${dayName}.`;
     case 'no':
-      return `${user} confirmed working from the home office ${targetDay}.`;
+      return `${user} confirmed working from the home office ${dayName}.`;
     case 'undecided':
-      return `${user} marked that's not sure yet if will come to work ${targetDay}.`;
+      return `${user} marked that's not sure yet if will come to work ${dayName}.`;
     default:
-      return `${user} updated status for ${targetDay}.`;
+      return `${user} updated status for ${dayName}.`;
   }
 };
 
@@ -68,7 +76,7 @@ export const logStatusChange = async (user, status, targetDate) => {
     // Save updated log
     await set(logRef, existingData);
     
-    // Cleanup old logs (keep only 5 working days)
+    // Cleanup old logs (keep only 7 working days)
     await cleanupOldLogs();
     
   } catch (error) {
@@ -76,10 +84,10 @@ export const logStatusChange = async (user, status, targetDate) => {
   }
 };
 
-// Clean up logs older than 5 working days
+// Clean up logs older than 7 working days
 const cleanupOldLogs = async () => {
   try {
-    const keepDays = getWorkingDays(5);
+    const keepDays = getWorkingDays(7);
     const allLogsRef = ref(database, 'activityLogs');
     const snapshot = await get(allLogsRef);
     

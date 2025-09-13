@@ -6,7 +6,7 @@ html, body {
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   overflow: hidden;
   color: var(--text-color);
-  transition: color 0.3s;
+  transition: color 0.3s, border-radius 0.3s;
   border-radius: 16px !important;
 }
 
@@ -22,7 +22,7 @@ html, body {
   flex-direction: column;
   overflow: hidden;
   box-sizing: border-box;
-  transition: padding 0.3s ease, background-color 0.3s, color 0.3s;
+  transition: padding 0.3s ease, background-color 0.3s, color 0.3s, border-radius 0.3s;
   color: var(--text-color);
   -webkit-app-region: drag;
 }

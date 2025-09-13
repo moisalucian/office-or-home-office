@@ -56,6 +56,8 @@ function App() {
   const [statusMessage, setStatusMessage] = useState('');
   const [statusColor, setStatusColor] = useState('');
   const statusMessageTimeoutRef = useRef(null);
+  const overviewScrollRef = useRef(null);
+  const historyScrollRef = useRef(null);
   const [notifications, setNotifications] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const [notificationSummary, setNotificationSummary] = useState('');
@@ -63,7 +65,7 @@ function App() {
   const [showUpdateNotification, setShowUpdateNotification] = useState(false);
   const [postUpdateState, setPostUpdateState] = useState(null);
   const [showPostUpdateNotification, setShowPostUpdateNotification] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false); // Always start with sidebar closed
   const [userManuallyResized, setUserManuallyResized] = useState(false);
 
   // Helper function to set status message with automatic timeout (using useRef for stability)
@@ -110,7 +112,11 @@ function App() {
   }, []);
   const [sidebarWidth, setSidebarWidth] = useState(() => {
     const saved = localStorage.getItem('sidebarWidth');
-    return saved ? parseInt(saved) : 300;
+    return saved ? parseInt(saved) : 650; // Increased default to ensure all 7 columns are clearly visible
+  });
+  const [splitPosition, setSplitPosition] = useState(() => {
+    const saved = localStorage.getItem('activityLogSplitPosition');
+    return saved ? parseFloat(saved) : 50; // Default to 50% (half)
   });
   const [activityLogs, setActivityLogs] = useState([]);
   const [activityLogsCache, setActivityLogsCache] = useState(null);
@@ -230,19 +236,67 @@ function App() {
 
   // Update body class based on maximized state
   useEffect(() => {
-    if (isMaximized) {
-      document.body.classList.add('maximized');
-      document.body.style.borderRadius = '0px';
-    } else {
-      document.body.classList.remove('maximized');
-      document.body.style.borderRadius = '16px';
-      
-      // Ensure container also has the correct border radius
+    const applyWindowStyling = () => {
       const container = document.querySelector('.container');
-      if (container) {
-        container.style.borderRadius = '16px';
+      const html = document.documentElement;
+      const body = document.body;
+      
+      if (isMaximized) {
+        body.classList.add('maximized');
+        body.style.borderRadius = '0px';
+        html.style.borderRadius = '0px';
+        
+        if (container) {
+          container.classList.add('maximized');
+          container.style.borderRadius = '0px !important';
+        }
+      } else {
+        body.classList.remove('maximized');
+        body.style.borderRadius = '16px';
+        html.style.borderRadius = '16px';
+        
+        if (container) {
+          container.classList.remove('maximized');
+          
+          // Force immediate style refresh
+          container.style.borderRadius = '';
+          container.style.display = 'none';
+          container.offsetHeight; // Force reflow
+          container.style.display = 'flex';
+          
+          // Apply border radius with multiple fallbacks
+          requestAnimationFrame(() => {
+            if (container) {
+              container.style.borderRadius = '16px !important';
+              
+              // Additional timing to ensure it sticks
+              setTimeout(() => {
+                if (container && !isMaximized) {
+                  container.style.borderRadius = '16px !important';
+                  // Force hardware acceleration to fix rendering issues
+                  container.style.transform = 'translateZ(0)';
+                  setTimeout(() => {
+                    if (container) {
+                      container.style.transform = '';
+                    }
+                  }, 100);
+                }
+              }, 50);
+            }
+          });
+        }
       }
-    }
+    };
+
+    // Apply styling with multiple timing strategies
+    applyWindowStyling();
+    const timeouts = [10, 50, 100, 200, 500].map(delay => 
+      setTimeout(applyWindowStyling, delay)
+    );
+    
+    return () => {
+      timeouts.forEach(clearTimeout);
+    };
   }, [isMaximized]);
 
   // Initialize Firebase configuration
@@ -325,36 +379,344 @@ function App() {
   // Check if this is the sidebar window
   const isSidebarWindow = window.location.hash === '#sidebar';
   
+  // Reset function for activity log state
+  const resetActivityLogState = () => {
+    // Reset sidebar width to new increased default to ensure all 7 columns are visible
+    setSidebarWidth(650);
+    localStorage.setItem('sidebarWidth', '650');
+    
+    // Reset split position
+    setSplitPosition(50);
+    localStorage.setItem('activityLogSplitPosition', '50');
+  };
+  
   // Shared activity log content component
-  const ActivityLogContent = () => (
-    <>
-      <h3>Activity Log</h3>
-      <div className="activity-log-container">
-        {activityLogs.length === 0 ? (
-          <p style={{ color: '#888', textAlign: 'center', marginTop: '2rem' }}>
-            No activity recorded yet.<br/>
-            Status changes will appear here.
-          </p>
-        ) : (
-          activityLogs.map((dayLog, dayIndex) => (
-            <div key={dayLog.date} className="activity-day">
-              <h4 className="activity-day-header">{dayLog.dayName}</h4>
-              {dayLog.entries.map((entry, entryIndex) => (
-                <div key={entryIndex} className="activity-entry">
-                  <span className="activity-time">{entry.time}</span>
-                  <span 
-                    className={`activity-message ${entry.colorClass}`}
-                  >
-                    {entry.message}
-                  </span>
+  const ActivityLogContent = () => {
+    // Process activity logs into status cards (latest status per person per day)
+    const generateStatusCards = () => {
+      const cards = [];
+      const workingDays = [];
+      const today = new Date();
+      
+      // First, add the NEXT working day (for live tracking of tomorrow's statuses)
+      const getNextWorkingDay = () => {
+        const next = new Date(today);
+        next.setDate(next.getDate() + 1);
+        
+        // Skip weekends
+        while (next.getDay() === 0 || next.getDay() === 6) {
+          next.setDate(next.getDate() + 1);
+        }
+        return next;
+      };
+      
+      const nextWorkingDay = getNextWorkingDay();
+      
+      // Only add next working day if today is a working day
+      // This prevents weekend issues
+      if (today.getDay() >= 1 && today.getDay() <= 5) {
+        workingDays.push({
+          dateKey: nextWorkingDay.toISOString().split('T')[0],
+          dayName: nextWorkingDay.toLocaleDateString('en-US', { weekday: 'short' }),
+          fullDate: nextWorkingDay.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+          isNextDay: true,
+          isToday: false
+        });
+      }
+      
+      // Then add today (highlighted) only if it's a working day
+      if (today.getDay() >= 1 && today.getDay() <= 5) {
+        workingDays.push({
+          dateKey: today.toISOString().split('T')[0],
+          dayName: today.toLocaleDateString('en-US', { weekday: 'short' }),
+          fullDate: today.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+          isNextDay: false,
+          isToday: true
+        });
+      }
+      
+      // Then add the previous working days to fill up to 7 total
+      let current = new Date(today);
+      current.setDate(current.getDate() - 1); // Start from yesterday
+      
+      while (workingDays.length < 7) {
+        // Only add weekdays (Monday = 1, Friday = 5)
+        if (current.getDay() >= 1 && current.getDay() <= 5) {
+          workingDays.push({
+            dateKey: current.toISOString().split('T')[0],
+            dayName: current.toLocaleDateString('en-US', { weekday: 'short' }),
+            fullDate: current.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+            isNextDay: false,
+            isToday: false
+          });
+        }
+        current.setDate(current.getDate() - 1);
+      }
+      
+      // Get unique users from both current statuses and activity logs
+      const allUsers = new Set();
+      
+      // Add users from current statuses
+      Object.keys(statuses).forEach(user => {
+        allUsers.add(user);
+      });
+      
+      // Add users from activity logs
+      activityLogs.forEach(dayLog => {
+        dayLog.entries.forEach(entry => {
+          allUsers.add(entry.user);
+        });
+      });
+      
+      // Create status matrix: user -> date -> latest status
+      const statusMatrix = {};
+      Array.from(allUsers).forEach(user => {
+        statusMatrix[user] = {};
+      });
+      
+      // Fill status matrix with latest status per user per day from activity logs
+      activityLogs.forEach(dayLog => {
+        // Group entries by user for this day
+        const userEntries = {};
+        dayLog.entries.forEach(entry => {
+          if (!userEntries[entry.user]) {
+            userEntries[entry.user] = [];
+          }
+          userEntries[entry.user].push(entry);
+        });
+        
+        // Get latest entry per user for this day
+        Object.keys(userEntries).forEach(user => {
+          const latestEntry = userEntries[user][userEntries[user].length - 1];
+          statusMatrix[user][dayLog.date] = {
+            status: latestEntry.status,
+            time: latestEntry.time,
+            targetDate: latestEntry.targetDate
+          };
+        });
+      });
+      
+      // Add current live statuses to their TARGET DATE columns (not source date)
+      Object.entries(statuses).forEach(([user, userData]) => {
+        // Show status in the column for the date it's intended for
+        statusMatrix[user][userData.date] = {
+          status: userData.status,
+          time: new Date().toTimeString().slice(0, 5),
+          targetDate: userData.date,
+          isLive: true // Mark as live data
+        };
+      });
+      
+      // Filter users to only show those who have at least one status in the displayed days
+      const workingDaysKeys = workingDays.map(day => day.dateKey);
+      const usersWithStatus = Array.from(allUsers).filter(user => {
+        // Check if user has any actual status (not just empty entries) in the displayed days
+        return workingDaysKeys.some(dateKey => {
+          const userStatus = statusMatrix[user][dateKey];
+          return userStatus && userStatus.status; // Must have actual status data
+        });
+      });
+      
+      return { last7Days: workingDays, statusMatrix, users: usersWithStatus.sort() };
+    };
+    
+    const { last7Days, statusMatrix, users } = generateStatusCards();
+    
+    return (
+      <>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+          <h3 style={{ margin: 0, flex: 1, textAlign: 'center' }}>Activity Log</h3>
+          <button 
+            onClick={resetActivityLogState}
+            style={{
+              background: 'var(--control-button-bg)',
+              border: '1px solid var(--border-color)',
+              borderRadius: '4px',
+              color: 'var(--control-button-text)',
+              fontSize: '0.8rem',
+              padding: '0.3rem 0.6rem',
+              cursor: 'pointer',
+              position: 'absolute',
+              right: '1rem',
+              top: '0.5rem'
+            }}
+            title="Reset sidebar width and split position to defaults"
+          >
+            Reset Layout
+          </button>
+        </div>
+        
+        <div className="activity-log-split-container">
+          {/* Status Cards Section */}
+          <div 
+            className="activity-overview-section"
+            style={{ height: `${splitPosition}%` }}
+          >
+            <h4>Last Status - Daily Overview</h4>
+            <div className="activity-overview-container">
+              {users.length === 0 ? (
+                <p className="no-data-message">No users have set status yet.</p>
+              ) : (
+                <div 
+                  className={`activity-overview-wrapper ${needsHorizontalScroll ? 'needs-horizontal-scroll' : ''}`}
+                  style={{
+                    '--dynamic-user-width': `${userWidth}px`,
+                    '--dynamic-day-width': `${dayWidth}px`
+                  }}
+                >
+                  <div className="activity-overview-table">
+                    {/* Fixed header outside scrollable area */}
+                    <div className="activity-overview-header">
+                      <div className="overview-user-header">User</div>
+                      {last7Days.map(day => (
+                        <div key={day.dateKey} className={`overview-day-header ${day.isToday ? 'today' : ''}`}>
+                          <div className="overview-day-name">{day.dayName}</div>
+                          <div className="overview-day-date">{day.fullDate}</div>
+                        </div>
+                      ))}
+                    </div>
+                    {/* Scrollable content area with just the rows */}
+                    <div 
+                      className="activity-overview-scrollable-container"
+                      ref={overviewScrollRef}
+                    >
+                      <div className="activity-overview-scrollable">
+                        {users.map(user => (
+                          <div key={user} className="overview-user-row">
+                            <div className="overview-user-name">{user}</div>
+                            {last7Days.map(day => {
+                              const userStatus = statusMatrix[user][day.dateKey];
+                              const isToday = day.isToday;
+                              // Removed live indicator for now to avoid confusion
+                              const showLiveIndicator = false;
+                              return (
+                                <div 
+                                  key={day.dateKey} 
+                                  className={`overview-status-cell ${userStatus ? `overview-status-${userStatus.status}` : 'overview-status-empty'} ${showLiveIndicator ? 'live-status' : ''}`}
+                                  title={userStatus ? `${userStatus.time} - ${getStatusText(userStatus.status)}` : 'No status set'}
+                                >
+                                  {userStatus ? getStatusIcon(userStatus.status) : '−'}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              ))}
+              )}
             </div>
-          ))
-        )}
-      </div>
-    </>
-  );
+          </div>
+          
+          {/* Draggable Divider */}
+          <div 
+            className="activity-log-divider"
+            onMouseDown={(e) => {
+              const startY = e.clientY;
+              const startSplit = splitPosition;
+              
+              // Add dragging class to prevent text selection
+              const divider = e.target;
+              const splitContainer = e.target.closest('.activity-log-split-container');
+              
+              if (splitContainer) {
+                splitContainer.classList.add('dragging');
+              }
+              
+              const handleMouseMove = (e) => {
+                const container = e.target.closest('.activity-log-split-container') || splitContainer;
+                if (!container) return;
+                
+                const containerRect = container.getBoundingClientRect();
+                const deltaY = e.clientY - startY;
+                const deltaPercent = (deltaY / containerRect.height) * 100;
+                
+                // Use dynamic constraints based on container height (same logic as main app)
+                const containerHeight = containerRect.height;
+                const minSectionHeight = 100; // Minimum height in pixels for each section
+                const minPercent = (minSectionHeight / containerHeight) * 100;
+                const maxPercent = 100 - minPercent; // Ensure both sections have minimum height
+                
+                // Apply constraints with more generous bounds
+                const newSplit = Math.max(minPercent, Math.min(maxPercent, startSplit + deltaPercent));
+                
+                setSplitPosition(newSplit);
+                localStorage.setItem('activityLogSplitPosition', newSplit.toString());
+              };
+              
+              const handleMouseUp = () => {
+                // Remove dragging class
+                if (splitContainer) {
+                  splitContainer.classList.remove('dragging');
+                }
+                
+                document.removeEventListener('mousemove', handleMouseMove);
+                document.removeEventListener('mouseup', handleMouseUp);
+              };
+              
+              document.addEventListener('mousemove', handleMouseMove);
+              document.addEventListener('mouseup', handleMouseUp);
+            }}
+          />
+          
+          {/* Activity History Section */}
+          <div 
+            className="activity-history-section"
+            style={{ height: `${100 - splitPosition}%` }}
+          >
+            <h4>Past 7 Days Activity History</h4>
+            <div 
+              className="activity-history-container"
+              ref={historyScrollRef}
+            >
+              {activityLogs.length === 0 ? (
+                <p style={{ color: '#888', textAlign: 'center', marginTop: '1rem' }}>
+                  No activity recorded yet.<br/>
+                  Status changes will appear here.
+                </p>
+              ) : (
+                activityLogs.map((dayLog, dayIndex) => (
+                  <div key={dayLog.date} className="activity-day">
+                    <h4 className="activity-day-header">{dayLog.dayName}</h4>
+                    {dayLog.entries.map((entry, entryIndex) => (
+                      <div key={entryIndex} className="activity-entry">
+                        <span className="activity-time">{entry.time}</span>
+                        <span 
+                          className={`activity-message ${entry.colorClass}`}
+                        >
+                          {entry.message}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      </>
+    );
+  };
+  
+  // Helper functions for status cards
+  const getStatusIcon = (status) => {
+    switch (status) {
+      case 'yes': return '🏢'; // Office building
+      case 'no': return '🏠'; // House
+      case 'undecided': return '❓'; // Question mark
+      default: return '−';
+    }
+  };
+  
+  const getStatusText = (status) => {
+    switch (status) {
+      case 'yes': return 'Office';
+      case 'no': return 'Home';
+      case 'undecided': return 'Undecided';
+      default: return 'No status';
+    }
+  };
   
   // Use ref to always get current name value in popup handler
   const nameRef = useRef(name);
@@ -503,6 +865,16 @@ function App() {
       if (typeof status === 'boolean') {
         normalizedStatus = status ? 'yes' : 'no';
       }
+
+      // Check if user already has the same status for the same target date
+      const currentUserStatus = statuses[currentName];
+      if (currentUserStatus && 
+          currentUserStatus.status === normalizedStatus && 
+          currentUserStatus.date === tomorrow) {
+        // Same status for same day - ignore silently
+        console.log(`Ignoring duplicate status from notification: ${currentName} already has status '${normalizedStatus}' for ${tomorrow}`);
+        return;
+      }
       
       // Use the current name for saving status
       const userRef = ref(database, `statuses/${currentName}`);
@@ -570,21 +942,13 @@ function App() {
     };
   }, [firebaseConfigured, database]); // Add dependencies to ensure handler has access to Firebase
 
-  // Close sidebar window when switching to maximized mode
-  useEffect(() => {
-    if (isMaximized && sidebarOpen) {
-      if (window.electronAPI?.toggleSidebarWindow) {
-        window.electronAPI.toggleSidebarWindow(false);
-      }
-    }
-  }, [isMaximized, sidebarOpen]);
-
   // Listen for sidebar window being closed externally
   useEffect(() => {
     if (!window.electronAPI?.onSidebarWindowClosed) return;
 
     const handleSidebarClosed = () => {
       setSidebarOpen(false);
+      localStorage.setItem('sidebarOpen', 'false');
     };
 
     window.electronAPI.onSidebarWindowClosed(handleSidebarClosed);
@@ -655,6 +1019,16 @@ function App() {
     }
 
     try {
+      // Check if user already has the same status for the same target date
+      const currentUserStatus = statuses[name];
+      if (currentUserStatus && 
+          currentUserStatus.status === status && 
+          currentUserStatus.date === tomorrow) {
+        // Same status for same day - ignore silently
+        console.log(`Ignoring duplicate status: ${name} already has status '${status}' for ${tomorrow}`);
+        return;
+      }
+
       // Ensure user is authenticated before database operations
       await waitForAuth();
       
@@ -969,28 +1343,116 @@ function App() {
     }
   }, []);
 
+  // State to track if horizontal scrolling is needed
+  const [needsHorizontalScroll, setNeedsHorizontalScroll] = useState(false);
   const [isToggling, setIsToggling] = useState(false);
+  
+  // Check if horizontal scrolling is needed based on sidebar width (for maximized mode)
+  useEffect(() => {
+    if (isMaximized && sidebarOpen) {
+      // Default column sizes: user=65px, day columns=55px each, gap=0.2rem each (7 gaps total)
+      const defaultUserColumnWidth = 65;
+      const defaultDayColumnWidth = 55;
+      const gapWidth = 3.2; // 0.2rem converted to pixels (approximately)
+      const totalGaps = 7 * gapWidth; // 7 gaps between 8 columns
+      
+      // Calculate minimum required width (25% of default for day columns)
+      const minDayColumnWidth = defaultDayColumnWidth * 0.25; // 13.75px
+      const minRequiredWidth = defaultUserColumnWidth + (7 * minDayColumnWidth) + totalGaps;
+      
+      // If sidebar width is less than minimum, enable horizontal scroll and use default column sizes
+      setNeedsHorizontalScroll(sidebarWidth < minRequiredWidth);
+    } else {
+      setNeedsHorizontalScroll(false);
+    }
+  }, [isMaximized, sidebarOpen, sidebarWidth]);
+
+  // Calculate dynamic column widths for fullscreen mode
+  const getDynamicColumnWidths = () => {
+    if (!isMaximized || !sidebarOpen || needsHorizontalScroll) {
+      return { userWidth: 65, dayWidth: 55 }; // Default fixed sizes
+    }
+
+    const defaultUserColumnWidth = 65;
+    const defaultDayColumnWidth = 55;
+    const gapWidth = 3.2; // 0.2rem converted to pixels
+    const totalGaps = 7 * gapWidth;
+    
+    // More conservative available width calculation to prevent table overflow
+    // Account for: container padding (2rem), overview container padding (1rem), scrollbar space, margins
+    const containerPadding = 32 + 16 + 16 + 8; // 2rem + 1rem + margins + scrollbar space
+    const availableWidth = sidebarWidth - containerPadding;
+    
+    // Calculate how much extra space we have, but be conservative
+    const usedWidth = defaultUserColumnWidth + (7 * defaultDayColumnWidth) + totalGaps;
+    const extraWidth = Math.max(0, availableWidth - usedWidth);
+    
+    // Only distribute extra width if we have significant extra space (more than 70px)
+    // This prevents small increases that could cause boundary issues
+    if (extraWidth > 70) {
+      const extraPerDayColumn = Math.floor(extraWidth / 8); // Distribute among day columns + some for user column
+      const dynamicUserWidth = defaultUserColumnWidth + Math.floor(extraPerDayColumn * 0.2); // 20% extra to user column
+      const dynamicDayWidth = defaultDayColumnWidth + Math.floor(extraPerDayColumn * 0.8); // 80% to day columns
+      
+      return { 
+        userWidth: Math.min(dynamicUserWidth, 80), // Cap user column width
+        dayWidth: Math.min(dynamicDayWidth, 70)     // Cap day column width
+      };
+    }
+    
+    return { userWidth: defaultUserColumnWidth, dayWidth: defaultDayColumnWidth };
+  };
+
+  const { userWidth, dayWidth } = getDynamicColumnWidths();
+
+  // Load sidebar state from localStorage on startup
+  useEffect(() => {
+    const savedSidebarWidth = localStorage.getItem('sidebarWidth');
+    
+    if (savedSidebarWidth !== null) {
+      setSidebarWidth(parseInt(savedSidebarWidth, 10));
+    }
+  }, []);
+
+  // Save sidebar width when it changes (but not open state - no sync)
+  useEffect(() => {
+    localStorage.setItem('sidebarWidth', sidebarWidth.toString());
+  }, [sidebarWidth]);
+
+  // Close external sidebar window on mode changes (always start fresh)
+  useEffect(() => {
+    // Always close sidebar when switching modes to avoid sync issues
+    setSidebarOpen(false);
+    
+    // Always close external window to prevent conflicts
+    if (window.electronAPI?.toggleSidebarWindow) {
+      window.electronAPI.toggleSidebarWindow(false);
+    }
+  }, [isMaximized]);
 
   const toggleSidebar = useCallback(async () => {
     if (isToggling) return; // Prevent multiple rapid clicks
     
     setIsToggling(true);
     try {
+      const newState = !sidebarOpen;
+      setSidebarOpen(newState);
+      
       if (isMaximized) {
-        setSidebarOpen(!sidebarOpen);
+        // In maximized mode, just toggle the sidebar visibility (no window changes)
+        // Sidebar is handled by CSS within the same window
       } else {
-        // For normal mode, toggle satellite window
-        const newState = !sidebarOpen;
-        setSidebarOpen(newState);
-        if (window.electronAPI?.toggleSidebarWindow) {
-          await window.electronAPI.toggleSidebarWindow(newState);
+        // In windowed mode, create/close external sidebar window
+        if (window.electronAPI?.handlePopup) {
+          window.electronAPI.handlePopup(newState);
         }
       }
+      
     } catch (error) {
       console.error('Error toggling sidebar:', error);
     } finally {
-      // Shorter delay to reduce flickering
-      setTimeout(() => setIsToggling(false), 100);
+      // Longer delay to prevent double-click issues
+      setTimeout(() => setIsToggling(false), 300);
     }
   }, [isToggling, isMaximized, sidebarOpen]);
 
@@ -1012,25 +1474,36 @@ function App() {
 
   // Special render for sidebar window
   if (isSidebarWindow) {
-    const [isLoading, setIsLoading] = useState(true);
-    
-    // Initialize theme for sidebar window
+    // Optimized loading for sidebar window - render immediately
     useEffect(() => {
-      const initSidebarTheme = async () => {
-        const savedTheme = localStorage.getItem('theme') || 'dark';
-        
-        if (savedTheme === 'system') {
-          try {
-            const systemTheme = await window.electronAPI.getSystemTheme();
-            document.documentElement.setAttribute('data-theme', systemTheme);
-          } catch (error) {
-            console.log('Could not get system theme for sidebar, defaulting to dark');
-            document.documentElement.setAttribute('data-theme', 'dark');
+      // Show cached data immediately if available
+      if (activityLogsCache && Date.now() - lastCacheTime < 300000) { // 5 minutes cache
+        setActivityLogs(activityLogsCache);
+      }
+      
+      // Load fresh data in background without blocking render
+      setTimeout(async () => {
+        try {
+          if (!firebaseConfigured && !isFirebaseInitialized()) {
+            const config = await getFirebaseConfig();
+            if (config && Object.keys(config).length > 0) {
+              await initializeFirebase(config);
+              await initializeAuth();
+            }
           }
-        } else {
-          document.documentElement.setAttribute('data-theme', savedTheme);
+          
+          // Load fresh activity logs
+          await loadActivityLogs();
+        } catch (error) {
+          console.error('Background loading error:', error);
         }
-      };
+      }, 100); // Delay to allow UI to render first
+    }, []);
+    
+    // Initialize theme for sidebar window immediately (synchronous)
+    useEffect(() => {
+      const savedTheme = localStorage.getItem('theme') || 'dark';
+      document.documentElement.setAttribute('data-theme', savedTheme === 'system' ? 'dark' : savedTheme);
       
       // Listen for theme changes from main process
       const handleThemeChange = (newTheme) => {
@@ -1040,81 +1513,8 @@ function App() {
       if (window.electronAPI?.onThemeChanged) {
         window.electronAPI.onThemeChanged(handleThemeChange);
       }
-      
-      initSidebarTheme();
     }, []);
     
-    // Load activity logs when satellite window opens
-    useEffect(() => {
-      const loadData = async () => {
-        try {
-          // Show window immediately, load data in background
-          setIsLoading(false);
-          
-          // Ensure Firebase is initialized first
-          if (!isFirebaseInitialized()) {
-            // Try to initialize Firebase for sidebar window
-            const config = await getFirebaseConfig();
-            if (config && Object.keys(config).length > 0) {
-              await initializeFirebase(config);
-            }
-          }
-          
-          // Load activity logs with fresh data
-          const logs = await getActivityLogs();
-          setActivityLogs(logs);
-          setActivityLogsCache(logs);
-          setLastCacheTime(Date.now());
-        } catch (error) {
-          console.error('Error loading activity logs in sidebar window:', error);
-        }
-      };
-      
-      loadData();
-      
-      // Listen for refresh events from main window
-      const handleRefresh = async () => {
-        try {
-          const logs = await getActivityLogs();
-          setActivityLogs(logs);
-          setActivityLogsCache(logs);
-          setLastCacheTime(Date.now());
-        } catch (error) {
-          console.error('Error refreshing activity logs:', error);
-        }
-      };
-      
-      if (window.electronAPI?.onRefreshActivityLogs) {
-        window.electronAPI.onRefreshActivityLogs(handleRefresh);
-      }
-    }, []);
-
-    // Initialize theme for sidebar window
-    useEffect(() => {
-      const initSidebarTheme = async () => {
-        const savedTheme = localStorage.getItem('theme') || 'dark';
-        if (savedTheme === 'system') {
-          try {
-            const systemTheme = await window.electronAPI.getSystemTheme();
-            document.documentElement.setAttribute('data-theme', systemTheme);
-          } catch (error) {
-            document.documentElement.setAttribute('data-theme', 'dark');
-          }
-        } else {
-          document.documentElement.setAttribute('data-theme', savedTheme);
-        }
-      };
-      
-      initSidebarTheme();
-      
-      // Listen for theme changes
-      if (window.electronAPI?.onThemeChanged) {
-        window.electronAPI.onThemeChanged((newTheme) => {
-          document.documentElement.setAttribute('data-theme', newTheme);
-        });
-      }
-    }, []);
-
     return (
       <div className="sidebar-window">
         <div className="sidebar-content">
@@ -1230,21 +1630,53 @@ function App() {
                 onMouseDown={(e) => {
                   const startX = e.clientX;
                   const startWidth = sidebarWidth;
+                  const defaultWidth = 650; // Updated to match new default
+                  const minWidth = Math.floor(defaultWidth * 0.6); // 60% of default (390px)
+                  const maxWidth = Math.floor(defaultWidth * 2.2); // More generous maximum (1430px)
+
+                  // Add dragging class
+                  const handle = e.target;
+                  handle.classList.add('dragging');
+                  document.body.classList.add('dragging');
 
                   const onMouseMove = (e) => {
                     const newWidth = startWidth + (e.clientX - startX);
-                    const clampedWidth = Math.max(200, Math.min(600, newWidth));
-                    setSidebarWidth(clampedWidth);
-                    localStorage.setItem('sidebarWidth', clampedWidth);
+                    
+                    // Apply the same constraints as the main app: ensure main content has minimum width
+                    const screenWidth = window.innerWidth;
+                    const minMainContentWidth = 600; // Same constraint as main app
+                    const maxAllowedSidebarWidth = screenWidth - minMainContentWidth;
+                    
+                    // Also respect maximum percentage constraint 
+                    const maxSidebarPercentage = screenWidth * 0.7; // 70% max
+                    
+                    // Use the most restrictive constraint (same logic as main app)
+                    const finalWidth = Math.min(
+                      Math.max(minWidth, newWidth), // Respect minimum width
+                      maxAllowedSidebarWidth,        // Respect main content minimum
+                      maxSidebarPercentage,          // Respect percentage limit
+                      maxWidth                       // Respect maximum width
+                    );
+                    
+                    setSidebarWidth(finalWidth);
+                    localStorage.setItem('sidebarWidth', finalWidth);
                   };
 
                   const onMouseUp = () => {
+                    // Remove dragging classes
+                    handle.classList.remove('dragging');
+                    document.body.classList.remove('dragging');
+                    
                     document.removeEventListener('mousemove', onMouseMove);
                     document.removeEventListener('mouseup', onMouseUp);
+                    document.body.style.cursor = '';
+                    document.body.style.userSelect = '';
                   };
 
                   document.addEventListener('mousemove', onMouseMove);
                   document.addEventListener('mouseup', onMouseUp);
+                  document.body.style.cursor = 'col-resize';
+                  document.body.style.userSelect = 'none';
                 }}
               ></div>
             </>
@@ -1461,8 +1893,8 @@ function App() {
       <div 
         className={`header-area ${isMaximized && sidebarOpen ? 'sidebar-active' : ''}`}
         style={{
-          '--header-margin-left': isMaximized ? (sidebarOpen ? `${sidebarWidth}px` : '0px') : '0px',
-          '--header-width': isMaximized ? (sidebarOpen ? `calc(100% - ${sidebarWidth}px)` : '100%') : '100%'
+          '--header-margin-left': isMaximized ? (sidebarOpen ? `${Math.min(sidebarWidth, 1200)}px` : '0px') : '0px',
+          '--header-width': isMaximized ? (sidebarOpen ? `calc(100% - ${Math.min(sidebarWidth, 1200)}px)` : '100%') : '100%'
         }}
       >
         <h1 className={`title-draggable ${showSettings ? 'settings-open' : ''}`}>
@@ -1474,8 +1906,8 @@ function App() {
       <div 
         className={`content-area ${isMaximized && sidebarOpen ? 'sidebar-active' : ''}`}
         style={{
-          '--content-margin-left': isMaximized ? (sidebarOpen ? `${sidebarWidth}px` : '0px') : '0px',
-          '--content-width': isMaximized ? (sidebarOpen ? `calc(100% - ${sidebarWidth}px)` : '100%') : '100%'
+          '--content-margin-left': isMaximized ? (sidebarOpen ? `${Math.min(sidebarWidth, 1200)}px` : '0px') : '0px',
+          '--content-width': isMaximized ? (sidebarOpen ? `calc(100% - ${Math.min(sidebarWidth, 1200)}px)` : '100%') : '100%'
         }}
       >
         {!isNameSaved ? (
@@ -1562,15 +1994,68 @@ function App() {
               {notifications.map((n, index) => (
                 <div key={index} className="notification-card">
                   <div className="notification-row">
-                    <input
-                      type="time"
-                      value={n.time}
-                      onChange={(e) => {
-                        const newNotifications = [...notifications];
-                        newNotifications[index].time = e.target.value;
-                        setNotifications(newNotifications);
-                      }}
-                    />
+                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                      <span style={{ fontSize: "0.85rem", fontWeight: "bold", color: 'var(--text-color)', minWidth: "45px" }}>HH:MM</span>
+                      <div style={{ display: 'flex', gap: '0.2rem', alignItems: 'center' }}>
+                        <select
+                          value={n.time ? n.time.split(':')[0] : ''}
+                          onChange={(e) => {
+                            const newNotifications = [...notifications];
+                            const currentMinutes = n.time ? n.time.split(':')[1] || '00' : '00';
+                            newNotifications[index].time = e.target.value ? `${e.target.value}:${currentMinutes}` : '';
+                            setNotifications(newNotifications);
+                          }}
+                          style={{
+                            padding: '0.4rem',
+                            borderRadius: '4px',
+                            border: '1px solid var(--border-color)',
+                            backgroundColor: 'var(--input-bg)',
+                            color: 'var(--text-color)',
+                            fontSize: '0.9rem',
+                            minWidth: '50px'
+                          }}
+                        >
+                          <option value="">HH</option>
+                          {Array.from({ length: 24 }, (_, hour) => {
+                            const hourStr = hour.toString().padStart(2, '0');
+                            return (
+                              <option key={hourStr} value={hourStr}>
+                                {hourStr}
+                              </option>
+                            );
+                          })}
+                        </select>
+                        <span style={{ color: 'var(--text-color)', fontWeight: 'bold' }}>:</span>
+                        <select
+                          value={n.time ? n.time.split(':')[1] || '' : ''}
+                          onChange={(e) => {
+                            const newNotifications = [...notifications];
+                            const currentHour = n.time ? n.time.split(':')[0] || '00' : '00';
+                            newNotifications[index].time = e.target.value !== '' ? `${currentHour}:${e.target.value}` : (currentHour !== '00' ? `${currentHour}:00` : '');
+                            setNotifications(newNotifications);
+                          }}
+                          style={{
+                            padding: '0.4rem',
+                            borderRadius: '4px',
+                            border: '1px solid var(--border-color)',
+                            backgroundColor: 'var(--input-bg)',
+                            color: 'var(--text-color)',
+                            fontSize: '0.9rem',
+                            minWidth: '50px'
+                          }}
+                        >
+                          <option value="">MM</option>
+                          {Array.from({ length: 60 }, (_, minute) => {
+                            const minuteStr = minute.toString().padStart(2, '0');
+                            return (
+                              <option key={minuteStr} value={minuteStr}>
+                                {minuteStr}
+                              </option>
+                            );
+                          })}
+                        </select>
+                      </div>
+                    </div>
                     <span style={{ fontSize: "0.85rem", minWidth: "30px" }}>Zile:</span>
                     <div className="checkbox-group">
                       {["L", "Ma", "Mi", "J", "V"].map((day, i) => (

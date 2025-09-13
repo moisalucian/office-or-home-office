@@ -427,7 +427,7 @@ button.danger:hover {
 }
 
 .status-grid::-webkit-scrollbar-thumb:hover {
-  background: var(--scrollbar-thumb-hover);
+  background: rgba(100, 149, 237, 0.6);
 }
 
 .content-area {
@@ -458,7 +458,7 @@ button.danger:hover {
 }
 
 .content-area::-webkit-scrollbar-thumb:hover {
-  background: var(--scrollbar-thumb-hover);
+  background: rgba(100, 149, 237, 0.6);
 }
 
 /* Ensure all content inside can be scrolled */
@@ -1102,28 +1102,21 @@ button.danger:hover {
   line-height: 1.5;
 }
 
-/* Sidebar overlay for normal mode */
-.sidebar-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  z-index: 2000;
-  display: flex;
-  -webkit-app-region: no-drag;
+/* Sidebar styles only for maximized mode now */
+
+.sidebar-backdrop {
+  flex: 1;
+  background-color: rgba(0, 0, 0, 0.3);
+  cursor: pointer;
 }
 
-.sidebar-normal {
-  position: relative;
-  min-width: 200px;
-  max-width: 600px;
-  height: 100%;
-  background-color: #1f1f1f;
-  border-right: 1px solid #444;
-  display: flex;
-  box-shadow: 2px 0 10px rgba(0, 0, 0, 0.3);
-  animation: slideInLeft 0.3s ease-out;
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
 }
 
 .sidebar-backdrop {
@@ -1153,9 +1146,26 @@ button.danger:hover {
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
-  overflow: hidden;
+  overflow: hidden; /* Ensure content doesn't extend beyond rounded corners */
   margin: 0;
   transition: background-color 0.3s, color 0.3s;
+  /* Fix for sharp corners - ensure proper clipping */
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  transform: translateZ(0); /* Force hardware acceleration for proper rendering */
+  /* Make the entire window draggable */
+  -webkit-app-region: drag;
+}
+
+/* Make interactive elements non-draggable */
+.sidebar-window button,
+.sidebar-window input,
+.sidebar-window select,
+.sidebar-window textarea,
+.sidebar-window .activity-overview-scrollable-container,
+.sidebar-window .activity-history-container,
+.sidebar-window .activity-log-divider {
+  -webkit-app-region: no-drag;
 }
 
 .sidebar-window .sidebar-content {
@@ -1164,6 +1174,7 @@ button.danger:hover {
   display: flex;
   flex-direction: column;
   min-height: 0; /* Allow flexbox shrinking */
+  overflow: hidden;
 }
 
 .sidebar-window .sidebar-content h3 {
@@ -1254,11 +1265,404 @@ button.danger:hover {
   color: #999 !important; /* Grey */
 }
 
+/* Activity Overview Styles (renamed to avoid conflicts with main status cards) */
+.activity-log-split-container {
+  flex: 1;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  max-width: 100%; 
+}
+
+.activity-overview-section {
+  display: flex;
+  flex-direction: column;
+  min-height: 150px;
+  min-height: 0; /* Critical for flexbox scrolling */
+  margin-bottom: 0.5rem; /* Add gap before divider */
+  overflow: hidden; /* Let child container handle scrolling */
+  max-width: 100%; /* Ensure overview section respects parent width */
+}
+
+.activity-overview-section h4 {
+  color: var(--text-color);
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin: 0 0 1rem 0;
+  text-align: center;
+  transition: color 0.3s;
+  flex-shrink: 0;
+}
+
+.activity-overview-container {
+  background-color: var(--notification-bg);
+  border-radius: 12px;
+  padding: 1rem;
+  flex: 1;
+  min-height: 0; /* Critical for flexbox scrolling */
+  overflow: hidden; /* Let child wrapper handle scrolling */
+  display: flex;
+  flex-direction: column;
+  transition: background-color 0.3s;
+  max-width: 100%; /* Ensure container respects parent width */
+  height: 100%; /* Take full height allocated by parent section */
+}
+
+.activity-overview-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden; /* No scrolling at wrapper level */
+  position: relative; /* Ensure proper positioning context */
+  max-width: 100%; /* Ensure wrapper never exceeds container */
+}
+
+/* Only enable horizontal scrolling when width is too small */
+.activity-overview-wrapper.needs-horizontal-scroll {
+  overflow-x: auto;
+  overflow-y: hidden; /* Prevent vertical overflow when horizontal scroll is active */
+}
+
+.activity-overview-table {
+  display: flex;
+  flex-direction: column;
+  width: 100%; /* Table takes full available width */
+  max-width: 100%; /* Ensure table never exceeds container width */
+  min-width: 0; /* Allow table to shrink if needed */
+}
+
+/* When horizontal scrolling is needed, set minimum width but respect container */
+.activity-overview-wrapper.needs-horizontal-scroll .activity-overview-table {
+  min-width: 520px; /* Minimum width to show all columns properly */
+  max-width: 100%; /* Still respect container width */
+}
+
+.activity-overview-scrollable-container {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0;
+  /* Remove fixed max-height - let it use full available space from parent section */
+  height: 100%; /* Take full height of parent container */
+  position: relative; /* Ensure proper stacking context */
+}
+
+/* For windowed mode, still allow full space usage */
+.sidebar-window .activity-overview-scrollable-container {
+  height: 100%; /* Use full available space in separate window too */
+}
+
+/* Custom scrollbar for overview section vertical scroll */
+.activity-overview-scrollable-container::-webkit-scrollbar {
+  width: 8px;
+}
+
+.activity-overview-scrollable-container::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 4px;
+}
+
+.activity-overview-scrollable-container::-webkit-scrollbar-thumb {
+  background: var(--divider-color);
+  border-radius: 4px;
+}
+
+.activity-overview-scrollable-container::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 149, 237, 0.6);
+}
+
+/* Custom scrollbar for wrapper horizontal scroll (when needed) */
+.activity-overview-wrapper.needs-horizontal-scroll::-webkit-scrollbar {
+  height: 8px;
+}
+
+.activity-overview-wrapper.needs-horizontal-scroll::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 4px;
+}
+
+.activity-overview-wrapper.needs-horizontal-scroll::-webkit-scrollbar-thumb {
+  background: var(--divider-color);
+  border-radius: 4px;
+}
+
+.activity-overview-wrapper.needs-horizontal-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 149, 237, 0.6);
+}
+
+.activity-overview-header {
+  display: grid;
+  grid-template-columns: var(--dynamic-user-width, 65px) repeat(7, var(--dynamic-day-width, 55px)); /* Use CSS custom properties for dynamic sizing */
+  gap: 0.2rem;
+  margin-bottom: 0.5rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--divider-color);
+  flex-shrink: 0;
+  width: 100%; /* Take full width */
+  max-width: 100%; /* Never exceed container width */
+  overflow: hidden; /* Prevent any overflow */
+}
+
+/* When horizontal scroll is enabled, use fixed column sizes */
+.activity-overview-wrapper.needs-horizontal-scroll .activity-overview-header {
+  grid-template-columns: 65px repeat(7, 55px); /* Fixed default sizes */
+}
+
+.activity-overview-scrollable {
+  flex: none; /* Don't flex, let content determine height */
+  overflow-y: visible; /* Allow natural content flow */
+  min-width: 0;
+}
+
+.overview-user-row {
+  display: grid;
+  grid-template-columns: var(--dynamic-user-width, 65px) repeat(7, var(--dynamic-day-width, 55px)); /* Use CSS custom properties for dynamic sizing */
+  gap: 0.2rem; /* Exact same gap as header */
+  align-items: center;
+  margin-bottom: 0.5rem;
+  width: 100%; /* Take full width */
+  max-width: 100%; /* Never exceed container width */
+  overflow: hidden; /* Prevent any overflow */
+}
+
+/* When horizontal scroll is enabled, use fixed column sizes */
+.activity-overview-wrapper.needs-horizontal-scroll .overview-user-row {
+  grid-template-columns: 65px repeat(7, 55px); /* Fixed default sizes */
+}
+
+/* For windowed mode - adjust grid to fit perfectly */
+.sidebar-window .activity-overview-wrapper {
+  overflow: hidden; /* No scrolling needed in windowed mode */
+}
+
+.sidebar-window .activity-overview-table {
+  width: 100%; /* Full width */
+}
+
+.sidebar-window .activity-overview-header {
+  grid-template-columns: 65px repeat(7, minmax(50px, 1fr)); /* Increased user column and day columns */
+  gap: 0.2rem; /* Increased gap for better spacing */
+  width: 100%;
+}
+
+.sidebar-window .overview-user-row {
+  grid-template-columns: 65px repeat(7, minmax(50px, 1fr)); /* Match header exactly */
+  gap: 0.2rem; /* Match header gap exactly */
+  width: 100%;
+}
+
+.sidebar-window .overview-user-name {
+  font-size: 0.7rem; /* Slightly larger font */
+  padding: 0.15rem;
+}
+
+.sidebar-window .overview-day-header {
+  font-size: 0.65rem; /* Slightly larger font */
+  padding: 0.25rem;
+}
+
+.sidebar-window .overview-day-name {
+  font-size: 0.65rem; /* Slightly larger font */
+}
+
+.sidebar-window .overview-day-date {
+  font-size: 0.6rem; /* Slightly larger font */
+}
+
+.sidebar-window .overview-status-cell {
+  height: 24px; /* Slightly taller */
+  font-size: 0.9rem; /* Slightly larger font */
+}
+
+.overview-user-header {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.overview-day-header {
+  text-align: center;
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  border-radius: 4px;
+  padding: 0.3rem;
+  border: 1px solid transparent; /* All headers get same padding/border structure */
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  /* Removed fixed sizing to allow natural fit */
+}
+
+.overview-day-header.today {
+  background: rgba(100, 149, 237, 0.1);
+  border: 1px solid rgba(100, 149, 237, 0.3);
+}
+
+.overview-day-name {
+  font-weight: 600;
+  margin-bottom: 0.2rem;
+}
+
+.overview-day-date {
+  font-size: 0.65rem;
+  opacity: 0.8;
+}
+
+.overview-user-name {
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: var(--text-color);
+  text-align: center;
+  padding: 0.1rem;
+  word-break: break-word;
+}
+
+.overview-status-cell {
+  height: 30px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  cursor: help;
+  border: 1px solid var(--divider-color);
+  transition: all 0.2s ease;
+}
+
+.overview-status-cell:hover {
+  transform: scale(1.1);
+}
+
+.overview-status-cell.overview-status-yes {
+  background-color: rgba(76, 175, 80, 0.2);
+  border-color: #4caf50;
+}
+
+.overview-status-cell.overview-status-no {
+  background-color: rgba(244, 67, 54, 0.2);
+  border-color: #f44336;
+}
+
+.overview-status-cell.overview-status-undecided {
+  background-color: rgba(255, 152, 0, 0.2);
+  border-color: #ff9800;
+}
+
+.overview-status-cell.overview-status-empty {
+  background-color: var(--card-bg);
+  border-color: var(--divider-color);
+  color: var(--text-secondary);
+  opacity: 0.6;
+}
+
+.overview-status-cell.live-status {
+  box-shadow: 0 0 6px rgba(100, 149, 237, 0.8);
+  border-width: 2px;
+  animation: pulse-live 2s infinite;
+}
+
+@keyframes pulse-live {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+
+.no-data-message {
+  color: var(--text-secondary);
+  text-align: center;
+  font-style: italic;
+  margin: 1rem 0;
+}
+
+/* Activity Log Divider */
+.activity-log-divider {
+  height: 3px;
+  background: var(--divider-color);
+  cursor: ns-resize;
+  transition: background-color 0.2s ease;
+  flex-shrink: 0;
+  position: relative;
+  margin: 0.5rem 0; /* Add gap above and below divider */
+}
+
+.activity-log-divider:hover {
+  background: rgba(100, 149, 237, 0.8);
+}
+
+.activity-log-divider::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: 0;
+  right: 0;
+  height: 7px;
+  cursor: ns-resize;
+}
+
+/* Activity History Styles */
+.activity-history-section {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0; /* Critical for flexbox scrolling */
+  margin-top: 0.5rem; /* Add gap after divider */
+  overflow: hidden; /* Let child container handle scrolling */
+  max-width: 100%; /* Ensure history section respects parent width */
+}
+
+.activity-history-section h4 {
+  color: var(--text-color);
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin: 0 0 1rem 0;
+  text-align: center;
+  transition: color 0.3s;
+  flex-shrink: 0;
+}
+
+.activity-history-section .activity-history-container {
+  background-color: var(--notification-bg);
+  border-radius: 12px;
+  color: var(--notification-text);
+  padding: 1rem;
+  flex: 1;
+  min-height: 0; /* Allow flex shrinking for scroll */
+  height: auto; /* Let content determine height */
+  overflow-y: auto; /* Enable scrolling */
+  overflow-x: hidden; /* No horizontal scroll */
+  transition: background-color 0.3s, color 0.3s;
+}
+
+/* Custom scrollbar for activity history area, using theme variables */
+.activity-history-section .activity-history-container::-webkit-scrollbar {
+  width: 8px;
+}
+.activity-history-section .activity-history-container::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+  border-radius: 0 8px 8px 0;
+  margin: 8px 0;
+}
+.activity-history-section .activity-history-container::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 4px;
+}
+.activity-history-section .activity-history-container::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 149, 237, 0.6);
+}
+
 .sidebar-content {
   padding: 2rem 1.5rem;
   height: 100%;
-  overflow-y: auto;
+  overflow: hidden; /* Parent manages overflow */
   flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0; /* Critical for nested flexbox scrolling */
 }
 
 .sidebar-content h3 {
@@ -1268,15 +1672,39 @@ button.danger:hover {
   text-align: center;
   transition: color 0.3s;
   text-align: center;
+  flex-shrink: 0;
 }
 
 .activity-log-container {
-  background-color: var(--notification-bg);
+  background-color: var(--notification-bg); /* Dark grey for dark mode, light for light mode */
   border-radius: 12px;
   padding: 1rem;
   min-height: 200px;
   color: var(--notification-text);
   transition: background-color 0.3s, color 0.3s;
+  overflow-y: auto; /* Enable scrolling for activity history */
+  /* Custom scrollbar styling to preserve border radius */
+}
+
+/* Custom scrollbar for activity history with proper radius protection */
+.activity-log-container::-webkit-scrollbar {
+  width: 8px;
+}
+
+.activity-log-container::-webkit-scrollbar-track {
+  background: #23272f; /* Slightly lighter than main bg for contrast in dark mode */
+  border-radius: 0 8px 8px 0; /* Match container radius */
+  margin: 8px 0; /* Add margin for radius separation */
+}
+
+.activity-log-container::-webkit-scrollbar-thumb {
+  background: var(--divider-color);
+  border-radius: 4px;
+  /* Removed margin-right that was breaking scrolling */
+}
+
+.activity-log-container::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 149, 237, 0.6);
 }
 
 .sidebar-resize-handle {
@@ -1286,10 +1714,32 @@ button.danger:hover {
   transition: background-color 0.2s ease;
   position: relative;
   flex-shrink: 0;
+  user-select: none; /* Prevent text selection */
 }
 
-.sidebar-resize-handle:hover {
+.sidebar-resize-handle:hover,
+.sidebar-resize-handle.dragging {
   background: rgba(100, 149, 237, 0.8);
+}
+
+/* Prevent text selection during drag operations */
+.dragging,
+.dragging * {
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  -moz-user-select: none !important;
+  -ms-user-select: none !important;
+}
+
+/* Prevent text selection during split pane resize */
+.activity-log-split-pane.dragging,
+.activity-log-split-pane.dragging *,
+.activity-log-split-pane.dragging .activity-overview-section,
+.activity-log-split-pane.dragging .activity-history-section {
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  -moz-user-select: none !important;
+  -ms-user-select: none !important;
 }
 
 .action-buttons {
@@ -1347,8 +1797,36 @@ button.danger:hover {
   cursor: default;
 }
 
-/* Ensure interactive elements in name input section are non-draggable */
-.name-input-container button,
-.name-input-container input {
-  -webkit-app-region: no-drag;
+
+/* Force border radius fix classes (see below for actual rules) */
+
+
+.force-border-radius {
+  border-radius: 16px !important;
+  background: var(--container-bg, #23272f) !important;
+  box-shadow: 0 0 0 1px rgba(0,0,0,0.08);
+  position: relative;
+  overflow: hidden;
+}
+
+
+.force-border-radius::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: 16px;
+  pointer-events: none;
+  background: var(--container-bg, #23272f);
+  z-index: -1;
+}
+
+/* --- Sidebar/activity log window border radius and background fix --- */
+.sidebar-window, .activity-log-container, .sidebar-content, .sidebar-maximized {
+  border-radius: 16px !important;
+  background: var(--container-bg, #23272f) !important;
+  box-shadow: 0 0 0 1px rgba(0,0,0,0.08);
+  overflow: hidden;
 }
