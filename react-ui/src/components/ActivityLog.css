@@ -164,6 +164,8 @@
   flex-direction: column;
   min-height: 0;
   overflow: hidden; /* Prevent any horizontal scroll */
+  /* Reserve consistent space for potential scrollbar */
+  padding-right: 8px; /* Reserve space for scrollbar */
 }
 
 .overview-table-header {
@@ -174,9 +176,11 @@
   align-items: center;
   min-width: 0;
   /* Header-specific styling */
-  padding-bottom: 0.3rem;
+  padding: 0 0.5rem 0.3rem 0.5rem; /* Match body horizontal padding, keep bottom padding for border */
   border-bottom: 1px solid var(--divider-color);
   flex-shrink: 0;
+  /* Adjust for reserved scrollbar space */
+  margin-right: 8px;
 }
 
 .overview-header-cell {
@@ -194,12 +198,16 @@
 
 .overview-header-cell.user-header {
   font-size: 0.8rem;
+  text-align: left;
+  padding-left: 0.4rem;
 }
 
 .overview-header-cell.day-header.today {
-  background: rgba(100, 149, 237, 0.1);
-  border: 1px solid rgba(100, 149, 237, 0.3);
+  background: rgba(33, 150, 243, 0.15); /* Slightly stronger blue background */
+  border: 2px solid #2196f3 !important; /* Thicker, brighter blue border */
   color: var(--text-color);
+  box-shadow: 0 0 8px rgba(33, 150, 243, 0.4); /* Subtle glow effect */
+  font-weight: 700; /* Bolder text */
 }
 
 .overview-header-cell.day-header {
@@ -228,8 +236,10 @@
   overflow-y: auto;
   overflow-x: hidden; /* Prevent horizontal scroll */
   min-height: 0;
-  padding: 0.5rem 0; /* Add padding top/bottom to respect border radius */
-  margin: -0.5rem 0; /* Negative margin to maintain overall height */
+  padding: 0.5rem; /* Add horizontal padding for scrollbar spacing */
+  margin: -0.5rem 0; /* Keep vertical negative margin */
+  /* Force scrollbar to always be visible to prevent layout shifts */
+  scrollbar-gutter: stable;
 }
 
 /* Only apply smooth scrolling in fullscreen mode to prevent conflicts with window dragging */
@@ -258,7 +268,7 @@
 }
 
 .overview-cell.user-cell {
-  font-size: 0.75rem;
+  font-size: 0.8rem; /* Increased from 0.75rem */
   font-weight: 500;
   color: var(--text-color);
   text-align: left;

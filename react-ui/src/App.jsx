@@ -1634,9 +1634,9 @@ function App() {
                           width: '60px'
                         }}
                       >
-                        <option value="">HH</option>
+                        <option value="" disabled>HH</option>
                         {Array.from({ length: 24 }, (_, i) => (
-                          <option key={i} value={i}>
+                          <option key={i} value={i.toString().padStart(2, '0')}>
                             {i.toString().padStart(2, '0')}
                           </option>
                         ))}
@@ -1659,9 +1659,9 @@ function App() {
                           width: '60px'
                         }}
                       >
-                        <option value="">MM</option>
+                        <option value="" disabled>MM</option>
                         {Array.from({ length: 60 }, (_, i) => (
-                          <option key={i} value={i}>
+                          <option key={i} value={i.toString().padStart(2, '0')}>
                             {i.toString().padStart(2, '0')}
                           </option>
                         ))}

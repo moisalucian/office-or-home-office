@@ -41,13 +41,47 @@ const ActivityLog = ({
     }
   };
 
-  // Generate 7-day data structure (tomorrow, today, 5 days back)
+  // Generate 7-day data structure (oldest to newest, left to right)
   const generateDailyData = () => {
     const workingDays = [];
     const today = new Date();
     const todayIsWeekend = today.getDay() === 0 || today.getDay() === 6;
     
-    // Add tomorrow (first column) - next working day
+    // Start with previous working days (going backwards 5 days for historical data)
+    let current = new Date(today);
+    const historicalDays = [];
+    
+    // Collect 5 historical working days (excluding today)
+    current.setDate(current.getDate() - 1); // Start from yesterday
+    while (historicalDays.length < 5) {
+      if (current.getDay() >= 1 && current.getDay() <= 5) {
+        historicalDays.unshift({
+          dateKey: current.toISOString().split('T')[0],
+          dayName: current.toLocaleDateString('en-US', { weekday: 'short' }),
+          fullDate: current.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+          isTomorrow: false,
+          isToday: false,
+          isHistorical: true // Mark as historical so status doesn't auto-populate
+        });
+      }
+      current.setDate(current.getDate() - 1);
+    }
+    
+    // Add historical days first (oldest to newest)
+    workingDays.push(...historicalDays);
+    
+    // Add today (if it's a working day) - second to last column, highlighted
+    if (!todayIsWeekend) {
+      workingDays.push({
+        dateKey: today.toISOString().split('T')[0],
+        dayName: today.toLocaleDateString('en-US', { weekday: 'short' }),
+        fullDate: today.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        isTomorrow: false,
+        isToday: true
+      });
+    }
+    
+    // Add tomorrow (last column) - next working day
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
     
@@ -63,35 +97,6 @@ const ActivityLog = ({
       isTomorrow: true,
       isToday: false
     });
-    
-    // Add today (second column, highlighted) - only if it's a working day
-    if (!todayIsWeekend) {
-      workingDays.push({
-        dateKey: today.toISOString().split('T')[0],
-        dayName: today.toLocaleDateString('en-US', { weekday: 'short' }),
-        fullDate: today.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-        isTomorrow: false,
-        isToday: true
-      });
-    }
-    
-    // Add previous working days to fill remaining slots (these are historical)
-    let current = new Date(today);
-    current.setDate(current.getDate() - 1);
-    
-    while (workingDays.length < 7) {
-      if (current.getDay() >= 1 && current.getDay() <= 5) {
-        workingDays.push({
-          dateKey: current.toISOString().split('T')[0],
-          dayName: current.toLocaleDateString('en-US', { weekday: 'short' }),
-          fullDate: current.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-          isTomorrow: false,
-          isToday: false,
-          isHistorical: true // Mark as historical so status doesn't move
-        });
-      }
-      current.setDate(current.getDate() - 1);
-    }
     
     return workingDays;
   };
