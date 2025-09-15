@@ -1,0 +1,461 @@
+/* Activity Log Component Styles */
+.activity-log {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--container-bg);
+  border-radius: 16px;
+  padding: 1rem;
+  box-sizing: border-box;
+  overflow: hidden;
+  /* Prevent window resizing issues during drag */
+  contain: layout style;
+}
+
+/* Specific styles for different modes */
+.activity-log.window-mode {
+  padding: 1rem; /* Keep reduced padding for window mode */
+  -webkit-app-region: no-drag !important; /* Completely disable dragging in window mode to prevent size issues */
+}
+
+.activity-log.maximized-mode {
+  padding: 1.5rem 1rem 1rem 1rem; /* More top padding for full screen mode */
+  -webkit-app-region: no-drag; /* Ensure no dragging in maximized mode */
+}
+
+/* Header styles */
+.activity-log-header {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 0.6rem;
+  flex-shrink: 0;
+  padding: 0.6rem 0; /* Add some vertical padding to match main app spacing */
+}
+
+.activity-log-header h3 {
+  margin: 0;
+  color: var(--text-color);
+  font-size: 1.2rem;
+  font-weight: 600;
+  text-align: center;
+}
+
+.reset-layout-btn {
+  position: absolute;
+  top: 0.6rem; /* Match header padding */
+  right: 0.6rem; /* Same distance from edge as main app buttons */
+  background: var(--control-button-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--control-button-text);
+  font-size: 1.2rem; /* Match Settings button font size */
+  padding: 0.4rem; /* Match Settings button padding */
+  cursor: pointer;
+  transition: all 0.3s; /* Match Settings button transition */
+  z-index: 1005 !important; /* Higher than draggable elements */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  -webkit-app-region: no-drag !important; /* Force non-draggable */
+  pointer-events: auto !important; /* Force clickable */
+}
+
+.reset-layout-btn:hover {
+  background: var(--control-button-hover);
+  border-color: var(--control-button-hover); /* Match Settings button hover */
+}
+
+.reset-layout-btn:focus {
+  outline: none; /* Remove default outline */
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.5); /* Brief white focus indicator */
+  animation: focusPulse 0.3s ease-out; /* Brief animation */
+}
+
+.reset-layout-btn:active {
+  transform: scale(0.95); /* Brief press feedback */
+}
+
+/* Brief focus pulse animation */
+@keyframes focusPulse {
+  0% { box-shadow: 0 0 0 0px rgba(255, 255, 255, 0.5); }
+  50% { box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.3); }
+  100% { box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.1); }
+}
+
+/* All elements should be non-draggable when in window mode to prevent conflicts */
+.activity-log.window-mode * {
+  -webkit-app-region: no-drag !important;
+}
+
+/* Force interactive and scrollable areas to be non-draggable even in window mode */
+.reset-layout-btn,
+.reset-button-container,
+.activity-horizontal-divider,
+.overview-table-body,
+.activity-history-scrollable,
+.activity-history-content,
+.activity-day,
+.activity-entry,
+.activity-time,
+.activity-message,
+.activity-day-header,
+.overview-table-row,
+.overview-cell,
+.overview-header-cell,
+.selectable {
+  -webkit-app-region: no-drag !important; /* Force no-drag for all interactive content */
+}
+
+.activity-horizontal-divider {
+  cursor: row-resize;
+}
+
+.overview-table-body,
+.activity-history-scrollable,
+.activity-history-content {
+  cursor: default !important; /* Allow normal scrolling cursor - force over drag cursor */
+  -webkit-app-region: no-drag !important; /* Force scrollable areas to be non-draggable */
+}
+
+/* Split container styles */
+
+/* Split container */
+.activity-log-split-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* Overview section (top half) */
+.activity-overview-section {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  margin-bottom: 1rem;
+}
+
+.activity-overview-section h4 {
+  margin: 0 0 1rem 0;
+  color: var(--text-color);
+  font-size: 1rem;
+  font-weight: 600;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.activity-overview-content {
+  flex: 1;
+  background-color: var(--notification-bg);
+  border-radius: 12px;
+  padding: 1rem 1rem 1rem 1rem; /* Increased bottom padding */
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* Overview table */
+.overview-table-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden; /* Prevent any horizontal scroll */
+}
+
+.overview-table-header {
+  display: grid;
+  grid-template-columns: 80px repeat(7, 1fr);
+  gap: 0.2rem;
+  margin-bottom: 0.3rem;
+  align-items: center;
+  min-width: 0;
+  /* Header-specific styling */
+  padding-bottom: 0.3rem;
+  border-bottom: 1px solid var(--divider-color);
+  flex-shrink: 0;
+}
+
+.overview-header-cell {
+  text-align: center;
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  padding: 0.2rem;
+  border-radius: 4px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0; /* Allow grid items to shrink */
+}
+
+.overview-header-cell.user-header {
+  font-size: 0.8rem;
+}
+
+.overview-header-cell.day-header.today {
+  background: rgba(100, 149, 237, 0.1);
+  border: 1px solid rgba(100, 149, 237, 0.3);
+  color: var(--text-color);
+}
+
+.overview-header-cell.day-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.1rem;
+}
+
+.day-name {
+  font-size: 0.7rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.day-date {
+  font-size: 0.65rem;
+  opacity: 0.8;
+  font-weight: 500;
+  margin: 0;
+}
+
+.overview-table-body {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden; /* Prevent horizontal scroll */
+  min-height: 0;
+  padding: 0.5rem 0; /* Add padding top/bottom to respect border radius */
+  margin: -0.5rem 0; /* Negative margin to maintain overall height */
+}
+
+/* Only apply smooth scrolling in fullscreen mode to prevent conflicts with window dragging */
+.activity-log.maximized-mode .overview-table-body {
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch; /* Better scrolling on WebKit */
+}
+
+.overview-table-row {
+  display: grid;
+  grid-template-columns: 80px repeat(7, 1fr);
+  gap: 0.2rem;
+  margin-bottom: 0.3rem;
+  align-items: center;
+  min-width: 0;
+}
+
+.overview-cell {
+  padding: 0.2rem;
+  text-align: center;
+  border-radius: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0; /* Allow grid items to shrink */
+}
+
+.overview-cell.user-cell {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-color);
+  text-align: left;
+  padding-left: 0.4rem;
+}
+
+.overview-cell.status-cell {
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  cursor: help;
+  border: 1px solid var(--divider-color);
+  transition: transform 0.2s ease;
+}
+
+.overview-cell.status-cell:hover {
+  transform: scale(1.1);
+}
+
+.overview-cell.status-yes {
+  background-color: rgba(76, 175, 80, 0.2);
+  border-color: #4caf50;
+}
+
+.overview-cell.status-no {
+  background-color: rgba(244, 67, 54, 0.2);
+  border-color: #f44336;
+}
+
+.overview-cell.status-undecided {
+  background-color: rgba(255, 152, 0, 0.2);
+  border-color: #ff9800;
+}
+
+.overview-cell.status-empty {
+  background-color: var(--status-bg);
+  border-color: var(--divider-color);
+  color: var(--text-secondary);
+  opacity: 0.6;
+}
+
+/* Horizontal divider */
+.activity-horizontal-divider {
+  height: 7px; /* Match vertical divider thickness (8px) for consistency */
+  background: var(--divider-color);
+  cursor: ns-resize;
+  margin: 0.4rem 0;
+  border-radius: 4px; /* Increased to match new height */
+  flex-shrink: 0;
+  transition: background-color 0.2s;
+}
+
+.activity-horizontal-divider:hover {
+  background: rgba(100, 149, 237, 0.8);
+}
+
+/* History section (bottom half) */
+.activity-history-section {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  margin-top: 0.4rem;
+}
+
+.activity-history-section h4 {
+  margin: 0 0 1rem 0;
+  color: var(--text-color);
+  font-size: 1rem;
+  font-weight: 600;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.activity-history-content {
+  flex: 1;
+  background-color: var(--notification-bg);
+  border-radius: 12px;
+  padding: 1rem; /* Keep horizontal padding, adjust for scroll limits */
+  overflow-y: auto;
+  min-height: 0;
+  /* Add inner padding to keep scroll away from rounded corners */
+  padding-top: 1.5rem;
+}
+
+/* Only apply smooth scrolling in fullscreen mode to prevent conflicts with window dragging */
+.activity-log.maximized-mode .activity-history-content {
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch; /* Better scrolling on WebKit */
+}
+
+/* Activity history entries */
+.activity-history-scrollable {
+  max-height: calc(100% - 1rem); /* Leave space from container edges */
+  overflow-y: auto;
+  padding: 0.5rem; /* Add padding to stay away from rounded corners */
+  margin: -0.5rem; /* Negative margin to maintain layout */
+  -webkit-app-region: no-drag !important;
+}
+
+.activity-history-scrollable,
+.activity-history-scrollable *,
+.activity-day,
+.activity-entry,
+.activity-time,
+.activity-message,
+.activity-day-header {
+  -webkit-app-region: no-drag !important;
+}
+
+.activity-day {
+  margin-bottom: 1.5rem;
+}
+
+.activity-day-header {
+  color: var(--text-color);
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0 0 0.8rem 0;
+  padding-bottom: 0.3rem;
+  border-bottom: 1px solid var(--divider-color);
+  text-align: left;
+}
+
+.activity-entry {
+  display: flex;
+  align-items: flex-start;
+  margin-bottom: 0.6rem;
+  padding: 0.4rem 0;
+}
+
+.activity-time {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  min-width: 45px;
+  margin-right: 0.8rem;
+  font-family: monospace;
+}
+
+.activity-message {
+  flex: 1;
+  font-size: 0.9rem;
+  line-height: 1.4;
+  color: var(--text-color);
+}
+
+/* Status-specific colors */
+.activity-message.status-yes {
+  color: #4caf50 !important;
+}
+
+.activity-message.status-no {
+  color: #f44336 !important;
+}
+
+.activity-message.status-undecided {
+  color: #ff9800 !important;
+}
+
+.activity-message.status-default {
+  color: #999 !important;
+}
+
+/* No data message */
+.no-data-message {
+  color: var(--text-secondary);
+  text-align: center;
+  font-style: italic;
+  margin: 2rem 0;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Custom scrollbars */
+.overview-table-body::-webkit-scrollbar,
+.activity-history-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.overview-table-body::-webkit-scrollbar-track,
+.activity-history-content::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+  border-radius: 4px;
+}
+
+.overview-table-body::-webkit-scrollbar-thumb,
+.activity-history-content::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 4px;
+}
+
+.overview-table-body::-webkit-scrollbar-thumb:hover,
+.activity-history-content::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+}
+
+/* Responsive adjustments for different modes - to be added as needed */

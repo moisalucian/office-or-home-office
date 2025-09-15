@@ -374,6 +374,8 @@ function copyRecursiveSync(src, dest) {
 }
 
 let updateSidebarPosition; // Store reference to the listener function
+let isUpdatingSidebarPosition = false; // Flag to prevent circular updates
+let lastMainBounds = null; // Store last main window bounds to prevent unnecessary updates
 
 function createSidebarWindow() {
   if (sidebarWindowRef && !sidebarWindowRef.isDestroyed()) {
@@ -388,9 +390,9 @@ function createSidebarWindow() {
   const mainBounds = win.getBounds();
   
   sidebarWindowRef = new BrowserWindow({
-    width: 450,
+    width: 650, // Increased from 550 to 650 for full 7-day table viewing
     height: mainBounds.height,
-    x: mainBounds.x - 455, // Adjusted gap to 5px from main window (450 + 5)
+    x: mainBounds.x - 655, // Adjusted gap to 5px from main window (650 + 5)
     y: mainBounds.y,
     frame: false,
     transparent: true,
@@ -398,7 +400,8 @@ function createSidebarWindow() {
     alwaysOnTop: false,
     skipTaskbar: true,
     parent: win, // Make it a child of main window
-    show: false, // Start hidden for instant showing later
+    show: false, // Start hidden, show when ready
+    backgroundColor: '#00000000', // Fully transparent background
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
@@ -406,15 +409,27 @@ function createSidebarWindow() {
     },
   });
 
-  // Load the sidebar content
+  // Load the sidebar content and show when ready
   if (process.env.NODE_ENV === 'development') {
     sidebarWindowRef.loadURL('http://localhost:5173#sidebar');
+    // Show immediately after DOM is ready to reduce perceived loading time
+    sidebarWindowRef.webContents.once('dom-ready', () => {
+      if (sidebarWindowRef && !sidebarWindowRef.isDestroyed()) {
+        sidebarWindowRef.show();
+      }
+    });
   } else {
     // For production builds - React files are in electron/dist (committed)
     const indexPath = path.join(__dirname, 'dist', 'index.html');
     
     if (fs.existsSync(indexPath)) {
       sidebarWindowRef.loadFile(indexPath, { hash: 'sidebar' });
+      // Show when ready in production too
+      sidebarWindowRef.webContents.once('dom-ready', () => {
+        if (sidebarWindowRef && !sidebarWindowRef.isDestroyed()) {
+          sidebarWindowRef.show();
+        }
+      });
     } else {
       console.error('Index.html not found for sidebar at:', indexPath);
     }
@@ -428,19 +443,75 @@ function createSidebarWindow() {
 
   // Track main window position changes
   updateSidebarPosition = () => {
+    if (isUpdatingSidebarPosition) return; // Prevent circular updates
+    
     if (sidebarWindowRef && !sidebarWindowRef.isDestroyed() && win && !win.isDestroyed()) {
       const mainBounds = win.getBounds();
+      
+      // Only update if bounds actually changed significantly AND we're not in a positioning operation
+      if (lastMainBounds && 
+          Math.abs(mainBounds.x - lastMainBounds.x) < 3 &&
+          Math.abs(mainBounds.y - lastMainBounds.y) < 3 &&
+          Math.abs(mainBounds.width - lastMainBounds.width) < 3 &&
+          Math.abs(mainBounds.height - lastMainBounds.height) < 3) {
+        return; // No significant change, skip update
+      }
+      
+      // Prevent any updates during positioning
+      isUpdatingSidebarPosition = true;
+      
+      // Double-check bounds didn't change during the flag set
+      const currentBounds = win.getBounds();
+      if (Math.abs(mainBounds.width - currentBounds.width) > 1 || 
+          Math.abs(mainBounds.height - currentBounds.height) > 1) {
+        isUpdatingSidebarPosition = false;
+        return; // Window size changed during our check, abort
+      }
+      
+      lastMainBounds = { ...mainBounds }; // Store current bounds
+      
       sidebarWindowRef.setBounds({
-        x: mainBounds.x - 455, // Keep 5px gap on the LEFT side (450 + 5)
+        x: mainBounds.x - 655, // Keep 5px gap on the LEFT side (650 + 5)
         y: mainBounds.y,
-        width: 450,
+        width: 650, // Fixed width
         height: mainBounds.height
       });
+      
+      // Reset flag immediately - no delays
+      isUpdatingSidebarPosition = false;
     }
   };
 
   win.on('move', updateSidebarPosition);
   win.on('resize', updateSidebarPosition);
+
+  // Make sidebar window dragging move the main window instead
+  // This allows them to move together as a unit
+  sidebarWindowRef.on('move', () => {
+    if (isUpdatingSidebarPosition) return; // Prevent circular updates from updateSidebarPosition
+    
+    if (sidebarWindowRef && !sidebarWindowRef.isDestroyed() && win && !win.isDestroyed()) {
+      const sidebarBounds = sidebarWindowRef.getBounds();
+      const expectedMainX = sidebarBounds.x + 655; // sidebar width + gap
+      const mainBounds = win.getBounds();
+      
+      // Only move main window if the sidebar was actually dragged by user
+      // (not moved programmatically by updateSidebarPosition)
+      if (Math.abs(mainBounds.x - expectedMainX) > 5) {
+        isUpdatingSidebarPosition = true; // Prevent the move from triggering updateSidebarPosition
+        win.setBounds({
+          x: expectedMainX,
+          y: sidebarBounds.y,
+          width: mainBounds.width,
+          height: mainBounds.height
+        });
+        // Use nextTick instead of setTimeout for more reliable timing
+        process.nextTick(() => {
+          isUpdatingSidebarPosition = false;
+        });
+      }
+    }
+  });
 
   sidebarWindowRef.on('closed', () => {
     // Clean up listeners when sidebar window is closed
@@ -470,7 +541,8 @@ function createWindow(shouldShow = true, shouldMaximize = false) {
     transparent: true, // Restore transparency
     resizable: true,
     autoHideMenuBar: true,
-    roundedCorners: true, // Enable rounded corners on the window itself
+    roundedCorners: true, // Restore rounded corners
+    backgroundColor: '#00000000', // Fully transparent background
     icon: path.join(__dirname, 'icon-white.ico'), // Set window icon (white icon for better visibility)
     webPreferences: {
       contextIsolation: true,
@@ -587,6 +659,15 @@ function createWindow(shouldShow = true, shouldMaximize = false) {
     }
     
     win.setResizable(false);
+    
+    // Ensure window properties are maintained during maximize
+    setTimeout(() => {
+      if (win && !win.isDestroyed()) {
+        // Refresh window properties to maintain transparency
+        win.setBackgroundColor('#00000000'); // Ensure transparent background
+      }
+    }, 100); // Small delay to ensure window transition is complete
+    
     if (win && !win.isDestroyed() && win.webContents) {
       win.webContents.send('window-state-changed', { maximized: true });
     }
@@ -595,6 +676,10 @@ function createWindow(shouldShow = true, shouldMaximize = false) {
   win.on('unmaximize', () => {
     windowState.maximized = false;
     win.setResizable(true);
+    
+    // Don't do any background manipulation to avoid visual artifacts
+    // The transparency should be maintained automatically
+    
     if (win && !win.isDestroyed() && win.webContents) {
       win.webContents.send('window-state-changed', { maximized: false });
     }
@@ -890,6 +975,13 @@ ipcMain.on('resize-window', (_, width, height) => {
   if (win && !win.isMaximized()) {
     win.setSize(width, height);
     // Removed win.center() to preserve user's window position
+  }
+});
+
+ipcMain.on('refresh-window-background', () => {
+  if (win && !win.isDestroyed()) {
+    // Force refresh the window background to transparent
+    win.setBackgroundColor('#00000000');
   }
 });
 
@@ -1498,9 +1590,9 @@ ipcMain.on('toggle-sidebar-window', (_, show) => {
       // Update position before showing
       const mainBounds = win.getBounds();
       sidebarWindowRef.setBounds({
-        x: mainBounds.x - 455,
+        x: mainBounds.x - 655, // Updated to match new width + gap
         y: mainBounds.y,
-        width: 450,
+        width: 650, // Updated to match new width
         height: mainBounds.height
       });
       sidebarWindowRef.show();

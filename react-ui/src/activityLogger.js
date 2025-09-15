@@ -42,16 +42,30 @@ const formatStatusMessage = (user, status, targetDate) => {
 
 // Log a status change to the activity log
 export const logStatusChange = async (user, status, targetDate) => {
-  try {
-    // Ensure user is authenticated before database operations
-    await waitForAuth();
+    console.log(`[ActivityLogger] Called logStatusChange: ${user}, ${status}, ${targetDate}`);
     
-    const today = getCurrentDateKey();
-    const logRef = ref(database, `activityLogs/${today}`);
-    
-    // Get existing entries for today
+    try {
+      // Ensure user is authenticated before database operations
+      await waitForAuth();
+      
+      const today = getCurrentDateKey();
+      const logRef = ref(database, `activityLogs/${today}`);    // Get existing entries for today
     const snapshot = await get(logRef);
     const existingData = snapshot.val() || { entries: [] };
+    
+    // Only prevent if the EXACT SAME status was just recorded (last entry)
+    // This allows different status changes but prevents accidental double-clicks
+    if (existingData.entries.length > 0) {
+      const lastEntry = existingData.entries[existingData.entries.length - 1];
+      const isDuplicateOfLast = lastEntry.user === user && 
+                                lastEntry.status === status && 
+                                lastEntry.targetDate === targetDate;
+      
+      if (isDuplicateOfLast) {
+        console.log(`[ActivityLogger] Duplicate prevented: ${user} -> ${status} (same as last entry)`);
+        return; // Don't log if identical to last entry
+      }
+    }
     
     // Add new entry
     const newEntry = {
@@ -62,6 +76,7 @@ export const logStatusChange = async (user, status, targetDate) => {
       timestamp: new Date().toISOString()
     };
     
+    console.log(`[ActivityLogger] Adding new entry:`, newEntry);
     existingData.entries.push(newEntry);
     existingData.lastUpdated = new Date().toISOString();
     

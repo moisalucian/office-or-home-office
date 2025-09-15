@@ -653,6 +653,16 @@ button.danger:hover {
   border-color: var(--control-button-hover);
 }
 
+.settings-icon:focus {
+  outline: none; /* Remove default outline */
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.5); /* Brief white focus indicator */
+  animation: focusPulse 0.3s ease-out; /* Brief animation */
+}
+
+.settings-icon:active {
+  transform: scale(0.95); /* Brief press feedback */
+}
+
 /* Settings popup */
 .settings-overlay {
   position: fixed;
@@ -1019,8 +1029,21 @@ button.danger:hover {
   transform: translateY(-50%) scale(1.05);
 }
 
+.sidebar-toggle:focus {
+  outline: none; /* Remove default outline */
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.5); /* Brief white focus indicator */
+  animation: focusPulse 0.3s ease-out; /* Brief animation */
+}
+
 .sidebar-toggle:active {
   transform: translateY(-50%) scale(0.95);
+}
+
+/* Brief focus pulse animation */
+@keyframes focusPulse {
+  0% { box-shadow: 0 0 0 0px rgba(255, 255, 255, 0.5); }
+  50% { box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.3); }
+  100% { box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.1); }
 }
 
 /* Arrow positioning based on window state */
@@ -1048,307 +1071,188 @@ button.danger:hover {
   border: none;
 }
 
-/* Sidebar for maximized mode */
-.sidebar-maximized {
-  position: absolute;
-  left: 0;
-  top: 0;
-  width: 0;
-  min-width: 0;
-  max-width: 600px;
-  height: 100%;
-  background-color: var(--container-bg);
-  border-right: 1px solid var(--border-color);
-  z-index: 1000;
-  -webkit-app-region: no-drag;
-  display: flex;
-  overflow: hidden;
-  transition: width 0.3s ease-out, background-color 0.3s;
-}
-
-.sidebar-maximized .sidebar-content {
-  padding: 2rem;
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-}
-
-.sidebar-maximized .sidebar-content h3 {
-  margin-top: 0;
-  margin-bottom: 1.5rem;
-  color: var(--text-color);
-  text-align: center;
-  font-size: 1.2rem;
-  flex-shrink: 0;
-  transition: color 0.3s;
-}
-
-.sidebar-maximized .activity-log-container {
-  background-color: var(--notification-bg);
-  border-radius: 12px;
-  padding: 1.5rem;
-  margin-bottom: 1rem;
-  overflow-y: auto;
-  flex: 1;
-  min-height: 0;
-  transition: background-color 0.3s;
-}
-
-.sidebar-maximized .activity-log-container p {
-  margin: 0.5rem 0;
-  color: var(--notification-text);
-  transition: color 0.3s;
-  line-height: 1.5;
-}
-
-/* Sidebar overlay for normal mode */
-.sidebar-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  z-index: 2000;
-  display: flex;
-  -webkit-app-region: no-drag;
-}
-
-.sidebar-normal {
-  position: relative;
-  min-width: 200px;
-  max-width: 600px;
-  height: 100%;
-  background-color: #1f1f1f;
-  border-right: 1px solid #444;
-  display: flex;
-  box-shadow: 2px 0 10px rgba(0, 0, 0, 0.3);
-  animation: slideInLeft 0.3s ease-out;
-}
-
-.sidebar-backdrop {
-  flex: 1;
-  background-color: rgba(0, 0, 0, 0.3);
-  cursor: pointer;
-}
-
-@keyframes slideInLeft {
-  from {
-    transform: translateX(-100%);
-  }
-  to {
-    transform: translateX(0);
-  }
-}
-
-/* Satellite sidebar window styles */
+/* Additional sidebar window styles for satellite window */
 .sidebar-window {
   width: 100vw;
   height: 100vh;
-  background-color: var(--container-bg);
-  border-radius: 16px; /* Rounded corners on all sides */
-  padding: 2rem;
-  box-shadow: 0 8px 32px var(--shadow-color);
-  color: var(--text-color);
+  background: var(--container-bg);
   display: flex;
   flex-direction: column;
-  box-sizing: border-box;
   overflow: hidden;
-  margin: 0;
-  transition: background-color 0.3s, color 0.3s;
+  /* Prevent window resize issues during drag operations */
+  position: fixed;
+  top: 0;
+  left: 0;
+  contain: layout style;
+  border-radius: 16px; /* Add rounded corners to match main window */
 }
 
 .sidebar-window .sidebar-content {
-  padding: 0;
   flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-height: 0; /* Allow flexbox shrinking */
-}
-
-.sidebar-window .sidebar-content h3 {
-  margin-top: 0;
-  margin-bottom: 1.5rem;
-  color: var(--text-color);
-  text-align: center;
-  font-size: 1.2rem;
-  flex-shrink: 0;
-  transition: color 0.3s;
-}
-
-.sidebar-window .activity-log-container {
-  background-color: var(--status-bg);
-  border-radius: 12px;
-  padding: 1.5rem;
-  margin-bottom: 1rem;
-  overflow-y: auto;
-  flex: 1;
-  min-height: 0; /* Allow content to shrink and enable scrolling */
-  transition: background-color 0.3s;
-}
-
-.sidebar-window .activity-log-container p {
-  margin: 0.5rem 0;
-  color: var(--text-secondary);
-  line-height: 1.5;
-  transition: color 0.3s;
-}
-
-.sidebar-maximized.visible {
-  min-width: 200px;
-}
-
-/* Activity log specific styles */
-.activity-day {
-  margin-bottom: 1.5rem;
-}
-
-.activity-day-header {
-  color: var(--text-color);
-  font-size: 1rem;
-  font-weight: 600;
-  margin: 0 0 0.8rem 0;
-  padding-bottom: 0.3rem;
-  border-bottom: 1px solid var(--divider-color);
-  transition: color 0.3s, border-bottom-color 0.3s;
-}
-
-.activity-entry {
-  display: flex;
-  align-items: flex-start;
-  margin-bottom: 0.6rem;
-  padding: 0.4rem 0;
-}
-
-.activity-time {
-  color: var(--text-secondary);
-  font-size: 0.85rem;
-  min-width: 45px;
-  margin-right: 0.8rem;
-  font-family: monospace;
-  transition: color 0.3s;
-}
-
-.activity-message {
-  flex: 1;
-  font-size: 0.9rem;
-  line-height: 1.4;
-  color: var(--text-color);
-  transition: color 0.3s;
-}
-
-/* Status-specific colors that work in all contexts */
-.activity-message.status-yes {
-  color: #4caf50 !important; /* Green */
-}
-
-.activity-message.status-no {
-  color: #f44336 !important; /* Red */
-}
-
-.activity-message.status-undecided {
-  color: #ff9800 !important; /* Orange */
-}
-
-.activity-message.status-default {
-  color: #999 !important; /* Grey */
-}
-
-.sidebar-content {
-  padding: 2rem 1.5rem;
-  height: 100%;
-  overflow-y: auto;
-  flex: 1;
-}
-
-.sidebar-content h3 {
-  color: var(--text-color);
-  margin: 0 0 1rem 0;
-  font-size: 1.2rem;
-  text-align: center;
-  transition: color 0.3s;
-  text-align: center;
-}
-
-.activity-log-container {
-  background-color: var(--notification-bg);
-  border-radius: 12px;
+  overflow: hidden;
   padding: 1rem;
-  min-height: 200px;
-  color: var(--notification-text);
-  transition: background-color 0.3s, color 0.3s;
+  -webkit-app-region: no-drag !important; /* Disable dragging entirely to prevent window size issues */
 }
 
+/* Resize handle for maximized mode sidebar */
 .sidebar-resize-handle {
-  width: 2px;
-  background: rgba(68, 68, 68, 0.8);
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 6px; /* Increased from 4px to 8px for easier clicking */
+  height: 100%;
+  background: var(--divider-color);
   cursor: col-resize;
-  transition: background-color 0.2s ease;
-  position: relative;
-  flex-shrink: 0;
+  transition: background-color 0.2s;
+  z-index: 1002;
 }
 
 .sidebar-resize-handle:hover {
-  background: rgba(100, 149, 237, 0.8);
+  background: var(--control-button-hover);
 }
 
-.action-buttons {
-  display: flex;
-  justify-content: space-between;
-  margin: 1rem 2rem; /* Added horizontal margin to better use space */
-  gap: 2rem; /* Increased gap */
-}
-
-.action-buttons button {
-  flex: 1;
-  padding: 1rem 0;
-  font-size: 1.05rem;
-  font-weight: bold;
-}
-
-/* Button container areas should be draggable */
-.button-row-container {
-  -webkit-app-region: drag;
-  cursor: default;
-}
-
-/* Ensure buttons inside containers are still non-draggable */
-.button-row-container button {
-  -webkit-app-region: no-drag;
+/* Reset layout button in sidebar - mirrors Settings button */
+.reset-layout-btn-sidebar {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: var(--control-button-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--control-button-text);
+  font-size: 1.2rem; /* Match Settings button font size */
+  padding: 0.4rem; /* Match Settings button padding */
   cursor: pointer;
-}
-
-/* Status message styling */
-.status-message {
-  -webkit-app-region: no-drag;
-  -webkit-user-select: text;
-  -moz-user-select: text;
-  -ms-user-select: text;
-  user-select: text;
-  cursor: text;
-}
-
-/* Name section container should be draggable */
-.name-section-container {
-  -webkit-app-region: drag;
-  cursor: default;
-}
-
-/* Ensure interactive elements in name section are non-draggable */
-.name-section-container button,
-.name-section-container input,
-.name-section-container label {
+  transition: all 0.3s; /* Match Settings button transition */
+  z-index: 1001; /* Match Settings button z-index */
+  display: flex;
+  align-items: center;
+  justify-content: center;
   -webkit-app-region: no-drag;
 }
 
-/* Name input container should also be draggable */
-.name-input-container {
-  -webkit-app-region: drag;
-  cursor: default;
+.reset-layout-btn-sidebar:hover {
+  background: var(--control-button-hover);
+  border-color: var(--control-button-hover);
 }
 
-/* Ensure interactive elements in name input section are non-draggable */
-.name-input-container button,
-.name-input-container input {
-  -webkit-app-region: no-drag;
+.reset-layout-btn-sidebar:focus {
+  outline: none !important; /* Force remove outline */
+  box-shadow: none !important; /* Force remove any box-shadow */
+}
+
+.reset-layout-btn-sidebar:active {
+  transform: scale(0.95); /* Brief press feedback */
+  outline: none !important;
+}
+
+/* Reset layout button in window mode - mirrors Settings button exactly */
+.reset-layout-btn-window {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: var(--control-button-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--control-button-text);
+  font-size: 1.2rem; /* Exact match to Settings button */
+  padding: 0.4rem; /* Exact match to Settings button */
+  cursor: pointer;
+  transition: all 0.3s; /* Exact match to Settings button */
+  z-index: 2000 !important; /* Higher than any draggable elements */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  -webkit-app-region: no-drag !important; /* Force non-draggable */
+  pointer-events: auto !important; /* Force clickable */
+}
+
+.reset-layout-btn-window:hover {
+  background: var(--control-button-hover);
+  border-color: var(--control-button-hover);
+}
+
+.reset-layout-btn-window:focus {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.reset-layout-btn-window:active {
+  transform: scale(0.95);
+  outline: none !important;
+}
+
+/* Selectable text elements */
+.selectable {
+  -webkit-app-region: no-drag !important;
+  -webkit-user-select: text !important;
+  -moz-user-select: text !important;
+  -ms-user-select: text !important;
+  user-select: text !important;
+  cursor: text !important;
+}
+
+/* Scrollable areas that shouldn't drag the window */
+.scroll-no-drag,
+.scroll-no-drag * {
+  -webkit-app-region: no-drag !important;
+  overflow-y: auto;
+}
+
+/* Sidebar styles for maximized mode */
+.sidebar-maximized {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 100vh;
+  background: var(--container-bg);
+  border-right: 1px solid var(--divider-color);
+  transition: width 0.3s ease;
+  overflow: hidden;
+  z-index: 900;
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar-content {
+  flex: 1;
+  overflow: hidden;
+  padding: 1rem;
+  padding-top: 4rem; /* Space for controls at top */
+}
+
+/* Reduce top padding for maximized mode sidebar */
+.sidebar-maximized .sidebar-content {
+  padding-top: 1rem; /* Less padding in fullscreen mode */
+}
+
+.sidebar-resize-handle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 6px;
+  height: 100%;
+  background: var(--divider-color);
+  cursor: col-resize;
+  transition: background-color 0.2s;
+}
+
+.sidebar-resize-handle:hover {
+  background: var(--control-button-hover);
+}
+
+/* Sidebar window styles for satellite window */
+.sidebar-window {
+  width: 100vw;
+  height: 100vh;
+  background: var(--container-bg);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.sidebar-window .sidebar-content {
+  flex: 1;
+  overflow: hidden;
+  padding: 1rem;
 }

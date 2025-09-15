@@ -25,6 +25,7 @@ import { initializeAuth, waitForAuth } from "./auth";
 // Components
 import WindowControls from "./components/WindowControls";
 import StatusGrid from "./components/StatusGrid";
+import ActivityLog from "./components/ActivityLog";
 // import Settings from "./components/Settings";
 
 // Hooks
@@ -110,7 +111,7 @@ function App() {
   }, []);
   const [sidebarWidth, setSidebarWidth] = useState(() => {
     const saved = localStorage.getItem('sidebarWidth');
-    return saved ? parseInt(saved) : 300;
+    return saved ? parseInt(saved) : 600; // Default to 600px for optimal 7-day table viewing
   });
   const [activityLogs, setActivityLogs] = useState([]);
   const [activityLogsCache, setActivityLogsCache] = useState(null);
@@ -179,6 +180,20 @@ function App() {
   const tomorrow = getTomorrowDate();
   const nextWorkDay = getNextWorkingDayName();
   
+  // Reset layout function to reset both horizontal and vertical dividers
+  const resetLayout = useCallback(() => {
+    // Reset sidebar width to default
+    setSidebarWidth(600);
+    localStorage.setItem('sidebarWidth', '600');
+    
+    // Reset ActivityLog horizontal divider to default
+    localStorage.setItem('activityLogSplitPosition', '50');
+    
+    // Force re-render of ActivityLog by updating a dummy state
+    // This ensures the ActivityLog component picks up the reset split position
+    window.dispatchEvent(new CustomEvent('resetActivityLogLayout'));
+  }, []);
+  
   // Load activity logs when needed with caching
   const loadActivityLogs = useCallback(async () => {
     const now = Date.now();
@@ -230,18 +245,43 @@ function App() {
 
   // Update body class based on maximized state
   useEffect(() => {
+    // Reset sidebar state when switching modes to avoid inconsistency
+    setSidebarOpen(false);
+    
     if (isMaximized) {
       document.body.classList.add('maximized');
       document.body.style.borderRadius = '0px';
+      document.body.style.backgroundColor = 'transparent';
+      document.documentElement.style.borderRadius = '0px'; // Also apply to html
+      document.documentElement.style.backgroundColor = 'transparent';
     } else {
       document.body.classList.remove('maximized');
-      document.body.style.borderRadius = '16px';
       
-      // Ensure container also has the correct border radius
-      const container = document.querySelector('.container');
-      if (container) {
-        container.style.borderRadius = '16px';
-      }
+      // Force correct border radius and transparent background after unmaximize
+      const applyWindowStyles = () => {
+        document.body.style.borderRadius = '16px';
+        document.body.style.backgroundColor = 'transparent';
+        document.documentElement.style.borderRadius = '16px'; // Also apply to html
+        document.documentElement.style.backgroundColor = 'transparent';
+        
+        // Ensure container also has the correct styling
+        const container = document.querySelector('.container');
+        if (container) {
+          container.style.borderRadius = '16px';
+          container.style.backgroundColor = 'var(--container-bg)';
+        }
+        
+        // Force electron window to refresh background
+        if (window.electronAPI?.refreshWindowBackground) {
+          window.electronAPI.refreshWindowBackground();
+        }
+      };
+      
+      // Apply immediately and also after delays to ensure it sticks
+      applyWindowStyles();
+      setTimeout(applyWindowStyles, 50);
+      setTimeout(applyWindowStyles, 150);
+      setTimeout(applyWindowStyles, 300); // Extra insurance
     }
   }, [isMaximized]);
 
@@ -324,37 +364,6 @@ function App() {
 
   // Check if this is the sidebar window
   const isSidebarWindow = window.location.hash === '#sidebar';
-  
-  // Shared activity log content component
-  const ActivityLogContent = () => (
-    <>
-      <h3>Activity Log</h3>
-      <div className="activity-log-container">
-        {activityLogs.length === 0 ? (
-          <p style={{ color: '#888', textAlign: 'center', marginTop: '2rem' }}>
-            No activity recorded yet.<br/>
-            Status changes will appear here.
-          </p>
-        ) : (
-          activityLogs.map((dayLog, dayIndex) => (
-            <div key={dayLog.date} className="activity-day">
-              <h4 className="activity-day-header">{dayLog.dayName}</h4>
-              {dayLog.entries.map((entry, entryIndex) => (
-                <div key={entryIndex} className="activity-entry">
-                  <span className="activity-time">{entry.time}</span>
-                  <span 
-                    className={`activity-message ${entry.colorClass}`}
-                  >
-                    {entry.message}
-                  </span>
-                </div>
-              ))}
-            </div>
-          ))
-        )}
-      </div>
-    </>
-  );
   
   // Use ref to always get current name value in popup handler
   const nameRef = useRef(name);
@@ -660,6 +669,13 @@ function App() {
       
       const userRef = ref(database, `statuses/${name}`);
       
+      // Get current status for logging purposes (but don't prevent recording)
+      const currentSnapshot = await get(userRef);
+      const currentData = currentSnapshot.val();
+      
+      console.log(`[App] Setting status for ${name}: ${status} on ${tomorrow}`);
+      console.log(`[App] Previous status:`, currentData);
+      
       await set(userRef, {
         date: tomorrow,
         status,
@@ -692,6 +708,7 @@ function App() {
       setStatusMessageWithTimeout(message, color);
       
       // Log this change to activity log
+      console.log(`Logging status change: ${name} -> ${status} for ${tomorrow}`);
       await logStatusChange(name, status, tomorrow);
       
       // Clear cache and refresh activity logs if sidebar is open
@@ -1118,7 +1135,20 @@ function App() {
     return (
       <div className="sidebar-window">
         <div className="sidebar-content">
-          <ActivityLogContent />
+          {/* Reset layout button for window mode - matches Settings button */}
+          <button 
+            className="reset-layout-btn-window" 
+            onClick={resetLayout}
+            title="Reset layout to default (resets both horizontal and vertical dividers)"
+          >
+            ⟲
+          </button>
+          <ActivityLog 
+            activityLogs={activityLogs} 
+            statuses={statuses}
+            isWindowMode={true}
+            onResetLayout={resetLayout}
+          />
         </div>
       </div>
     );
@@ -1223,22 +1253,43 @@ function App() {
           {sidebarOpen && (
             <>
               <div className="sidebar-content">
-                <ActivityLogContent />
+                {/* Reset layout button at sidebar level to match Settings button */}
+                <button 
+                  className="reset-layout-btn-sidebar" 
+                  onClick={resetLayout}
+                  title="Reset layout to default (resets both horizontal and vertical dividers)"
+                >
+                  ⟲
+                </button>
+                <ActivityLog 
+                  activityLogs={activityLogs} 
+                  statuses={statuses}
+                  isWindowMode={false}
+                  onResetLayout={resetLayout}
+                />
               </div>
               <div 
                 className="sidebar-resize-handle" 
                 onMouseDown={(e) => {
+                  e.preventDefault();
+                  document.body.style.userSelect = 'none';
+                  
                   const startX = e.clientX;
                   const startWidth = sidebarWidth;
 
                   const onMouseMove = (e) => {
                     const newWidth = startWidth + (e.clientX - startX);
-                    const clampedWidth = Math.max(200, Math.min(600, newWidth));
+                    // Updated constraints per user request
+                    // Minimum: 460px, Default: 600px, Maximum: keeps existing logic
+                    const minWidth = 460;
+                    const maxWidth = Math.max(700, window.innerWidth * 0.35);
+                    const clampedWidth = Math.max(minWidth, Math.min(maxWidth, newWidth));
                     setSidebarWidth(clampedWidth);
                     localStorage.setItem('sidebarWidth', clampedWidth);
                   };
 
                   const onMouseUp = () => {
+                    document.body.style.userSelect = '';
                     document.removeEventListener('mousemove', onMouseMove);
                     document.removeEventListener('mouseup', onMouseUp);
                   };
@@ -1562,15 +1613,61 @@ function App() {
               {notifications.map((n, index) => (
                 <div key={index} className="notification-card">
                   <div className="notification-row">
-                    <input
-                      type="time"
-                      value={n.time}
-                      onChange={(e) => {
-                        const newNotifications = [...notifications];
-                        newNotifications[index].time = e.target.value;
-                        setNotifications(newNotifications);
-                      }}
-                    />
+                    <label style={{ fontSize: "0.85rem", minWidth: "60px", color: "#666" }}>
+                      HH:MM
+                    </label>
+                    <div className="time-picker-container" style={{ display: 'flex', gap: '5px', alignItems: 'center' }}>
+                      <select
+                        value={n.time ? n.time.split(':')[0] : ''}
+                        onChange={(e) => {
+                          const newNotifications = [...notifications];
+                          const currentMinutes = n.time ? n.time.split(':')[1] || '00' : '00';
+                          newNotifications[index].time = `${e.target.value.padStart(2, '0')}:${currentMinutes}`;
+                          setNotifications(newNotifications);
+                        }}
+                        style={{ 
+                          fontFamily: 'monospace',
+                          fontSize: '0.9rem',
+                          padding: '4px 8px',
+                          border: '1px solid #ccc',
+                          borderRadius: '4px',
+                          width: '60px'
+                        }}
+                      >
+                        <option value="">HH</option>
+                        {Array.from({ length: 24 }, (_, i) => (
+                          <option key={i} value={i}>
+                            {i.toString().padStart(2, '0')}
+                          </option>
+                        ))}
+                      </select>
+                      <span style={{ color: '#666' }}>:</span>
+                      <select
+                        value={n.time ? n.time.split(':')[1] : ''}
+                        onChange={(e) => {
+                          const newNotifications = [...notifications];
+                          const currentHours = n.time ? n.time.split(':')[0] || '00' : '00';
+                          newNotifications[index].time = `${currentHours}:${e.target.value.padStart(2, '0')}`;
+                          setNotifications(newNotifications);
+                        }}
+                        style={{ 
+                          fontFamily: 'monospace',
+                          fontSize: '0.9rem',
+                          padding: '4px 8px',
+                          border: '1px solid #ccc',
+                          borderRadius: '4px',
+                          width: '60px'
+                        }}
+                      >
+                        <option value="">MM</option>
+                        {Array.from({ length: 60 }, (_, i) => (
+                          <option key={i} value={i}>
+                            {i.toString().padStart(2, '0')}
+                          </option>
+                        ))}
+                      </select>
+                      <span style={{ fontSize: '1.1rem', color: '#666', marginLeft: '5px' }}>🕐</span>
+                    </div>
                     <span style={{ fontSize: "0.85rem", minWidth: "30px" }}>Zile:</span>
                     <div className="checkbox-group">
                       {["L", "Ma", "Mi", "J", "V"].map((day, i) => (

@@ -23,18 +23,20 @@ export const getNextWorkingDay = () => {
   const today = new Date();
   const dayOfWeek = today.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
   
-  let daysToAdd = 1; // Default: tomorrow
+  let daysToAdd = 1; // Default: tomorrow (next working day)
   
-  // If it's Friday (5), add 3 days to get to Monday
-  // If it's Saturday (6), add 2 days to get to Monday  
-  // If it's Sunday (0), add 1 day to get to Monday
+  // If it's Friday (5), next working day is Monday (add 3 days)
+  // If it's Saturday (6), next working day is Monday (add 2 days)  
+  // If it's Sunday (0), next working day is Monday (add 1 day)
+  // For Mon-Thu (1-4), next working day is simply tomorrow (add 1 day)
   if (dayOfWeek === 5) { // Friday
-    daysToAdd = 3;
+    daysToAdd = 3; // Skip Saturday and Sunday
   } else if (dayOfWeek === 6) { // Saturday
-    daysToAdd = 2;
+    daysToAdd = 2; // Skip Sunday
   } else if (dayOfWeek === 0) { // Sunday
-    daysToAdd = 1;
+    daysToAdd = 1; // Tomorrow is Monday
   }
+  // For Monday-Thursday, daysToAdd remains 1 (tomorrow)
   
   return new Date(Date.now() + (daysToAdd * 86400000));
 };
@@ -89,6 +91,7 @@ export const calculateOptimalHeight = (statuses, tomorrowDate) => {
   
   const totalHeight = baseHeight + statusSectionHeight + maxNotificationHeight;
   
-  // Fixed height approach - min 700px, max 800px for consistent behavior
-  return Math.min(Math.max(totalHeight, 700), 800);
+  // Increased maximum height for better activity log viewing - min 750px, max 900px
+  // This provides more vertical space for the activity log when opened
+  return Math.min(Math.max(totalHeight, 750), 900);
 };
