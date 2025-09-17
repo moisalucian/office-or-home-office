@@ -428,6 +428,72 @@ function App() {
     return () => unsubscribe();
   }, [firebaseConfigured]);
 
+  // Auto-refresh at midnight to handle day transitions
+  useEffect(() => {
+    const setupMidnightRefresh = () => {
+      const now = new Date();
+      const tomorrow = new Date(now);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      tomorrow.setHours(0, 0, 5, 0); // 5 seconds after midnight to ensure day has changed
+      
+      const msUntilMidnight = tomorrow.getTime() - now.getTime();
+      
+      console.log(`Setting up midnight refresh in ${Math.round(msUntilMidnight / 1000 / 60)} minutes`);
+      
+      const midnightTimer = setTimeout(async () => {
+        console.log('Midnight refresh triggered - refreshing status data and cleaning up old data');
+        
+        // Clean up old Firebase data (older than 7 days)
+        if (database) {
+          try {
+            const statusesRef = ref(database, "statuses");
+            const snapshot = await get(statusesRef);
+            
+            if (snapshot.exists()) {
+              const allStatuses = snapshot.val();
+              const sevenDaysAgo = new Date();
+              sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+              const cutoffDate = sevenDaysAgo.toISOString().split('T')[0];
+              
+              console.log(`Cleaning up status data older than ${cutoffDate}`);
+              
+              let cleanupCount = 0;
+              for (const [userName, userData] of Object.entries(allStatuses)) {
+                if (userData && userData.date && userData.date < cutoffDate) {
+                  const userRef = ref(database, `statuses/${userName}`);
+                  await remove(userRef);
+                  cleanupCount++;
+                  console.log(`Removed old status for ${userName} from ${userData.date}`);
+                }
+              }
+              
+              console.log(`Firebase cleanup complete: removed ${cleanupCount} old status entries`);
+            }
+          } catch (error) {
+            console.error('Error during Firebase cleanup:', error);
+          }
+          
+          // Force a data refresh after cleanup
+          const statusesRef = ref(database, "statuses");
+          onValue(statusesRef, (snapshot) => {
+            const data = snapshot.val() || {};
+            setStatuses(data);
+          }, { onlyOnce: true });
+        }
+        
+        // Set up the next midnight refresh
+        setupMidnightRefresh();
+      }, msUntilMidnight);
+      
+      return () => clearTimeout(midnightTimer);
+    };
+    
+    // Only set up midnight refresh if Firebase is configured
+    if (firebaseConfigured) {
+      return setupMidnightRefresh();
+    }
+  }, [firebaseConfigured, database]);
+
   useEffect(() => {
     if (name) {
       const loaded = loadNotificationSettings(name);

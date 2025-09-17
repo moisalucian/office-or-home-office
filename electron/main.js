@@ -5,6 +5,17 @@ const { exec } = require('child_process');
 const https = require('https');
 const os = require('os');
 
+// Helper function to safely send IPC messages to window
+function safeWindowSend(window, channel, data) {
+  if (window && !window.isDestroyed() && window.webContents && !window.webContents.isDestroyed()) {
+    try {
+      window.webContents.send(channel, data);
+    } catch (error) {
+      console.error(`Error sending IPC message to ${channel}:`, error);
+    }
+  }
+}
+
 // Update install timeout constant (3 minutes)
 const UPDATE_INSTALL_TIMEOUT = 3 * 60 * 1000; // 3 minutes
 
@@ -96,7 +107,7 @@ async function downloadFile(url, dest, win) {
         if (win && win.webContents) {
           const downloadedMB = (downloaded / 1024 / 1024).toFixed(1);
           const totalMB = total ? (total / 1024 / 1024).toFixed(1) : '?';
-          win.webContents.send('update-download-progress', {
+          safeWindowSend(win, 'update-download-progress', {
             percent: total ? Math.round((downloaded / total) * 100) : 0,
             downloaded: downloadedMB,
             total: totalMB
@@ -195,7 +206,7 @@ async function extractAndInstallUpdate(filePath, winRef, version) {
     if (path.extname(filePath) === '.exe') {
       writeLog('Detected .exe installer file');
       if (winRef && winRef.webContents) {
-        winRef.webContents.send('update-install-progress', { phase: 'installing', percent: 10, message: 'Running installer...' });
+        safeWindowSend(winRef, 'update-install-progress', { phase: 'installing', percent: 10, message: 'Running installer...' });
       }
       writeLog(`Executing installer: "${filePath}" /S`);
       exec(`"${filePath}" /S`, (error) => {
@@ -871,6 +882,11 @@ ipcMain.on('show-notification-popup', () => {
   const settings = getSettings();
   const notificationSound = settings.notificationSound || 'none';
   
+  console.log('[Popup] Settings loaded:', JSON.stringify(settings, null, 2));
+  console.log('[Popup] Settings file path:', settingsPath);
+  console.log('[Popup] Settings file exists:', fs.existsSync(settingsPath));
+  console.log('[Popup] Notification sound setting:', notificationSound);
+  
   if (notificationSound !== 'none') {
     let soundPath;
     
@@ -882,23 +898,36 @@ ipcMain.on('show-notification-popup', () => {
       soundPath = path.join(__dirname, 'sounds', `${notificationSound}.wav`);
     }
     
-    console.log('Sound path:', soundPath);
-    console.log('Sound file exists:', fs.existsSync(soundPath));
+    console.log('[Popup] Sound path:', soundPath);
+    console.log('[Popup] Sound file exists:', fs.existsSync(soundPath));
     
     if (fs.existsSync(soundPath)) {
       const command = `powershell -c "(New-Object Media.SoundPlayer '${soundPath}').PlaySync();"`;
       
-      exec(command, (error) => {
+      console.log('[Popup] Executing sound command:', command);
+      exec(command, (error, stdout, stderr) => {
         if (error) {
-          console.error('Sound playback error:', error);
+          console.error('[Popup] Sound playback error:', error);
+          console.error('[Popup] Sound stderr:', stderr);
           // Fallback to default player
           const altCommand = `start "" "${soundPath}"`;
-          exec(altCommand, () => {});
+          console.log('[Popup] Trying fallback command:', altCommand);
+          exec(altCommand, (altError) => {
+            if (altError) {
+              console.error('[Popup] Fallback sound error:', altError);
+            } else {
+              console.log('[Popup] Fallback sound played successfully');
+            }
+          });
+        } else {
+          console.log('[Popup] Sound played successfully via PowerShell');
         }
       });
     } else {
-      console.error('Sound file not found:', soundPath);
+      console.error('[Popup] Sound file not found:', soundPath);
     }
+  } else {
+    console.log('[Popup] No notification sound configured');
   }
 
   popupWindowRef = new BrowserWindow({
@@ -920,12 +949,14 @@ ipcMain.on('show-notification-popup', () => {
 
 // ✅ Receive response from popup
 ipcMain.on('submit-status', (_, status) => {
-  if (win && !win.isDestroyed() && win.webContents) {
-    win.webContents.send('popup-status', status);
-  }
+  safeWindowSend(win, 'popup-status', status);
 
-  if (popupWindowRef) {
-    popupWindowRef.close();
+  if (popupWindowRef && !popupWindowRef.isDestroyed()) {
+    try {
+      popupWindowRef.close();
+    } catch (error) {
+      console.error('Error closing popup window:', error);
+    }
     popupWindowRef = null;
   }
 });
@@ -1029,7 +1060,13 @@ ipcMain.on('set-theme', (_, theme) => {
 
 // Handle notification sound setting
 ipcMain.on('set-notification-sound', (_, sound) => {
+  console.log('[Settings] Received set-notification-sound:', sound);
   saveSetting('notificationSound', sound);
+  console.log('[Settings] Notification sound setting saved');
+  
+  // Verify it was saved by reading it back
+  const settings = getSettings();
+  console.log('[Settings] Current notificationSound setting:', settings.notificationSound);
 });
 
 // Preview notification sound
@@ -1328,13 +1365,57 @@ async function applyStagedUpdate() {
       writeLog('No staged update file found.');
       return false;
     }
-    const stagedUpdateInfo = JSON.parse(fs.readFileSync(stagedUpdateFile, 'utf8'));
+    
+    let stagedUpdateInfo;
+    try {
+      stagedUpdateInfo = JSON.parse(fs.readFileSync(stagedUpdateFile, 'utf8'));
+    } catch (error) {
+      writeLog('Failed to parse staged update file: ' + error);
+      // Remove corrupted file
+      try {
+        fs.unlinkSync(stagedUpdateFile);
+        writeLog('Removed corrupted staged update file');
+      } catch (e) {
+        writeLog('Failed to remove corrupted staged update file: ' + e);
+      }
+      return false;
+    }
+    
+    // Prevent infinite loops by checking attempt count
+    const maxAttempts = 3;
+    const attemptCount = stagedUpdateInfo.attemptCount || 0;
+    
+    if (attemptCount >= maxAttempts) {
+      writeLog(`Update attempt limit reached (${attemptCount}), cleaning up to prevent infinite loop`);
+      try {
+        fs.unlinkSync(stagedUpdateFile);
+        writeLog('Successfully removed staged update file after max attempts');
+      } catch (e) {
+        writeLog('Failed to remove staged update file after max attempts: ' + e);
+      }
+      return false;
+    }
+    
+    // Increment attempt count and save back
+    stagedUpdateInfo.attemptCount = attemptCount + 1;
+    try {
+      fs.writeFileSync(stagedUpdateFile, JSON.stringify(stagedUpdateInfo, null, 2));
+      writeLog(`Incremented attempt count to ${stagedUpdateInfo.attemptCount}`);
+    } catch (e) {
+      writeLog('Failed to update attempt count: ' + e);
+    }
+    
     const extractPath = stagedUpdateInfo.extractPath;
     writeLog(`Found staged update for version ${stagedUpdateInfo.version}, extractPath: ${extractPath}`);
     
     if (!fs.existsSync(extractPath)) {
       writeLog('Extract path missing, cleaning up staged update file.');
-      fs.unlinkSync(stagedUpdateFile);
+      try {
+        fs.unlinkSync(stagedUpdateFile);
+        writeLog('Successfully removed stale staged update file');
+      } catch (e) {
+        writeLog('Failed to remove stale staged update file: ' + e);
+      }
       return false;
     }
     
