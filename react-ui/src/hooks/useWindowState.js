@@ -6,7 +6,7 @@ export const useWindowState = () => {
   // Set correct defaults: startup=true, tray=false, launch=window
   const [launchAtStartup, setLaunchAtStartup] = useState(true);
   const [launchInTray, setLaunchInTray] = useState(false);
-  const [defaultLaunchOption, setDefaultLaunchOption] = useState('window');
+  const [defaultLaunchOption, setDefaultLaunchOption] = useState('maximized');
 
   useEffect(() => {
     // Load saved settings with correct defaults from Electron
@@ -14,7 +14,7 @@ export const useWindowState = () => {
       if (window.electronAPI?.getSetting) {
         const startupSetting = await window.electronAPI.getSetting("startup", true);
         const traySetting = await window.electronAPI.getSetting("launchInTray", false);
-        const launchSetting = await window.electronAPI.getSetting("defaultLaunchOption", "window");
+        const launchSetting = await window.electronAPI.getSetting("defaultLaunchOption", "maximized");
         
         setLaunchAtStartup(startupSetting);
         setLaunchInTray(traySetting);
@@ -28,7 +28,7 @@ export const useWindowState = () => {
         // Fallback to localStorage if Electron API not available
         setLaunchAtStartup(loadSetting("launchAtStartup", true));
         setLaunchInTray(loadSetting("launchInTray", false));
-        setDefaultLaunchOption(loadSetting("defaultLaunchOption", "window"));
+        setDefaultLaunchOption(loadSetting("defaultLaunchOption", "maximized"));
       }
     };
     

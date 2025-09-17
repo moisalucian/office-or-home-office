@@ -24,6 +24,18 @@ const getWorkingDays = (count = 5) => {
   return days.reverse(); // Most recent last
 };
 
+// Helper function to get last N calendar days (including weekends)
+const getLastNDays = (count = 7) => {
+  const days = [];
+  const today = new Date();
+  for (let i = 0; i < count; i++) {
+    const d = new Date(today);
+    d.setDate(today.getDate() - i);
+    days.push(d.toISOString().split('T')[0]);
+  }
+  return days.reverse(); // Most recent last
+};
+
 // Helper function to format status for display
 const formatStatusMessage = (user, status, targetDate) => {
   const targetDay = new Date(targetDate).toLocaleDateString('en-US', { weekday: 'long' });
@@ -91,17 +103,28 @@ export const logStatusChange = async (user, status, targetDate) => {
   }
 };
 
-// Clean up logs older than 5 working days
+// Helper function to get last N working days (Monday-Friday)
+const getLastWorkingDays = (count = 7) => {
+  const days = [];
+  const today = new Date();
+  let current = new Date(today);
+  while (days.length < count) {
+    if (current.getDay() >= 1 && current.getDay() <= 5) {
+      days.push(current.toISOString().split('T')[0]);
+    }
+    current.setDate(current.getDate() - 1);
+  }
+  return days.reverse(); // Most recent last
+};
+
+// Clean up logs older than last 7 working days
 const cleanupOldLogs = async () => {
   try {
-    const keepDays = getWorkingDays(5);
+    const keepDays = getLastWorkingDays(7);
     const allLogsRef = ref(database, 'activityLogs');
     const snapshot = await get(allLogsRef);
-    
     if (snapshot.val()) {
       const allLogs = snapshot.val();
-      
-      // Delete any logs not in the keep list
       for (const dateKey in allLogs) {
         if (!keepDays.includes(dateKey)) {
           const deleteRef = ref(database, `activityLogs/${dateKey}`);

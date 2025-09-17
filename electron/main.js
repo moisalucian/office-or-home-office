@@ -239,6 +239,21 @@ async function extractAndInstallUpdate(filePath, winRef, version) {
         reject(new Error(`Extraction timed out after ${UPDATE_INSTALL_TIMEOUT / 1000} seconds`));
       }, UPDATE_INSTALL_TIMEOUT);
 
+      // Set up progress-aware timeout
+      let lastProgressTime = Date.now();
+      let extractionAborted = false;
+      let extractionTimeoutChecker = setInterval(() => {
+        if (Date.now() - lastProgressTime > UPDATE_INSTALL_TIMEOUT) {
+          writeLog(`Extraction aborted: no progress for ${UPDATE_INSTALL_TIMEOUT / 1000} seconds`);
+          if (winRef && winRef.webContents) {
+            winRef.webContents.send('update-install-progress', { phase: 'error', percent: 20, message: `Extraction aborted: no progress for ${UPDATE_INSTALL_TIMEOUT / 1000} seconds.` });
+          }
+          extractionAborted = true;
+          clearInterval(extractionTimeoutChecker);
+          reject(new Error(`Extraction aborted: no progress for ${UPDATE_INSTALL_TIMEOUT / 1000} seconds`));
+        }
+      }, 30000); // Check every 30 seconds
+
       (async () => {
         try {
           writeLog('Starting zip extraction');
@@ -256,6 +271,7 @@ async function extractAndInstallUpdate(filePath, winRef, version) {
           let extractedCount = 0;
           
           for (const entry of entries) {
+            if (extractionAborted) break;
             if (!entry.isDirectory) {
               const entryPath = path.join(extractPath, entry.entryName);
               const entryDir = path.dirname(entryPath);
@@ -281,6 +297,7 @@ async function extractAndInstallUpdate(filePath, winRef, version) {
               
               // Update progress every 1000 files to reduce log spam
               if (extractedCount % 1000 === 0) {
+                lastProgressTime = Date.now();
                 const percent = 15 + Math.floor((extractedCount / entries.length) * 25);
                 if (winRef && winRef.webContents) {
                   winRef.webContents.send('update-install-progress', { 
@@ -300,6 +317,7 @@ async function extractAndInstallUpdate(filePath, winRef, version) {
           }
           
           clearTimeout(extractionTimeout);
+          clearInterval(extractionTimeoutChecker);
           writeLog('Extraction completed');
           if (winRef && winRef.webContents) {
             winRef.webContents.send('update-install-progress', { phase: 'installing', percent: 40, message: 'Extraction completed' });
@@ -350,6 +368,7 @@ async function extractAndInstallUpdate(filePath, winRef, version) {
           return;
         } catch (err) {
           clearTimeout(extractionTimeout);
+          clearInterval(extractionTimeoutChecker);
           writeLog('Extraction failed: ' + err.message);
           if (winRef && winRef.webContents) {
             winRef.webContents.send('update-install-progress', { phase: 'error', percent: 20, message: `Extraction failed: ${err.message}` });
@@ -1464,7 +1483,7 @@ async function applyStagedUpdate() {
             if (fs.existsSync(stagedUpdateFile)) fs.unlinkSync(stagedUpdateFile); 
             writeLog('Cleaned up staged update file due to missing updater script');
           } catch (e) { 
-            writeLog('Failed to clean up staged update file: ' + e); 
+            writeLog('Failed to clean up staged update file due to missing updater script: ' + e); 
           }
           return false;
         }
