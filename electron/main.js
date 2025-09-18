@@ -16,8 +16,8 @@ function safeWindowSend(window, channel, data) {
   }
 }
 
-// Update install timeout constant (3 minutes)
-const UPDATE_INSTALL_TIMEOUT = 3 * 60 * 1000; // 3 minutes
+// Update install timeout constant (10 minutes)
+const UPDATE_INSTALL_TIMEOUT = 10 * 60 * 1000; // 10 minutes
 
 // Global download tracking for cancellation
 let currentDownload = null;
@@ -239,21 +239,6 @@ async function extractAndInstallUpdate(filePath, winRef, version) {
         reject(new Error(`Extraction timed out after ${UPDATE_INSTALL_TIMEOUT / 1000} seconds`));
       }, UPDATE_INSTALL_TIMEOUT);
 
-      // Set up progress-aware timeout
-      let lastProgressTime = Date.now();
-      let extractionAborted = false;
-      let extractionTimeoutChecker = setInterval(() => {
-        if (Date.now() - lastProgressTime > UPDATE_INSTALL_TIMEOUT) {
-          writeLog(`Extraction aborted: no progress for ${UPDATE_INSTALL_TIMEOUT / 1000} seconds`);
-          if (winRef && winRef.webContents) {
-            winRef.webContents.send('update-install-progress', { phase: 'error', percent: 20, message: `Extraction aborted: no progress for ${UPDATE_INSTALL_TIMEOUT / 1000} seconds.` });
-          }
-          extractionAborted = true;
-          clearInterval(extractionTimeoutChecker);
-          reject(new Error(`Extraction aborted: no progress for ${UPDATE_INSTALL_TIMEOUT / 1000} seconds`));
-        }
-      }, 30000); // Check every 30 seconds
-
       (async () => {
         try {
           writeLog('Starting zip extraction');
@@ -297,7 +282,6 @@ async function extractAndInstallUpdate(filePath, winRef, version) {
               
               // Update progress every 1000 files to reduce log spam
               if (extractedCount % 1000 === 0) {
-                lastProgressTime = Date.now();
                 const percent = 15 + Math.floor((extractedCount / entries.length) * 25);
                 if (winRef && winRef.webContents) {
                   winRef.webContents.send('update-install-progress', { 
@@ -317,7 +301,6 @@ async function extractAndInstallUpdate(filePath, winRef, version) {
           }
           
           clearTimeout(extractionTimeout);
-          clearInterval(extractionTimeoutChecker);
           writeLog('Extraction completed');
           if (winRef && winRef.webContents) {
             winRef.webContents.send('update-install-progress', { phase: 'installing', percent: 40, message: 'Extraction completed' });
