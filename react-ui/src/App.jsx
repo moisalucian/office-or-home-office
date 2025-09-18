@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { database, initializeFirebase, isFirebaseInitialized, saveFirebaseConfig, getFirebaseConfig } from "./firebase";
 import { ref, set, onValue, remove, get } from "firebase/database";
 import "./styles/theme.css";
@@ -176,7 +176,10 @@ function App() {
     };
   }, [isMaximized]);
 
-  // Calculate dates (moved to avoid duplication)
+  // Simple refresh trigger for midnight updates
+  const [midnightRefreshTrigger, setMidnightRefreshTrigger] = useState(0);
+
+  // Calculate dates (will recalculate on component re-render after midnight)
   const tomorrow = getTomorrowDate();
   const nextWorkDay = getNextWorkingDayName();
   
@@ -480,6 +483,9 @@ function App() {
             setStatuses(data);
           }, { onlyOnce: true });
         }
+        
+        // Trigger component refresh to recalculate dates for new day
+        setMidnightRefreshTrigger(prev => prev + 1);
         
         // Set up the next midnight refresh
         setupMidnightRefresh();
@@ -1670,7 +1676,11 @@ function App() {
         )}
 
         <div style={{ marginBottom: "2rem" }}>
-          <div className="accordion-header" onClick={() => setShowNotifications(!showNotifications)}>
+          <div 
+            className="accordion-header" 
+            onClick={() => setShowNotifications(!showNotifications)}
+            style={{ userSelect: 'none' }}
+          >
             Push-up Notifications {showNotifications ? "▲" : "▼"}
           </div>
 

@@ -1665,12 +1665,14 @@ ipcMain.on('tray-launch-settings', (_, settings) => {
   if (win) {
     win.show();
     
-    // Apply the default launch option based on settings or preserve current state
-    if (defaultLaunchOption === 'maximized' || windowState.maximized) {
+    // Preserve current window state when restoring from tray
+    if (windowState.maximized) {
+      // Window was maximized before going to tray - restore as maximized
       if (!win.isMaximized()) {
         win.maximize();
       }
     } else {
+      // Window was in window mode before going to tray - restore as windowed
       if (win.isMaximized()) {
         win.unmaximize();
       }
