@@ -169,10 +169,8 @@
       console.log('Popup: Submitting status:', status);
       if (window.popupAPI?.submitStatus) {
         window.popupAPI.submitStatus(status);
-        // Give a small delay to ensure IPC message is sent, then close
-        setTimeout(() => {
-          window.close();
-        }, 100);
+        // Close immediately after sending the status
+        window.close();
       } else {
         console.error('Popup: popupAPI not available');
         window.close(); // Close anyway if API is not available
