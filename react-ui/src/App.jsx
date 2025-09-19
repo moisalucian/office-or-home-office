@@ -432,6 +432,11 @@ function App() {
     const unsubscribe = onValue(statusesRef, (snapshot) => {
       const data = snapshot.val() || {};
       setStatuses(data);
+      
+      // Refresh activity logs if sidebar is open to show real-time updates
+      if (sidebarOpen) {
+        loadActivityLogs();
+      }
     });
     
     // Cleanup function to unsubscribe from Firebase listener
@@ -1171,12 +1176,33 @@ function App() {
           setActivityLogs(logs);
           setActivityLogsCache(logs);
           setLastCacheTime(Date.now());
+          
+          // Set up Firebase listener for real-time status updates in sidebar
+          if (database) {
+            const statusesRef = ref(database, "statuses");
+            const unsubscribe = onValue(statusesRef, (snapshot) => {
+              const data = snapshot.val() || {};
+              setStatuses(data);
+              // Refresh activity logs when status data changes
+              loadActivityLogs();
+            });
+            
+            // Store the unsubscribe function for cleanup
+            window.sidebarStatusUnsubscribe = unsubscribe;
+          }
         } catch (error) {
           console.error('Error loading activity logs in sidebar window:', error);
         }
       };
       
       loadData();
+      
+      // Cleanup function
+      return () => {
+        if (window.sidebarStatusUnsubscribe) {
+          window.sidebarStatusUnsubscribe();
+        }
+      };
       
       // Listen for refresh events from main window
       const handleRefresh = async () => {

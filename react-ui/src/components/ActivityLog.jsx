@@ -128,7 +128,9 @@ const ActivityLog = ({
       
       Object.keys(userEntries).forEach(user => {
         const latestEntry = userEntries[user][userEntries[user].length - 1];
-        statusMatrix[user][dayLog.date] = {
+        // Use the targetDate instead of dayLog.date to place the status in the correct column
+        const targetColumn = latestEntry.targetDate || dayLog.date;
+        statusMatrix[user][targetColumn] = {
           status: latestEntry.status,
           time: latestEntry.time,
           targetDate: latestEntry.targetDate
