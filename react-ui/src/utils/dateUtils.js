@@ -65,6 +65,39 @@ export const getNextWorkingDayName = () => {
 };
 
 /**
+ * Get the target date for status submission (matches ActivityLog's "tomorrow" column logic)
+ * This is the date that corresponds to the "tomorrow" column in the activity log table
+ */
+export const getStatusTargetDate = () => {
+  const today = new Date();
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  
+  // Skip weekends for tomorrow (same logic as ActivityLog)
+  while (tomorrow.getDay() === 0 || tomorrow.getDay() === 6) {
+    tomorrow.setDate(tomorrow.getDate() + 1);
+  }
+  
+  return tomorrow.toISOString().split('T')[0];
+};
+
+/**
+ * Get the display name for the status target date
+ */
+export const getStatusTargetDayName = () => {
+  const today = new Date();
+  const targetDate = new Date(today);
+  targetDate.setDate(targetDate.getDate() + 1);
+  
+  // Skip weekends for tomorrow
+  while (targetDate.getDay() === 0 || targetDate.getDay() === 6) {
+    targetDate.setDate(targetDate.getDate() + 1);
+  }
+  
+  return getDayName(targetDate);
+};
+
+/**
  * Calculate optimal window height based on content
  */
 export const calculateOptimalHeight = (statuses, tomorrowDate) => {

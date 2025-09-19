@@ -39,6 +39,8 @@ import {
   getHumanReadableTimestamp, 
   getTomorrowDate, 
   getNextWorkingDayName,
+  getStatusTargetDate,
+  getStatusTargetDayName,
   calculateOptimalHeight 
 } from "./utils/dateUtils";
 import { 
@@ -179,7 +181,11 @@ function App() {
   // Simple refresh trigger for midnight updates
   const [midnightRefreshTrigger, setMidnightRefreshTrigger] = useState(0);
 
-  // Calculate dates (will recalculate on component re-render after midnight)
+  // Calculate dates for status submission (will recalculate on component re-render after midnight)
+  const statusTargetDate = getStatusTargetDate();
+  const statusTargetDayName = getStatusTargetDayName();
+  
+  // Calculate dates for StatusGrid display (legacy, kept for StatusGrid component)
   const tomorrow = getTomorrowDate();
   const nextWorkDay = getNextWorkingDayName();
   
@@ -370,6 +376,7 @@ function App() {
   
   // Use ref to always get current name value in popup handler
   const nameRef = useRef(name);
+  
   useEffect(() => {
     nameRef.current = name;
   }, [name]);
@@ -569,6 +576,10 @@ function App() {
     const handlePopup = async (status) => {
       const currentName = nameRef.current; // Get current name from ref
       
+      // Calculate target date fresh on each popup action to avoid stale data
+      const freshStatusTargetDate = getStatusTargetDate();
+      const freshStatusTargetDayName = getStatusTargetDayName();
+      
       if (!currentName || !currentName.trim()) {
         return; // Ensure name exists and is not empty
       }
@@ -585,18 +596,20 @@ function App() {
         normalizedStatus = status ? 'yes' : 'no';
       }
       
+      console.log(`[Popup] Setting status for ${currentName}: ${normalizedStatus} on ${freshStatusTargetDate}`);
+      
       // Use the current name for saving status
       const userRef = ref(database, `statuses/${currentName}`);
       
       try {
         await set(userRef, {
-          date: tomorrow,
+          date: freshStatusTargetDate,
           status: normalizedStatus,
           updatedAt: getHumanReadableTimestamp()
         });
 
         // Update UI with status message (same as main app)
-        const dayText = nextWorkDay.toLowerCase() === 'monday' ? 'Monday' : 'Tomorrow';
+        const dayText = freshStatusTargetDayName.toLowerCase() === 'monday' ? 'Monday' : 'Tomorrow';
         
         let message = '';
         let color = '';
@@ -622,7 +635,7 @@ function App() {
         setStatusMessageWithTimeout(message, color);
 
         // Log this change to activity log
-        await logStatusChange(currentName, normalizedStatus, tomorrow);
+        await logStatusChange(currentName, normalizedStatus, freshStatusTargetDate);
         
         // Clear cache and refresh activity logs if sidebar is open
         setActivityLogsCache(null);
@@ -739,22 +752,26 @@ function App() {
       // Ensure user is authenticated before database operations
       await waitForAuth();
       
+      // Calculate target date fresh on each button click to avoid stale data
+      const freshStatusTargetDate = getStatusTargetDate();
+      const freshStatusTargetDayName = getStatusTargetDayName();
+      
       const userRef = ref(database, `statuses/${name}`);
       
       // Get current status for logging purposes (but don't prevent recording)
       const currentSnapshot = await get(userRef);
       const currentData = currentSnapshot.val();
       
-      console.log(`[App] Setting status for ${name}: ${status} on ${tomorrow}`);
+      console.log(`[App] Setting status for ${name}: ${status} on ${freshStatusTargetDate}`);
       console.log(`[App] Previous status:`, currentData);
       
       await set(userRef, {
-        date: tomorrow,
+        date: freshStatusTargetDate,
         status,
         updatedAt: getHumanReadableTimestamp()
       });
 
-      const dayText = nextWorkDay.toLowerCase() === 'monday' ? 'Monday' : 'Tomorrow';
+      const dayText = freshStatusTargetDayName.toLowerCase() === 'monday' ? 'Monday' : 'Tomorrow';
       
       let message = '';
       let color = '';
@@ -780,8 +797,8 @@ function App() {
       setStatusMessageWithTimeout(message, color);
       
       // Log this change to activity log
-      console.log(`Logging status change: ${name} -> ${status} for ${tomorrow}`);
-      await logStatusChange(name, status, tomorrow);
+      console.log(`Logging status change: ${name} -> ${status} for ${freshStatusTargetDate}`);
+      await logStatusChange(name, status, freshStatusTargetDate);
       
       // Clear cache and refresh activity logs if sidebar is open
       setActivityLogsCache(null);
