@@ -256,7 +256,6 @@ async function extractAndInstallUpdate(filePath, winRef, version) {
           let extractedCount = 0;
           
           for (const entry of entries) {
-            if (extractionAborted) break;
             if (!entry.isDirectory) {
               const entryPath = path.join(extractPath, entry.entryName);
               const entryDir = path.dirname(entryPath);
@@ -351,7 +350,6 @@ async function extractAndInstallUpdate(filePath, winRef, version) {
           return;
         } catch (err) {
           clearTimeout(extractionTimeout);
-          clearInterval(extractionTimeoutChecker);
           writeLog('Extraction failed: ' + err.message);
           if (winRef && winRef.webContents) {
             winRef.webContents.send('update-install-progress', { phase: 'error', percent: 20, message: `Extraction failed: ${err.message}` });
