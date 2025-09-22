@@ -118,7 +118,10 @@ const ActivityLog = ({
       statusMatrix[user] = {};
     });
     
-    // Fill from activity logs
+    // Get the valid date keys from our 7-day structure
+    const validDateKeys = days.map(d => d.dateKey);
+    
+    // Fill from activity logs first - only for dates within our 7-day window
     activityLogs.forEach(dayLog => {
       const userEntries = {};
       dayLog.entries.forEach(entry => {
@@ -130,29 +133,36 @@ const ActivityLog = ({
         const latestEntry = userEntries[user][userEntries[user].length - 1];
         // Use the targetDate instead of dayLog.date to place the status in the correct column
         const targetColumn = latestEntry.targetDate || dayLog.date;
-        statusMatrix[user][targetColumn] = {
-          status: latestEntry.status,
-          time: latestEntry.time,
-          targetDate: latestEntry.targetDate
-        };
+        
+        // Only add if the target column is within our 7-day window
+        if (validDateKeys.includes(targetColumn)) {
+          statusMatrix[user][targetColumn] = {
+            status: latestEntry.status,
+            time: latestEntry.time,
+            targetDate: latestEntry.targetDate
+          };
+        }
       });
     });
     
-    // Add current live statuses (match by target date, not current date)
+    // Add current live statuses - but only for dates within our 7-day window
     Object.entries(statuses).forEach(([user, userData]) => {
-      // Show live status for the date it targets, regardless of current date
-      statusMatrix[user][userData.date] = {
-        status: userData.status,
-        time: new Date().toTimeString().slice(0, 5),
-        targetDate: userData.date,
-        isLive: true
-      };
+      const targetColumn = userData.date;
+      
+      // Only add live status if the target date is within our 7-day window
+      if (validDateKeys.includes(targetColumn)) {
+        statusMatrix[user][targetColumn] = {
+          status: userData.status,
+          time: new Date().toTimeString().slice(0, 5),
+          targetDate: userData.date,
+          isLive: true
+        };
+      }
     });
     
     // Filter users with actual data in the 7 days
-    const daysKeys = days.map(d => d.dateKey);
     const usersWithData = Array.from(allUsers).filter(user => {
-      return daysKeys.some(dateKey => {
+      return validDateKeys.some(dateKey => {
         const userStatus = statusMatrix[user][dateKey];
         return userStatus && userStatus.status;
       });
